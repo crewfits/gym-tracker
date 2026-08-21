@@ -1,52 +1,43 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CreditCard, Plus, RefreshCw } from "lucide-react";
+import { ArrowRight, CreditCard, Plus, RefreshCw } from "lucide-react";
 import { requireGym } from "@/lib/auth";
-import { formatInr, membershipStatus, paymentStatus } from "@/lib/domain";
+import { formatInr, formatPaymentMethod, membershipStatus, paymentStatus } from "@/lib/domain";
 import { Feedback } from "@/components/feedback";
-import { updateMember, voidPayment } from "@/app/actions/core";
+import { ReversePaymentForm } from "@/components/reverse-payment-form";import { RemoveRenewalButton } from "@/components/remove-renewal-button";
+import { MembershipForm } from "@/components/membership-form";
+import { removeMistakenRenewal, renewMembership, reversePayment, updateMember } from "@/app/actions/core";
+import type { Plan } from "@/lib/types";
 
-type ChargeRow = { id: string; total_paise: number; payments: PaymentRow[] };
-type MembershipRow = {
-  id: string; plan_name: string; starts_on: string; expires_on: string;
-  date_overridden: boolean; charges: ChargeRow | null;
-};
-type PaymentRow = {
-  id: string; charge_id: string; amount_paise: number; method: string;
-  paid_on: string; receipt_number: string; voided_at: string | null; void_reason: string | null; created_at: string;
-};
+type PaymentReversalRow = { id: string; amount_paise: number; reason: string; created_at: string };
+type PaymentRow = { id: string; charge_id: string; amount_paise: number; method: string; paid_on: string; receipt_number: string; voided_at: string | null; void_reason: string | null; created_at: string; payment_reversals: PaymentReversalRow[] };
+type ChargeRow = { id: string; subtotal_paise: number; discount_paise: number; gst_rate_basis_points: number; tax_paise: number; total_paise: number; payments: PaymentRow[] };
+type MembershipRow = { id: string; plan_name: string; starts_on: string; expires_on: string; date_overridden: boolean; charges: ChargeRow | null };
 
 export default async function MemberDetail({ params, searchParams }: PageProps<"/members/[id]">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { supabase, gym } = await requireGym();
-  const { data } = await supabase.from("members").select("*, memberships(*, charges(*, payments(*)))").eq("id", id).eq("gym_id", gym.id).single();
+  const [{ data }, { data: plans }] = await Promise.all([supabase.from("members").select("*, memberships(*, charges(*, payments(*, payment_reversals(*))))").eq("id", id).eq("gym_id", gym.id).single(), supabase.from("plans").select("*").eq("gym_id", gym.id).eq("is_active", true).order("name")]);
   if (!data) notFound();
   const member = data as typeof data & { memberships: MembershipRow[] };
   const memberships = [...(member.memberships ?? [])].sort((a, b) => b.expires_on.localeCompare(a.expires_on));
   const payments = memberships.flatMap((membership) => membership.charges?.payments ?? []).sort((a, b) => b.created_at.localeCompare(a.created_at));
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: gym.timezone }).format(new Date());
-  const enriched = memberships.map((membership) => {
-    const charge = membership.charges;
-    const paid = payments.filter((payment) => payment.charge_id === charge?.id && !payment.voided_at).reduce((sum, payment) => sum + Number(payment.amount_paise), 0);
-    return { ...membership, charge, paid, balance: Number(charge?.total_paise ?? 0) - paid };
-  });
+  const reversedFor = (payment: PaymentRow) => payment.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
+  const netFor = (payment: PaymentRow) => payment.voided_at ? 0 : Number(payment.amount_paise) - reversedFor(payment);
+  const enriched = memberships.map((membership) => { const charge = membership.charges; const paid = payments.filter((payment) => payment.charge_id === charge?.id).reduce((sum, payment) => sum + netFor(payment), 0); return { ...membership, charge, paid, balance: Number(charge?.total_paise ?? 0) - paid, hasPayments: payments.some((payment) => payment.charge_id === charge?.id) }; });
   const latest = enriched[0];
+  const totalOutstanding = enriched.reduce((sum, membership) => sum + membership.balance, 0);
   const success = typeof query.success === "string" ? query.success : undefined;
   const error = typeof query.error === "string" ? query.error : undefined;
 
-  return <>
-    <div className="page-head"><div><p className="eyebrow">{member.member_code}</p><h1>{member.name}</h1><p className="muted">{member.phone}{member.email ? ` · ${member.email}` : ""}</p></div><div style={{ display: "flex", gap: 8 }}>{!latest && <Link className="button" href={`/members/${id}/enroll`}><Plus size={16}/> Enroll</Link>}{latest && <Link className="button" href={`/members/${id}/renew`}><RefreshCw size={16}/> Renew</Link>}</div></div>
-    <Feedback success={success} error={error}/>
-    <div className="grid-2"><section className="stack">
-      <div className="card"><h2>Membership history</h2><div className="timeline" style={{ marginTop: 22 }}>{enriched.map((membership) => {
-        const status = membershipStatus(membership.starts_on, membership.expires_on, today);
-        const paidStatus = paymentStatus(Number(membership.charge?.total_paise ?? 0), membership.paid);
-        return <div className="timeline-item" key={membership.id}><div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><div><strong>{membership.plan_name}</strong> <span className={`badge ${status}`}>{status}</span><p className="muted">{membership.starts_on} — {membership.expires_on}{membership.date_overridden ? " · custom expiry" : ""}</p><small>Charge {formatInr(Number(membership.charge?.total_paise ?? 0))} · <span className={`badge ${paidStatus}`}>{paidStatus}</span></small></div>{membership.charge && membership.balance > 0 && <Link className="button small" href={`/members/${id}/pay?charge=${membership.charge.id}`}><CreditCard size={14}/> Pay {formatInr(membership.balance)}</Link>}</div></div>;
-      })}{!enriched.length && <div className="empty">No membership yet.</div>}</div></div>
-      <div className="card"><h2>Payment history</h2><div className="table-wrap"><table className="table"><thead><tr><th>Receipt</th><th>Date</th><th>Method</th><th>Amount</th><th></th></tr></thead><tbody>{payments.map((payment) => <tr key={payment.id} style={{ opacity: payment.voided_at ? .6 : 1 }}><td><Link href={`/receipts/${payment.id}`}><strong>{payment.receipt_number}</strong></Link>{payment.voided_at && <><br/><small className="muted">Voided: {payment.void_reason}</small></>}</td><td>{payment.paid_on}</td><td>{payment.method.replace("_", " ")}</td><td>{formatInr(Number(payment.amount_paise))}</td><td>{!payment.voided_at && <form action={voidPayment} style={{ display: "flex", gap: 5 }}><input type="hidden" name="payment_id" value={payment.id}/><input type="hidden" name="member_id" value={id}/><input className="search" style={{ padding: 6 }} name="reason" required placeholder="Void reason"/><button className="button danger small">Void</button></form>}</td></tr>)}</tbody></table>{!payments.length && <div className="empty">No payments recorded.</div>}</div></div>
-    </section><aside className="stack">
-      <form action={updateMember} className="card form"><input type="hidden" name="id" value={id}/><h2>Member details</h2><div className="field"><label>Name</label><input name="name" defaultValue={member.name} required/></div><div className="field"><label>Phone</label><input name="phone" defaultValue={member.phone} required/></div><div className="field"><label>Email</label><input type="email" name="email" defaultValue={member.email ?? ""}/></div><div className="field"><label>Notes</label><textarea name="notes" defaultValue={member.notes ?? ""}/></div><label><input type="checkbox" name="is_archived" defaultChecked={member.is_archived}/> Archive member</label><button className="button secondary">Save changes</button></form>
-      {latest && <div className="card"><span className="metric-label">Current outstanding</span><div className="metric">{formatInr(enriched.reduce((sum, membership) => sum + membership.balance, 0))}</div></div>}
-    </aside></div>
+  return <><div className="page-head"><div><p className="profile-kicker">Member profile · {member.member_code}</p><h1>{member.name}</h1><p className="muted">{member.phone}{member.email ? ` · ${member.email}` : ""}</p></div><div style={{ display: "flex", gap: 8 }}>{!latest && <Link className="button" href={`/members/${id}/enroll`}><Plus size={16}/> Start plan</Link>}</div></div><Feedback success={success} error={error}/>{latest && <details className="renewal-disclosure"><summary className="button"><RefreshCw size={16}/> Renew membership</summary><div className="renewal-inline"><div className="section-head"><div><h2>Create renewal</h2><span className="muted">Renew and record payment without leaving this member.</span></div></div><MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} action={renewMembership} renew currentExpiry={latest.expires_on} error={error} returnPath={`/members/${id}`}/></div></details>}
+    <div className="member-layout">
+      <section className="card member-membership"><div className="section-head"><div className="section-head-copy"><h2>Memberships</h2></div>{latest && <span className={`badge ${membershipStatus(latest.starts_on, latest.expires_on, today)}`}>{membershipStatus(latest.starts_on, latest.expires_on, today)}</span>}</div><div className="timeline">{enriched.map((membership, membershipIndex) => { const status = membershipStatus(membership.starts_on, membership.expires_on, today); const paidStatus = paymentStatus(Number(membership.charge?.total_paise ?? 0), membership.paid); const charge = membership.charge; return <div className="timeline-item" key={membership.id}><div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}><div style={{ flex: 1 }}><strong>{membership.plan_name}</strong> <span className={`badge ${status}`}>{status}</span><p className="muted" style={{ margin: "5px 0 0" }}>{membership.starts_on} — {membership.expires_on}{membership.date_overridden ? " · custom expiry" : ""}</p>{charge && <div className="charge-breakdown"><span>Base price<strong>{formatInr(Number(charge.subtotal_paise))}</strong></span><span>Discount<strong>− {formatInr(Number(charge.discount_paise))}</strong></span><span>GST ({Number(charge.gst_rate_basis_points) / 100}%)<strong>{formatInr(Number(charge.tax_paise))}</strong></span><span className="charge-total">Total price<strong>{formatInr(Number(charge.total_paise))}</strong></span><span>Collected<strong>{formatInr(membership.paid)}</strong></span><span>Balance<strong>{formatInr(membership.balance)}</strong></span></div>}<div style={{ marginTop: 10 }}><span className={`badge ${paidStatus}`}>{paidStatus}</span></div></div><div className="membership-actions">{charge && membership.balance > 0 && <Link className="button small collect-button" href={`/members/${id}/pay?charge=${charge.id}`}><CreditCard size={14}/> Collect {formatInr(membership.balance)}</Link>}{membershipIndex < enriched.length - 1 && !membership.hasPayments && <RemoveRenewalButton membershipId={membership.id} memberId={id} action={removeMistakenRenewal}/>}</div></div></div>; })}{!enriched.length && <div className="empty">No training plan has been activated yet.</div>}</div></section>
+
+      <aside className="member-details stack"><form id="member-details" action={updateMember} className="card form"><div><h2>Edit details</h2></div><input type="hidden" name="id" value={id}/><div className="field"><label>Name</label><input name="name" defaultValue={member.name} required/></div><div className="field"><label>Phone</label><input name="phone" defaultValue={member.phone} required/></div><div className="field"><label>Email</label><input type="email" name="email" defaultValue={member.email ?? ""}/></div><div className="field"><label>Coach notes</label><textarea name="notes" rows={4} defaultValue={member.notes ?? ""}/></div><label><input type="checkbox" name="is_archived" defaultChecked={member.is_archived}/> Move member out of active roster</label><button className="button secondary">Save profile</button></form>{latest && <div className="card" style={{ background: totalOutstanding > 0 ? "#fffaf0" : "var(--lime-soft)" }}><span className="metric-label">Balance to recover</span><div className="metric">{formatInr(totalOutstanding)}</div><small className="muted">Across all membership periods</small></div>}</aside>
+
+      <section className="card member-payments"><div className="section-head"><div className="section-head-copy"><h2>Payments</h2><span className="muted">Reversals preserve the original receipt for audit history.</span></div><Link className="text-link" href="/transactions">All transactions <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Receipt</th><th>Date</th><th>Method</th><th>Amount</th><th>Correction</th></tr></thead><tbody>{payments.map((payment) => <tr key={payment.id} style={{ opacity: payment.voided_at ? .62 : 1 }}><td><Link href={`/receipts/${payment.id}`}><strong>{payment.receipt_number}</strong></Link>{payment.voided_at && <><br/><small className="muted">Reversed: {payment.void_reason}</small></>}</td><td>{payment.paid_on}</td><td>{formatPaymentMethod(payment.method)}</td><td><strong>{formatInr(netFor(payment))}</strong>{reversedFor(payment) > 0 && <><br/><small className="muted">{formatInr(reversedFor(payment))} reversed</small></>}</td><td>{!payment.voided_at ? <ReversePaymentForm paymentId={payment.id} memberId={id} remainingPaise={Number(payment.amount_paise) - reversedFor(payment)} action={reversePayment}/> : <span className="badge expired">reversed</span>}</td></tr>)}</tbody></table>{!payments.length && <div className="empty">No collection activity yet.</div>}</div></section>
+    </div>
   </>;
 }

@@ -38,3 +38,7 @@ export function membershipStatus(start: string, expiry: string, today: string, e
 export function formatInr(paise: number): string {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(paise / 100);
 }
+
+export function formatPaymentMethod(method: string): string {
+  return ({ cash: "Cash", upi: "UPI", card: "Card", bank_transfer: "Bank Transfer" } as Record<string, string>)[method] ?? method;
+}

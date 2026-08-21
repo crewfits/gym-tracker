@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { requireGym } from "@/lib/auth";
 import { formatInr, membershipStatus } from "@/lib/domain";
 import { Feedback } from "@/components/feedback";
@@ -35,6 +35,6 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
     <div className="page-head"><div><p className="eyebrow">Directory</p><h1>Members</h1><p className="muted">Search, review and take action on every member.</p></div><Link className="button" href="/members/new"><Plus size={17}/> Add member</Link></div>
     <Feedback success={success} error={error}/>
     <form className="toolbar"><input className="search" name="q" defaultValue={q} placeholder="Search name, phone or member ID"/><select className="search" name="status" defaultValue={statusFilter ?? ""}><option value="">All statuses</option><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="outstanding">Outstanding</option></select><button className="button secondary">Filter</button></form>
-    <div className="card table-wrap"><table className="table"><thead><tr><th>Member</th><th>Contact</th><th>Plan</th><th>Expiry</th><th>Balance</th><th>Status</th></tr></thead><tbody>{rows.map((member) => <tr key={member.id}><td><Link href={`/members/${member.id}`}><strong>{member.name}</strong><br/><small className="muted">{member.member_code}</small></Link></td><td>{member.phone}<br/><small className="muted">{member.email}</small></td><td>{member.latest?.plan_name ?? "—"}</td><td>{member.latest?.expires_on ?? "—"}</td><td>{formatInr(member.balance)}</td><td><span className={`badge ${member.status}`}>{member.latest ? member.status : "not enrolled"}</span></td></tr>)}</tbody></table>{!rows.length && <div className="empty">No members match this view.</div>}</div>
+    <div className="card table-wrap"><table className="table"><thead><tr><th>Member</th><th>Contact</th><th>Plan</th><th>Expiry</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>{rows.map((member) => <tr key={member.id}><td><Link href={`/members/${member.id}`}><strong>{member.name}</strong><br/><small className="muted">{member.member_code}</small></Link></td><td>{member.phone}<br/><small className="muted">{member.email}</small></td><td>{member.latest?.plan_name ?? "—"}</td><td>{member.latest?.expires_on ?? "—"}</td><td>{formatInr(member.balance)}</td><td><span className={`badge ${member.status}`}>{member.latest ? member.status : "not enrolled"}</span></td><td><Link className="button secondary small" href={`/members/${member.id}#member-details`}><Pencil size={14}/> Edit</Link></td></tr>)}</tbody></table>{!rows.length && <div className="empty">No members match this view.</div>}</div>
   </>;
 }
