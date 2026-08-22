@@ -10,9 +10,18 @@ export async function proxy(request: NextRequest) {
     },
   });
   const { data: { user } } = await supabase.auth.getUser();
-  const publicPath = request.nextUrl.pathname === "/login" || request.nextUrl.pathname.startsWith("/api/cron");
-  if (!user && !publicPath) return NextResponse.redirect(new URL("/login", request.url));
-  if (user && request.nextUrl.pathname === "/login") return NextResponse.redirect(new URL("/", request.url));
+  const pathname = request.nextUrl.pathname;
+  const publicPath = pathname === "/login" || pathname === "/api/health" || pathname.startsWith("/pass/");
+  if (!user && !publicPath) {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(login);
+  }
+  if (user && pathname === "/login") {
+    const next = request.nextUrl.searchParams.get("next");
+    const destination = next?.startsWith("/") && !next.startsWith("//") ? next : "/";
+    return NextResponse.redirect(new URL(destination, request.url));
+  }
   return response;
 }
 

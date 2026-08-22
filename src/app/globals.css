@@ -128,6 +128,12 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .form-section { padding: 22px; background: white; border: 1px solid var(--line); border-radius: 15px; }
 .form-section-head { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
 .form-step { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; color: var(--brand-dark); background: var(--lime-soft); border-radius: 10px; font-size: 13px; font-weight: 850; }
+.form-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.form-option { display: flex; gap: 10px; align-items: flex-start; padding: 13px; background: #f8faff; border: 1px solid #dce7f5; border-radius: 11px; cursor: pointer; }
+.form-option input { width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--brand); }
+.form-option span { display: grid; gap: 2px; }
+.form-option strong { font-size: 13px; }
+.form-option small { color: var(--muted); font-size: 12px; }
 .enrollment-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 20px; align-items: start; }
 .enrollment-main { display: grid; gap: 16px; }
 .enrollment-summary { overflow: hidden; padding: 0; border-color: #b9d6c3; }
@@ -175,6 +181,11 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .reverse-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .receipt { max-width: 760px; margin: auto; padding: 42px; background: white; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
 .receipt-head { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid var(--ink); }
+.pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; }
+.pagination > div { display: flex; gap: 8px; }
+.inline-date-form { display: flex; align-items: end; justify-content: space-between; gap: 10px; padding-top: 10px; }
+.inline-date-form label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.inline-date-form input { min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: white; }
 
 @keyframes page-in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -203,7 +214,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 }
 
 @media (max-width: 580px) {
-  .cards, .form-grid { grid-template-columns: 1fr; }
+  .cards, .form-grid, .form-options { grid-template-columns: 1fr; }
   .page-head, .section-head { align-items: flex-start; flex-direction: column; }
   .toolbar { flex-direction: column; }
   .card, .form-section { padding: 17px; border-radius: 13px; }

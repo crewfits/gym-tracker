@@ -1,37 +1,54 @@
 # GymDesk
 
-A responsive, owner-operated gym membership and payment tracker built with Next.js, Supabase, and Resend.
+GymDesk is the minimal owner-operated application for the first contracted gym client: member/package management, manual payment and WhatsApp follow-up, and versioned QR entry/exit attendance.
 
-## Included
+## V1 capabilities
 
-- Owner authentication and gym-level row security
-- Members, plans, enrollment, renewals, and full membership history
-- Partial payments, outstanding balances, immutable receipts, and void-with-reason corrections
-- Optional per-membership GST and integer-paise accounting
-- Dashboard metrics, search, filters, printable receipts, and receipt email
-- Configurable, idempotent expiry reminder emails
+- Provisioned single-owner authentication with gym-level RLS and disabled-access states
+- Paginated member directory for approximately 1,500 current/historical records
+- Plans, membership history, renewals, archive views, and timezone-correct status
+- Full/partial manual payments, due dates, immutable receipts, and audited reversals
+- Due, overdue, and expiring queues with individual prefilled WhatsApp messages
+- Versioned QR generate/share/regenerate/disable without storing QR images or tokens
+- Confirmed entry/exit, daily reset, missed-exit indication, occupancy, history, and CSV export
+- Controlled atomic initial CSV import, operational exports, and backup/runbook tooling
 
 ## Local setup
 
-1. Use Node.js 22 or newer.
-2. Create a Supabase project and run `supabase/migrations/001_initial_schema.sql` in its SQL editor.
-3. Copy `.env.example` to `.env.local` and fill in Supabase, Resend, cron, and application URL values.
-4. In Supabase Authentication, configure the site URL and decide whether new accounts require email confirmation.
-5. Run `npm run dev`, create the owner account, then add membership plans.
-
-The app automatically creates the single gym profile and default 7/3/1-day reminder rules on first authenticated use. `supabase/seed.sql` is an optional starter-plan seed and must be run in an authenticated SQL context or adapted with a gym ID.
-
-## Verification
+1. Use Node.js 22.13 or newer and run `npm install`.
+2. Copy `.env.example` to `.env.local` and configure the linked Supabase project and a stable 32-byte-or-longer `QR_SIGNING_SECRET`.
+3. Apply every ordered migration with a reviewed `supabase db push`.
+4. Disable public email signup in hosted Supabase Authentication; local Supabase already has signup disabled.
+5. Provision the owner account:
 
 ```bash
-npm test
-npx tsc --noEmit
-npm run lint
-npm run build
+GYMDESK_OWNER_PASSWORD='<temporary-strong-password>' npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
 ```
 
-## Deployment
+6. Start with `npm run dev`. For mobile QR testing through ngrok, use `npm run dev:tunnel`.
 
-Deploy to Vercel and set every variable from `.env.example`. `vercel.json` schedules `/api/cron/reminders` daily at 02:30 UTC (08:00 IST). Vercel sends the cron secret as a bearer token when `CRON_SECRET` is configured. Use a verified Resend sender domain in `RESEND_FROM_EMAIL`.
+The QR PNG and signed token are generated on demand. Only a credential version and enabled state are persisted. Changing `QR_SIGNING_SECRET` invalidates all previously shared member QRs.
 
-The service-role key is used only by the secured cron route and must never use the `NEXT_PUBLIC_` prefix. Database RLS restricts interactive records to the authenticated gym owner.
+## Commands
+
+```bash
+npm run check:commit
+npm run check:release
+npm run owner:access -- --email=owner@example.com --active=false
+npm run data:backup -- --gym-id=<uuid> --output=/secure/path/backup.json
+npm run data:import -- --gym-id=<uuid> --file=/absolute/path/members.csv
+```
+
+The import command is a dry run unless `--apply` is explicitly supplied. See [controlled import](docs/INITIAL_IMPORT.md).
+
+## Documentation
+
+- [First-client V1 scope](docs/CLIENT_V1_SCOPE.md)
+- [Product overview](docs/PRODUCT_OVERVIEW.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [QR attendance architecture](docs/qr-attendance-architecture.md)
+- [Development workflow](docs/DEVELOPMENT.md)
+- [Production runbook](docs/PRODUCTION_RUNBOOK.md)
+- [V1 rollout checklist](docs/V1_ROLLOUT_CHECKLIST.md)
+
+Receipt email remains an optional existing convenience when Resend is configured. V1 membership/payment reminders are manual WhatsApp click-to-chat actions; GymDesk does not use a WhatsApp API and never claims message delivery.

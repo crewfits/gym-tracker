@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateCharge, calculateExpiry, calculateRenewalStart, membershipStatus, paymentStatus } from "./domain";
+import { businessDate, calculateCharge, calculateExpiry, calculateRenewalStart, membershipStatus, nextAttendanceDirection, paymentStatus, selectEffectiveMembership } from "./domain";
 
 describe("membership dates", () => {
   it("uses inclusive expiry dates", () => expect(calculateExpiry("2026-01-15", 1, "months")).toBe("2026-02-14"));
@@ -15,4 +15,27 @@ describe("finance", () => {
 
 describe("status", () => {
   it("derives upcoming, active, expiring and expired", () => { expect(membershipStatus("2026-09-01", "2026-09-30", "2026-08-14")).toBe("upcoming"); expect(membershipStatus("2026-01-01", "2026-09-01", "2026-08-14")).toBe("active"); expect(membershipStatus("2026-01-01", "2026-08-20", "2026-08-14")).toBe("expiring"); expect(membershipStatus("2026-01-01", "2026-08-13", "2026-08-14")).toBe("expired"); });
+  it("uses the gym timezone for business dates", () => {
+    const instant = new Date("2026-08-18T20:00:00.000Z");
+    expect(businessDate("Asia/Kolkata", instant)).toBe("2026-08-19");
+    expect(businessDate("America/New_York", instant)).toBe("2026-08-18");
+  });
+  it("keeps a current membership effective when a future renewal exists", () => {
+    const current = { id: "current", starts_on: "2026-08-01", expires_on: "2026-08-31" };
+    const renewal = { id: "renewal", starts_on: "2026-09-01", expires_on: "2026-09-30" };
+    expect(selectEffectiveMembership([renewal, current], "2026-08-20")?.id).toBe("current");
+    expect(selectEffectiveMembership([renewal, current], "2026-09-05")?.id).toBe("renewal");
+  });
+});
+
+describe("attendance direction", () => {
+  it("starts each gym-local day with entry", () => {
+    expect(nextAttendanceDirection(null, null, "2026-08-19")).toBe("entry");
+    expect(nextAttendanceDirection("entry", "2026-08-18", "2026-08-19")).toBe("entry");
+  });
+
+  it("alternates entry and exit within the same day", () => {
+    expect(nextAttendanceDirection("entry", "2026-08-19", "2026-08-19")).toBe("exit");
+    expect(nextAttendanceDirection("exit", "2026-08-19", "2026-08-19")).toBe("entry");
+  });
 });

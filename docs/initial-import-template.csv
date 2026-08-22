@@ -1,0 +1,3 @@
+name,phone,email,notes,is_archived,allow_shared_phone,plan_name,starts_on,expires_on,due_on,charge_total,paid_amount,payment_method,payment_date,payment_reference
+Example Active Member,9876543210,member@example.com,,false,false,Monthly,2026-08-01,2026-08-31,2026-08-01,2000.00,500.00,upi,2026-08-01,opening-record
+Example Archived Member,9876543211,,,true,false,,,,,,,,,

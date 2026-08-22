@@ -3,15 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "dev:tunnel": "node scripts/dev-tunnel.mjs",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && node --test scripts/lib/csv-parser.node-test.mjs",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "check:commit": "npm run check",
+    "check:release": "npm run check && npm run build",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "owner:provision": "node --env-file=.env.local scripts/provision-owner.mjs",
+    "owner:access": "node --env-file=.env.local scripts/set-owner-access.mjs",
+    "data:backup": "node --env-file=.env.local scripts/backup-gym.mjs",
+    "data:import": "node --env-file=.env.local scripts/import-members.mjs",
+    "ops:preflight": "node scripts/check-production-env.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs"
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
@@ -22,6 +34,7 @@
     "date-fns": "^4.4.0",
     "lucide-react": "^1.31.0",
     "next": "16.3.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "resend": "^6.20.0",
@@ -30,6 +43,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^2.1.9",

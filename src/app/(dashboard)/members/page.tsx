@@ -1,40 +1,73 @@
 import Link from "next/link";
-import { Pencil, Plus } from "lucide-react";
+import { ArrowDownToLine, Pencil, Plus, QrCode } from "lucide-react";
 import { requireGym } from "@/lib/auth";
-import { formatInr, membershipStatus } from "@/lib/domain";
+import { businessDate, formatInr } from "@/lib/domain";
 import { Feedback } from "@/components/feedback";
+import { ConfirmActionForm } from "@/components/confirm-action-form";
+import { issueMemberQr } from "@/app/actions/attendance";
 
-type MembershipSummary = {
-  plan_name: string; starts_on: string; expires_on: string;
-  charges: { balance_paise: number } | null;
+const pageSize = 50;
+const allowedStatuses = new Set(["active", "expiring", "expired", "upcoming", "not_enrolled", "outstanding", "archived", "all"]);
+
+type MemberDirectoryRow = {
+  id: string;
+  member_code: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  is_archived: boolean;
+  membership_id: string | null;
+  plan_name: string | null;
+  starts_on: string | null;
+  expires_on: string | null;
+  membership_status: string;
+  balance_paise: number;
+  qr_version: number | null;
+  qr_enabled: boolean;
+  total_count: number;
 };
 
 export default async function Members({ searchParams }: PageProps<"/members">) {
   const params = await searchParams;
   const { supabase, gym } = await requireGym();
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: gym.timezone }).format(new Date());
-  let query = supabase.from("members").select("*, memberships(*, charges:charge_balances(*))").eq("gym_id", gym.id).order("created_at", { ascending: false });
-  if (typeof params.q === "string" && params.q) query = query.or(`name.ilike.%${params.q}%,phone.ilike.%${params.q}%,member_code.ilike.%${params.q}%`);
-  const { data } = await query;
-  const rows = (data ?? []).map((member) => {
-    const memberships = (member.memberships ?? []) as MembershipSummary[];
-    const latest = [...memberships].sort((a, b) => b.expires_on.localeCompare(a.expires_on))[0];
-    const status = latest ? membershipStatus(latest.starts_on, latest.expires_on, today) : "unpaid";
-    const balance = memberships.reduce((sum, membership) => sum + Number(membership.charges?.balance_paise ?? 0), 0);
-    return { ...member, latest, status, balance };
-  }).filter((member) => {
-    if (typeof params.status !== "string" || !params.status) return true;
-    return params.status === "outstanding" ? member.balance > 0 : member.status === params.status;
+  const requestedPage = Number(typeof params.page === "string" ? params.page : "1");
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
+  const requestedStatus = typeof params.status === "string" ? params.status : "";
+  const status = allowedStatuses.has(requestedStatus) ? requestedStatus : "";
+  const { data, error: loadError } = await supabase.rpc("list_members", {
+    p_query: q || null,
+    p_status: status || null,
+    p_today: businessDate(gym.timezone),
+    p_page: page,
+    p_page_size: pageSize,
   });
-  const q = typeof params.q === "string" ? params.q : undefined;
-  const statusFilter = typeof params.status === "string" ? params.status : undefined;
+  if (loadError) throw loadError;
+  const rows = (data ?? []) as MemberDirectoryRow[];
+  const total = Number(rows[0]?.total_count ?? 0);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
   const success = typeof params.success === "string" ? params.success : undefined;
   const error = typeof params.error === "string" ? params.error : undefined;
+  const pageHref = (target: number) => {
+    const query = new URLSearchParams();
+    if (q) query.set("q", q);
+    if (status) query.set("status", status);
+    if (target > 1) query.set("page", String(target));
+    const suffix = query.toString();
+    return `/members${suffix ? `?${suffix}` : ""}`;
+  };
+  const exportQuery = new URLSearchParams();
+  if (q) exportQuery.set("q", q);
+  if (status) exportQuery.set("status", status);
 
   return <>
-    <div className="page-head"><div><p className="eyebrow">Directory</p><h1>Members</h1><p className="muted">Search, review and take action on every member.</p></div><Link className="button" href="/members/new"><Plus size={17}/> Add member</Link></div>
+    <div className="page-head"><div><p className="eyebrow">Directory</p><h1>Members</h1><p className="muted">Search, review and take action across the full member history.</p></div><div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}><a className="button secondary" href={`/api/exports/members?${exportQuery.toString()}`}><ArrowDownToLine size={16}/> Export this view</a><Link className="button" href="/members/new"><Plus size={17}/> Add member</Link></div></div>
     <Feedback success={success} error={error}/>
-    <form className="toolbar"><input className="search" name="q" defaultValue={q} placeholder="Search name, phone or member ID"/><select className="search" name="status" defaultValue={statusFilter ?? ""}><option value="">All statuses</option><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="outstanding">Outstanding</option></select><button className="button secondary">Filter</button></form>
-    <div className="card table-wrap"><table className="table"><thead><tr><th>Member</th><th>Contact</th><th>Plan</th><th>Expiry</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>{rows.map((member) => <tr key={member.id}><td><Link href={`/members/${member.id}`}><strong>{member.name}</strong><br/><small className="muted">{member.member_code}</small></Link></td><td>{member.phone}<br/><small className="muted">{member.email}</small></td><td>{member.latest?.plan_name ?? "—"}</td><td>{member.latest?.expires_on ?? "—"}</td><td>{formatInr(member.balance)}</td><td><span className={`badge ${member.status}`}>{member.latest ? member.status : "not enrolled"}</span></td><td><Link className="button secondary small" href={`/members/${member.id}#member-details`}><Pencil size={14}/> Edit</Link></td></tr>)}</tbody></table>{!rows.length && <div className="empty">No members match this view.</div>}</div>
+    <form className="toolbar"><input className="search" name="q" defaultValue={q} maxLength={100} placeholder="Search name, phone or member ID"/><select className="search" name="status" defaultValue={status}><option value="">Current roster</option><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="upcoming">Upcoming</option><option value="not_enrolled">Not enrolled</option><option value="outstanding">Outstanding</option><option value="archived">Archived members</option><option value="all">All current and archived</option></select><button className="button secondary">Filter</button></form>
+    <div className="card table-wrap"><table className="table"><thead><tr><th>Member</th><th>Contact</th><th>Plan</th><th>Expiry</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>{rows.map((member) => {
+      const displayStatus = member.is_archived ? "archived" : member.membership_status;
+      return <tr key={member.id}><td><Link href={`/members/${member.id}`}><strong>{member.name}</strong><br/><small className="muted">{member.member_code}</small></Link></td><td>{member.phone}<br/><small className="muted">{member.email ?? "—"}</small></td><td>{member.plan_name ?? "—"}</td><td>{member.expires_on ?? "—"}</td><td>{formatInr(Number(member.balance_paise))}</td><td><span className={`badge ${displayStatus}`}>{displayStatus.replaceAll("_", " ")}</span></td><td><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}><Link className="button secondary small" href={`/members/${member.id}#member-details`}><Pencil size={14}/> Edit</Link>{!member.is_archived && <Link className="button secondary small" href={`/members/${member.id}/qr`}><QrCode size={14}/> {member.qr_enabled ? "Share" : "Generate"}</Link>}{!member.is_archived && member.qr_enabled && <ConfirmActionForm action={issueMemberQr} memberId={member.id} message={`Regenerate ${member.name}'s QR? Every old copy will stop working.`}><button className="button danger small">Regenerate</button></ConfirmActionForm>}</div></td></tr>;
+    })}</tbody></table>{!rows.length && <div className="empty">No members match this view.</div>}</div>
+    <div className="pagination"><span className="muted">{total ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}` : "0 members"}</span><div>{page > 1 && <Link className="button secondary small" href={pageHref(page - 1)}>Previous</Link>}{page < pages && <Link className="button secondary small" href={pageHref(page + 1)}>Next</Link>}</div></div>
   </>;
 }

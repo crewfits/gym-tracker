@@ -1,5 +1,5 @@
 import { addDays, addMonths, differenceInCalendarDays, format, parseISO, subDays } from "date-fns";
-import type { DurationUnit, MembershipStatus, PaymentStatus } from "./types";
+import type { AttendanceDirection, DurationUnit, MembershipStatus, PaymentStatus } from "./types";
 
 export function formatDate(date: Date): string { return format(date, "yyyy-MM-dd"); }
 
@@ -35,10 +35,41 @@ export function membershipStatus(start: string, expiry: string, today: string, e
   return differenceInCalendarDays(parseISO(expiry), parseISO(today)) <= expiringWindow ? "expiring" : "active";
 }
 
+export function businessDate(timeZone: string, date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function selectEffectiveMembership<T extends { starts_on: string; expires_on: string; created_at?: string }>(memberships: T[], today: string): T | undefined {
+  const rank = (membership: T) => membership.starts_on <= today && membership.expires_on >= today ? 0 : membership.starts_on > today ? 1 : 2;
+  return [...memberships].sort((left, right) => {
+    const rankDifference = rank(left) - rank(right);
+    if (rankDifference) return rankDifference;
+    if (rank(left) === 1) {
+      const startDifference = left.starts_on.localeCompare(right.starts_on);
+      if (startDifference) return startDifference;
+    }
+    const expiryDifference = right.expires_on.localeCompare(left.expires_on);
+    if (expiryDifference) return expiryDifference;
+    return (right.created_at ?? "").localeCompare(left.created_at ?? "");
+  })[0];
+}
+
 export function formatInr(paise: number): string {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(paise / 100);
 }
 
 export function formatPaymentMethod(method: string): string {
   return ({ cash: "Cash", upi: "UPI", card: "Card", bank_transfer: "Bank Transfer" } as Record<string, string>)[method] ?? method;
+}
+
+export function nextAttendanceDirection(
+  lastDirection: AttendanceDirection | null,
+  lastBusinessDate: string | null,
+  today: string,
+): AttendanceDirection {
+  if (!lastDirection || lastBusinessDate !== today) return "entry";
+  return lastDirection === "entry" ? "exit" : "entry";
 }

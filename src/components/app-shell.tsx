@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Dumbbell, LayoutDashboard, LogOut, ReceiptText, Settings, Tags, Users } from "lucide-react";
+import { Bell, Dumbbell, LayoutDashboard, LogOut, ReceiptText, ScanLine, Settings, Tags, Users } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 
 const links = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/members", label: "Members", icon: Users },
+  { href: "/reminders", label: "Reminders", icon: Bell },
+  { href: "/attendance", label: "Attendance", icon: ScanLine },
   { href: "/transactions", label: "Transactions", icon: ReceiptText },
   { href: "/plans", label: "Plans", icon: Tags },
   { href: "/settings", label: "Settings", icon: Settings },

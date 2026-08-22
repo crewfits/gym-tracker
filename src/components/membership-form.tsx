@@ -3,8 +3,7 @@
 import { useState } from "react";
 import type { Plan } from "@/lib/types";
 
-export function MembershipForm({ memberId, plans, action, renew = false, currentExpiry, error, returnPath }: { memberId: string; plans: Plan[]; action: (data: FormData) => void | Promise<void>; renew?: boolean; currentExpiry?: string; error?: string; returnPath?: string }) {
-  const today = new Date().toISOString().slice(0, 10);
+export function MembershipForm({ memberId, plans, action, today, renew = false, currentExpiry, error, returnPath }: { memberId: string; plans: Plan[]; action: (data: FormData) => void | Promise<void>; today: string; renew?: boolean; currentExpiry?: string; error?: string; returnPath?: string }) {
   const [planId, setPlanId] = useState(plans[0]?.id ?? "");
   const [subtotal, setSubtotal] = useState(plans[0] ? (plans[0].default_fee_paise / 100).toFixed(2) : "0.00");
   const [discount, setDiscount] = useState("0");
@@ -24,6 +23,7 @@ export function MembershipForm({ memberId, plans, action, renew = false, current
     <div className="form-grid">
       <div className="field"><label>Plan *</label><select name="plan_id" value={planId} onChange={(event) => selectPlan(event.target.value)} required>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · ₹{(plan.default_fee_paise / 100).toFixed(2)} · {plan.duration_value} {plan.duration_unit}</option>)}</select></div>
       <div className="field"><label>{renew ? "Renewal/payment date" : "Start date"} *</label><input type="date" name={renew ? "renewal_date" : "starts_on"} defaultValue={today} required/></div>
+      <div className="field"><label>Payment due date *</label><input type="date" name="due_on" defaultValue={today} required/><small>Used when a balance remains outstanding.</small></div>
       <div className="field"><label>Plan price (₹) *</label><input type="number" name="subtotal" min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)} required/><small>Updated automatically when the selected plan changes.</small></div>
       <div className="field"><label>Discount (₹)</label><input type="number" name="discount" min="0" step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)}/></div>
       <div className="field"><label>GST rate (%)</label><input type="number" name="gst_rate" min="0" max="100" step="0.01" value={gstRate} onChange={(event) => setGstRate(event.target.value)}/><small>Set to 0 for a non-GST charge.</small></div>
