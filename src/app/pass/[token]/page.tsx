@@ -3,6 +3,8 @@ import { QrCode } from "@/components/qr-code";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { qrUrls, verifyQrToken } from "@/lib/qr-token";
 
+export const dynamic = "force-dynamic";
+
 export default async function PublicPassPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const payload = verifyQrToken(token);
@@ -21,8 +23,8 @@ export default async function PublicPassPage({ params }: { params: Promise<{ tok
     <section className="card stack" style={{ width: "min(440px, 100%)", textAlign: "center", padding: 30 }}>
       <div><p className="eyebrow">Member pass</p><h1>{gym.name}</h1><p className="muted">Show this QR to an authorized gym operator.</p></div>
       <div style={{ width: "min(360px, 100%)", margin: "auto" }}><QrCode value={scanUrl} label={`Gym pass for ${member.member_code}`}/></div>
-      <div><strong>{member.member_code}</strong><br/><small className="muted">QR version {credential.version}</small></div>
-      <small className="muted">This page does not record attendance. The operator must scan and confirm entry or exit.</small>
+      <div><strong>{member.member_code}</strong></div>
+      <small className="muted">This page does not record attendance. The operator must scan and confirm Check-in or Check-out.</small>
     </section>
   </main>;
 }

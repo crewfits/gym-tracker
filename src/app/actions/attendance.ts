@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireGym } from "@/lib/auth";
+import { attendanceLabel } from "@/lib/domain";
 import { verifyQrToken } from "@/lib/qr-token";
 
 function isRedirect(error: unknown): boolean {
@@ -54,7 +55,7 @@ export async function recordAttendance(formData: FormData) {
     direction: z.enum(["entry", "exit"]),
     request_id: z.uuid(),
   }).parse(Object.fromEntries(formData));
-  const scanPath = `/scan/${input.token}`;
+  const scanPath = `/s/${input.token}`;
 
   try {
     const payload = verifyQrToken(input.token);
@@ -69,7 +70,7 @@ export async function recordAttendance(formData: FormData) {
     });
     if (error) throw error;
     revalidatePath(scanPath);
-    go(scanPath, "success", `${input.direction === "entry" ? "Entry" : "Exit"} recorded`);
+    go(scanPath, "success", `${attendanceLabel(input.direction)} recorded`);
   } catch (error) {
     if (isRedirect(error)) throw error;
     go(scanPath, "error", messageFrom(error));

@@ -11,10 +11,12 @@ The QR image is never persisted. A PNG is regenerated on demand from a signed UR
 The QR URL contains a compact payload with the gym ID, member ID, and credential version. The payload is signed with HMAC-SHA256 using `QR_SIGNING_SECRET`.
 
 ```text
-payload   = base64url({ gymId, memberId, version })
-signature = base64url(HMAC-SHA256(QR_SIGNING_SECRET, payload))
-token     = payload.signature
+payload = 16-byte gym UUID + 16-byte member UUID + 4-byte version
+key     = HMAC-SHA256(QR_SIGNING_SECRET, token domain)
+token   = base64url(AES-256-GCM(key, payload, deterministic synthetic nonce))
 ```
+
+The opaque token is under 100 characters and uses first-party `/p/{token}` (member pass) and `/s/{token}` (operator scan) routes. Authenticated encryption conceals the gym/member identifiers while detecting any modification. The nonce is deterministically derived from the keyed payload, so the same credential version recreates the same URL without a stored lookup row. No third-party URL shortener or short-link database row is required. The verifier also accepts previously issued token shapes so rollout does not break existing copies; rotating an individual member QR invalidates every shape for the older version.
 
 The secret is server-only and must be stable across deployments. A plain hash of the member ID is not acceptable because it is unkeyed and cannot be revoked safely.
 
@@ -44,10 +46,10 @@ The QR is an identifier, not proof that the person holding it is the member. The
    - regenerate it, invalidating older copies;
    - disable it.
 6. The member opens the public pass link to display their QR. The public view contains no phone, email, payments, or membership details.
-7. An owner scans the QR using any QR scanner. It opens `/scan/{token}`.
+7. An owner scans the QR using any QR scanner. It opens `/s/{token}`.
 8. If necessary, GymDesk requests login and returns to the original scan URL.
 9. The server validates the HMAC, gym, member, credential version, enabled state, archive state, and active membership.
-10. The operator explicitly records **Entry** or **Exit** through an authenticated POST action.
+10. The operator explicitly records **Check-in** or **Check-out** through an authenticated POST action. Stored enum values remain `entry` and `exit` for compatibility.
 11. A transactional database function records the event and prevents duplicate submissions.
 
 A GET request never records attendance. This avoids false events caused by link previews, browser refreshes, crawlers, or accidental opens.
@@ -79,9 +81,9 @@ Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUB
 ## Operational rules
 
 - Membership dates, not QR age, decide whether entry is allowed.
-- Attendance direction resets by the gym's configured timezone: the first confirmed scan of each calendar day is entry, then movements alternate exit/entry within that day.
-- A previous-day entry without an exit remains visible as a missed exit but never makes the next day's first scan an exit. GymDesk does not invent an exit time.
-- Operators retain a manual entry/exit override because a missed same-day scan cannot be inferred reliably.
+- Attendance direction resets by the gym's configured timezone: the first confirmed scan of each calendar day is Check-in, then movements alternate Check-out/Check-in within that day.
+- A previous-day Check-in without a Check-out remains visible as a missing Check-out but never makes the next day's first scan a Check-out. GymDesk does not invent a Check-out time.
+- Operators retain a manual Check-in/Check-out override because a missed same-day scan cannot be inferred reliably.
 - Archived members and disabled, replaced, malformed, or cross-gym QRs are denied.
 - Regeneration is a security action and requires explicit confirmation in the UI.
 - Attendance writes use a caller-generated request UUID and a short same-direction duplicate window.

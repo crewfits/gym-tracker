@@ -1,6 +1,6 @@
 # GymDesk V1 architecture
 
-Last reviewed: 2026-08-22
+Last reviewed: 2026-08-23
 
 This document describes only the architecture required for the contracted first-client application. Ideas that are not part of V1 are intentionally kept outside the active documentation set.
 
@@ -46,6 +46,7 @@ Important modules:
 - `src/app/actions/core.ts` handles member, membership, payment and settings mutations.
 - `src/app/actions/attendance.ts` handles QR lifecycle and attendance writes.
 - `src/lib/qr-token.ts` signs and verifies versioned QR tokens.
+- `src/lib/receipt-token.ts` creates signed bearer links for member-readable payment receipts.
 - `supabase/migrations/001_initial_schema.sql` contains the main operational schema and RLS.
 - `supabase/migrations/002_create_member_with_enrollment.sql` makes onboarding transactional.
 - `supabase/migrations/005_qr_attendance.sql` contains QR credential and attendance persistence.
@@ -54,6 +55,9 @@ Important modules:
 - `supabase/migrations/008_attendance_operations.sql` adds timezone-aware attendance operations.
 - `supabase/migrations/009_controlled_member_import.sql` exposes the service-role-only atomic onboarding import.
 - `supabase/migrations/010_transaction_directory.sql` and `011_dashboard_summary.sql` keep financial/history views accurate past API row limits.
+- `supabase/migrations/012_partial_payment_reminder_window.sql` adds the upcoming outstanding-payment queue.
+- `supabase/migrations/013_disable_qr_when_member_archived.sql` enforces QR invalidation when a member is archived.
+- `supabase/migrations/014_reactivate_archived_member.sql` restores an archived profile transactionally while keeping the previous QR invalid.
 
 ## Authentication and data isolation
 
@@ -98,7 +102,7 @@ gyms
 - Old members are archived, never permanently deleted through normal UI.
 - Archived members retain membership, payment, and attendance history.
 - Archived members cannot receive reminders or use QR access.
-- Phone numbers should be normalized and duplicates reported, while intentional shared family numbers remain possible.
+- Phone numbers should be normalized and duplicates reported, while intentional shared family numbers remain possible. A duplicate belonging to an archived profile routes the owner to reactivation so its history is preserved.
 
 ### Packages and memberships
 
@@ -135,20 +139,26 @@ signature = HMAC-SHA256(server-only secret, payload)
 QR        = public scan URL containing payload.signature
 ```
 
-Regeneration increments the credential version and invalidates old copies. Disabling the credential denies all scans until a new version is issued.
+New tokens use an authenticated-encrypted fixed binary payload to keep the first-party `/p/` and `/s/` URLs short without exposing member or gym identifiers. The verifier remains backward-compatible with older signed tokens. Regeneration increments the credential version and invalidates old copies. Archiving or explicitly disabling the credential denies all scans until a new version is issued.
 
 Attendance rules:
 
 - Opening/scanning a URL never records attendance by itself.
 - An authenticated owner reviews the member and explicitly confirms the movement.
 - The write transaction revalidates the gym, member, QR version, archive state, and active membership.
-- First confirmed movement in a business day is entry; the next is exit.
-- A missed prior-day exit does not turn today's first movement into an exit.
+- First confirmed movement in a business day is Check-in; the next is Check-out (`entry`/`exit` in storage).
+- A missed prior-day Check-out does not turn today's first movement into a Check-out.
 - Rapid duplicate submissions are idempotent/suppressed.
 - Manual entry/exit override remains available for missed same-day scans.
 - Attendance events remain an append-only ledger.
 
 With 300 active members, even two scans per member every day would be about 219,000 events annually, which PostgreSQL handles comfortably with the existing indexes and paginated attendance view.
+
+V1 does not automatically delete attendance. The selected three-year client term can remain online at this volume. A future purge is allowed only after the client approves a retention period and an implementation includes export/backup verification, bounded batches, and an audit record; silent or scheduled deletion is not enabled by default.
+
+## Public signed receipt links
+
+The owner receipt route stays authenticated. WhatsApp and receipt email use a separate `/r/{token}` bearer link containing only a payment UUID and a domain-separated HMAC. The server validates the signature before a service-role read and returns only receipt-facing fields—never the member phone/email, internal notes, or transaction reference. Public receipts are marked `noindex`.
 
 ## Initial data import
 
@@ -170,6 +180,7 @@ Initial onboarding uses a one-time controlled CSV import performed by us, not a 
 - Payment and attendance history must be paginated as it grows.
 - Sensitive actions require server-side validation and clear confirmation.
 - Secrets stay server-only and must not use `NEXT_PUBLIC_` names.
+- Supabase sessions are cookie-backed and refreshed in the request proxy. They persist for the same browser and hostname; a new device, private window, or changed tunnel hostname requires authentication.
 - Application and provider logs must not contain secrets or unnecessary personal data.
 - Database migrations are append-only after deployment.
 - CSV export and a tested backup/restore process are launch requirements.

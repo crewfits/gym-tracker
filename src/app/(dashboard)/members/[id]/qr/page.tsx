@@ -6,6 +6,7 @@ import { QrCode, qrPngDataUrl } from "@/components/qr-code";
 import { QrShareActions } from "@/components/qr-share-actions";
 import { disableMemberQr, issueMemberQr } from "@/app/actions/attendance";
 import { requireGym } from "@/lib/auth";
+import { attendanceLabel } from "@/lib/domain";
 import { createQrToken, qrUrls } from "@/lib/qr-token";
 
 type Query = { success?: string; error?: string };
@@ -38,7 +39,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
       <section className="card stack">
         {credential?.enabled && urls && pngDataUrl ? <>
           <div style={{ width: "min(360px, 100%)", margin: "auto" }}><QrCode value={urls.scanUrl} label={`Attendance QR for ${member.member_code}`}/></div>
-          <div style={{ textAlign: "center" }}><strong>{member.name}</strong><br/><span className="muted">{member.member_code} · QR version {credential.version}</span></div>
+          <div style={{ textAlign: "center" }}><strong>{member.name}</strong><br/><span className="muted">{member.member_code}</span></div>
           <QrShareActions memberCode={member.member_code} memberName={member.name} passUrl={urls.passUrl} phone={member.phone} qrPngDataUrl={pngDataUrl} defaultCountryCode={defaultCountryCode}/>
           <hr style={{ border: 0, borderTop: "1px solid var(--line)", width: "100%" }}/>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
@@ -54,7 +55,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
       <aside className="card">
         <h2>Recent attendance</h2>
         <div className="timeline" style={{ marginTop: 22 }}>
-          {(attendance ?? []).map((event) => <div className="timeline-item" key={event.id}><strong style={{ textTransform: "capitalize" }}>{event.direction}</strong><br/><small className="muted">{new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(event.occurred_at))}</small></div>)}
+          {(attendance ?? []).map((event) => <div className="timeline-item" key={event.id}><strong>{attendanceLabel(event.direction)}</strong><br/><small className="muted">{new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(event.occurred_at))}</small></div>)}
           {!attendance?.length && <div className="empty">No attendance recorded yet.</div>}
         </div>
       </aside>

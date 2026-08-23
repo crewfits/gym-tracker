@@ -14,16 +14,16 @@ describe("QR tokens", () => {
   });
 
   it("round-trips a valid signed payload", () => {
-    expect(verifyQrToken(createQrToken(payload, secret), secret)).toEqual(payload);
+    const token = createQrToken(payload, secret);
+    expect(token.length).toBeLessThan(100);
+    expect(Buffer.from(token, "base64url").includes(Buffer.from(payload.memberId.replaceAll("-", ""), "hex"))).toBe(false);
+    expect(verifyQrToken(token, secret)).toEqual(payload);
   });
 
   it("rejects a changed payload or signature", () => {
     const token = createQrToken(payload, secret);
-    const [encoded, signature] = token.split(".");
-    const changedPayload = `${encoded.slice(0, -1)}A.${signature}`;
-    const changedSignature = `${encoded}.${signature.slice(0, -1)}A`;
-    expect(verifyQrToken(changedPayload, secret)).toBeNull();
-    expect(verifyQrToken(changedSignature, secret)).toBeNull();
+    const replacement = token.endsWith("A") ? "B" : "A";
+    expect(verifyQrToken(`${token.slice(0, -1)}${replacement}`, secret)).toBeNull();
   });
 
   it("changes when the credential version changes", () => {

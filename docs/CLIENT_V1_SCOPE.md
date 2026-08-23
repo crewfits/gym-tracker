@@ -1,6 +1,6 @@
 # First-client V1 scope
 
-Last reviewed: 2026-08-22
+Last reviewed: 2026-08-23
 
 This is the delivery and acceptance boundary for the first GymDesk client. Future architecture documents are not part of this committed V1 scope unless separately agreed.
 
@@ -34,6 +34,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Show partial-payment, overdue, and expiring-soon queues.
 - Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.
 - Open an individual prefilled WhatsApp reminder for the owner to review and send.
+- Share a payment receipt through a signed, member-readable WhatsApp link.
 - Record the reminder as opened/prepared, not delivered, because no WhatsApp API is used.
 - Correct payments through a void/reason flow instead of deletion.
 
@@ -41,10 +42,11 @@ Old members are archived, not deleted. Archived members do not receive reminders
 
 - Generate, share, regenerate, and disable a member QR.
 - Admit only non-archived members with an active membership and current QR version.
-- First confirmed scan in the business day records entry; the next records exit.
+- First confirmed scan in the business day records Check-in; the next records Check-out. The database continues to store the stable `entry`/`exit` enum values.
 - Ignore an unfinished prior-day entry when suggesting today's first movement.
 - Prevent rapid accidental duplicates and keep a manual entry/exit override.
 - Show today's movements and searchable attendance history.
+- Keep attendance without automatic deletion in V1. Any later purge requires a client-approved retention period, a verified backup/export, and an audited bounded deletion process.
 
 ## Supporting essentials
 
@@ -92,3 +94,4 @@ A reusable customer-facing import UI is not required for V1.
 7. A missed prior-day exit does not make the next day's first scan an exit.
 8. Old members remain searchable in archived/all views without cluttering daily operations.
 9. Owner can export operational data and the documented backup can be restored.
+10. Reusing an archived member's phone opens that historical profile and offers reactivation instead of creating an accidental duplicate.

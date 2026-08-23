@@ -1,6 +1,6 @@
 # GymDesk development workflow
 
-Last reviewed: 2026-08-22
+Last reviewed: 2026-08-23
 
 ## Repository sources of truth
 
@@ -22,6 +22,8 @@ npm run dev:tunnel
 ```
 
 `dev:tunnel` starts ngrok first, discovers the current HTTPS endpoint, and starts Next.js with that endpoint as `NEXT_PUBLIC_APP_URL` so regenerated QR links use the live tunnel.
+
+Browser sessions are scoped to the website hostname. Restarting on the same stable hostname preserves the Supabase session; using a different ngrok hostname is a different browser origin and requires one new sign-in. Use a stable reserved tunnel domain or the production domain for client demos that must retain sign-in.
 
 ## Commit checks
 

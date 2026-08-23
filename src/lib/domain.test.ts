@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, membershipStatus, nextAttendanceDirection, paymentStatus, selectEffectiveMembership } from "./domain";
+import { attendanceLabel, businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, membershipStatus, nextAttendanceDirection, paymentStatus, selectEffectiveMembership } from "./domain";
 
 describe("membership dates", () => {
   it("uses inclusive expiry dates", () => expect(calculateExpiry("2026-01-15", 1, "months")).toBe("2026-02-14"));
@@ -30,6 +30,11 @@ describe("status", () => {
 });
 
 describe("attendance direction", () => {
+  it("uses owner-friendly labels without changing stored values", () => {
+    expect(attendanceLabel("entry")).toBe("Check-in");
+    expect(attendanceLabel("exit")).toBe("Check-out");
+  });
+
   it("starts each gym-local day with entry", () => {
     expect(nextAttendanceDirection(null, null, "2026-08-19")).toBe("entry");
     expect(nextAttendanceDirection("entry", "2026-08-18", "2026-08-19")).toBe("entry");

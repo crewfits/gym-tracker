@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (page === 50) return Response.json({ error: "Export is limited to 5,000 members" }, { status: 413 });
   }
   const csv = csvDocument(
-    ["Member ID", "Name", "Phone", "Email", "Archived", "Plan", "Starts on", "Expires on", "Membership status", "Outstanding (INR)", "QR enabled"],
+    ["Member ID", "Name", "Phone", "Email", "Archived", "Plan", "Plan start date", "Plan end date", "Membership status", "Outstanding (INR)", "QR enabled"],
     rows.map((row) => [row.member_code, row.name, row.phone, row.email, row.is_archived, row.plan_name, row.starts_on, row.expires_on, row.is_archived ? "archived" : row.membership_status, (Number(row.balance_paise) / 100).toFixed(2), row.qr_enabled]),
   );
   return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="members-${status ?? "current"}-${businessDate(gym.timezone)}.csv"`, "Cache-Control": "private, no-store" } });

@@ -1,6 +1,6 @@
 # GymDesk product overview
 
-Last reviewed: 2026-08-22
+Last reviewed: 2026-08-23
 
 This document defines the intended product boundary. Update it whenever a major user flow, product decision, or scope boundary changes.
 
@@ -26,19 +26,19 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 ### QR access and attendance
 
-1. GymDesk generates a signed, versioned QR URL without storing the QR image or token.
+1. GymDesk generates a compact first-party, signed, versioned QR URL without storing the QR image, token, or short-link row.
 2. The owner shares the pass link or PNG manually, including through WhatsApp.
 3. An authenticated operator scans the member's QR.
 4. GymDesk validates tenant ownership, QR version, member state, and active membership.
-5. The operator explicitly confirms entry or exit; opening the URL never records attendance.
-6. The first confirmed scan of a gym business day is an entry. Later movements alternate, with a manual override for missed scans.
+5. The operator explicitly confirms Check-in or Check-out; opening the URL never records attendance.
+6. The first confirmed scan of a gym business day is a Check-in. Later movements alternate, with a manual override for missed scans.
 
 ### Membership and payment operations
 
 - Create and renew memberships.
 - Record manual payments and outstanding balances.
 - Automatically place unpaid membership balances into the partial-payment reminder window seven days after the membership start or renewal start date.
-- Produce immutable receipt numbers.
+- Produce immutable receipt numbers and signed, member-readable receipt links for individual WhatsApp sharing.
 - Void incorrect payments with a reason instead of deleting them.
 - Open owner-reviewed WhatsApp payment/renewal reminders and record only that the handoff was opened.
 
@@ -46,7 +46,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 - Member, payment, and attendance lists are filtered and paginated in PostgreSQL rather than loading the full gym history into a browser request.
 - The dashboard uses database aggregates, so counts remain accurate beyond the Data API row cap.
-- Attendance shows today, current occupancy, yesterday's open entries, and searchable/exportable history.
+- Attendance shows today, current occupancy, yesterday's missing Check-outs, and searchable/exportable history.
 - Member, payment, and attendance CSV exports are owner-authenticated and reflect the selected operational view.
 - Initial client data uses a validated, pre-backed-up, atomic operator-run import rather than a public import screen.
 

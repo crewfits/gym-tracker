@@ -69,6 +69,10 @@ export function formatPaymentMethod(method: string): string {
   return ({ cash: "Cash", upi: "UPI", card: "Card", bank_transfer: "Bank Transfer" } as Record<string, string>)[method] ?? method;
 }
 
+export function attendanceLabel(direction: AttendanceDirection): "Check-in" | "Check-out" {
+  return direction === "entry" ? "Check-in" : "Check-out";
+}
+
 export function nextAttendanceDirection(
   lastDirection: AttendanceDirection | null,
   lastBusinessDate: string | null,

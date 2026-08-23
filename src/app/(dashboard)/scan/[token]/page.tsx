@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { recordAttendance } from "@/app/actions/attendance";
 import { Feedback } from "@/components/feedback";
 import { requireGym } from "@/lib/auth";
-import { businessDate, nextAttendanceDirection } from "@/lib/domain";
+import { attendanceLabel, businessDate, nextAttendanceDirection } from "@/lib/domain";
 import { verifyQrToken } from "@/lib/qr-token";
 
 type Query = { success?: string; error?: string };
@@ -39,23 +39,17 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
     <Feedback success={query.success} error={query.error}/>
     {!qrValid && <div className="alert error">This QR has been disabled or replaced. Do not admit the member using this copy.</div>}
     {qrValid && !membership && <div className="alert error">This member does not have an active membership for {today}.</div>}
-    <div className="grid-2">
-      <section className="card stack">
-        <div><span className="metric-label">Access status</span><div className="metric" style={{ color: allowed ? "var(--brand)" : "#a63333" }}>{allowed ? "Ready to record" : "Entry denied"}</div></div>
-        {membership && <div><span className="metric-label">Active membership</span><h2 style={{ marginTop: 6 }}>{membership.plan_name}</h2><p className="muted">{membership.starts_on} — {membership.expires_on}</p></div>}
-        {allowed && <><p className="muted">Suggested from today&apos;s last movement: <strong style={{ textTransform: "capitalize" }}>{suggestedDirection}</strong>. A previous-day unfinished entry does not carry into today.</p><div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+    <div className="scan-layout">
+      <section className={`card scan-card ${allowed ? "allowed" : "denied"}`}>
+        <div className="scan-status"><span className="metric-label">Attendance</span><h2>{allowed ? "Access allowed" : "Access denied"}</h2>{membership && <p className="muted">{membership.plan_name} · valid through {membership.expires_on}</p>}</div>
+        {allowed && <div className="scan-actions">
           {directions.map((direction) => <form action={recordAttendance} key={direction}>
             <input type="hidden" name="token" value={token}/><input type="hidden" name="direction" value={direction}/><input type="hidden" name="request_id" value={randomUUID()}/>
-            <button className={`button ${direction === suggestedDirection ? "" : "secondary"}`}>Record {direction}{direction === suggestedDirection ? " · suggested" : ""}</button>
+            <button className={`button ${direction === suggestedDirection ? "" : "secondary"}`}>{attendanceLabel(direction)}</button>
           </form>)}
-        </div></>}
+        </div>}
+        <p className="scan-context muted">{lastEvent ? <>Last attendance: <strong>{attendanceLabel(lastEvent.direction)}</strong> · {new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(lastEvent.occurred_at))}{lastEventDate !== today ? ". Today starts with Check-in." : ""}</> : "No attendance recorded yet."}</p>
       </section>
-      <aside className="card">
-        <span className="metric-label">Last movement</span>
-        {lastEvent ? <><h2 style={{ marginTop: 7, textTransform: "capitalize" }}>{lastEvent.direction}</h2><p className="muted">{new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(lastEvent.occurred_at))}</p></> : <p className="muted">No attendance recorded yet.</p>}
-        <hr style={{ border: 0, borderTop: "1px solid var(--line)", margin: "24px 0" }}/>
-        <p className="muted">Scanning only opens this review screen. Attendance is written after you confirm Entry or Exit.</p>
-      </aside>
     </div>
   </>;
 }

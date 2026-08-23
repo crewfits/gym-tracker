@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireGym } from "@/lib/auth";
 import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
+import { appUrl } from "@/lib/qr-token";
+import { createReceiptToken } from "@/lib/receipt-token";
+import { duplicatePhoneOutcome } from "@/lib/member-rules";
 import { Resend } from "resend";
 
 const text = z.string().trim().min(1);
@@ -24,8 +27,12 @@ export async function createMember(formData: FormData) {
       method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string(), paid_on: z.iso.date(),
     }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
-    const { data: duplicate } = await supabase.from("members").select("member_code,name").eq("gym_id", gym.id).eq("phone", input.phone).limit(1).maybeSingle();
-    if (duplicate && input.confirm_shared !== "on") throw new Error(`${duplicate.name} (${duplicate.member_code}) already uses this phone. Select the shared-phone confirmation to continue.`);
+    const { data: duplicate } = await supabase.from("members").select("id,member_code,name,is_archived").eq("gym_id", gym.id).eq("phone", input.phone).order("is_archived", { ascending: true }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const duplicateOutcome = duplicatePhoneOutcome(duplicate, input.confirm_shared === "on");
+    if (duplicate && duplicateOutcome !== "allow") {
+      if (duplicateOutcome === "reactivate") redirect(`/members/${duplicate.id}?reactivate=1`);
+      throw new Error(`${duplicate.name} (${duplicate.member_code}) already uses this phone. Select the shared-phone confirmation to continue.`);
+    }
     const { data: plan, error: planError } = await supabase.from("plans").select("*").eq("id", input.plan_id).eq("gym_id", gym.id).eq("is_active", true).single();
     if (planError || !plan) throw new Error("Active plan not found");
     const computedExpiry = calculateExpiry(input.starts_on, plan.duration_value, plan.duration_unit);
@@ -63,6 +70,22 @@ export async function updateMember(formData: FormData) {
     const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
     if (error) throw error; done(`/members/${id}`, "Member updated");
   } catch (e) { fail(`/members/${id}`, e); }
+}
+
+export async function reactivateMember(formData: FormData) {
+  const memberId = z.uuid().parse(formData.get("member_id"));
+  try {
+    const { supabase, gym } = await requireGym();
+    const { data: member, error: memberError } = await supabase.from("members").select("id,is_archived").eq("id", memberId).eq("gym_id", gym.id).maybeSingle();
+    if (memberError) throw memberError;
+    if (!member) throw new Error("Member not found");
+    if (!member.is_archived) done(`/members/${memberId}`, "Member is already active");
+    const { error } = await supabase.rpc("reactivate_archived_member", { p_member_id: memberId });
+    if (error) throw error;
+    done(`/members/${memberId}`, "Member reactivated. Issue a new QR when access should resume.");
+  } catch (error) {
+    fail(`/members/${memberId}?reactivate=1`, error);
+  }
 }
 
 export async function createPlan(formData: FormData) {
@@ -208,7 +231,7 @@ export async function emailReceipt(formData: FormData) {
     const member = p.charges.memberships.members;
     if (!member.email) throw new Error("This member has no email address");
     if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
-    const url = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/receipts/${p.id}`;
+    const url = `${appUrl()}/r/${createReceiptToken(p.id)}`;
     const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({ from: process.env.RESEND_FROM_EMAIL ?? "GymDesk <onboarding@resend.dev>", to: member.email, subject: `Receipt ${p.receipt_number} from ${gym.name}`, html: `<p>Hi ${escapeHtml(member.name)},</p><p>We received your payment of ₹${(Number(p.amount_paise) / 100).toFixed(2)}.</p><p><a href="${url}">View receipt ${p.receipt_number}</a></p><p>${escapeHtml(gym.name)}</p>` });
     if (error) throw new Error(error.message); done(`/receipts/${p.id}`, "Receipt emailed");
   } catch (e) { fail(`/receipts/${paymentId}`, e); }
