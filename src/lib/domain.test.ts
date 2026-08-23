@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { businessDate, calculateCharge, calculateExpiry, calculateRenewalStart, membershipStatus, nextAttendanceDirection, paymentStatus, selectEffectiveMembership } from "./domain";
+import { businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, membershipStatus, nextAttendanceDirection, paymentStatus, selectEffectiveMembership } from "./domain";
 
 describe("membership dates", () => {
   it("uses inclusive expiry dates", () => expect(calculateExpiry("2026-01-15", 1, "months")).toBe("2026-02-14"));
   it("handles leap-day month arithmetic", () => expect(calculateExpiry("2024-01-30", 1, "months")).toBe("2024-02-28"));
   it("preserves paid time for early renewals", () => expect(calculateRenewalStart("2026-08-31", "2026-08-14")).toBe("2026-09-01"));
   it("starts late renewals on renewal date", () => expect(calculateRenewalStart("2026-07-31", "2026-08-14")).toBe("2026-08-14"));
+  it("sets payment follow-up seven days after membership start", () => expect(calculatePaymentFollowUpDate("2026-08-23")).toBe("2026-08-30"));
 });
 
 describe("finance", () => {

@@ -20,7 +20,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 ### Member onboarding
 
 1. An owner signs in and creates a member with contact details.
-2. The owner selects a plan, dates, charge, discount/tax, and initial payment.
+2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and initial payment.
 3. The database creates the member, membership, charge, and optional payment transactionally.
 4. QR issuance is optional. It may happen immediately or later from the member list.
 
@@ -37,6 +37,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 - Create and renew memberships.
 - Record manual payments and outstanding balances.
+- Automatically place unpaid membership balances into the partial-payment reminder window seven days after the membership start or renewal start date.
 - Produce immutable receipt numbers.
 - Void incorrect payments with a reason instead of deleting them.
 - Open owner-reviewed WhatsApp payment/renewal reminders and record only that the handoff was opened.

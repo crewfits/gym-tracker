@@ -31,7 +31,8 @@ Old members are archived, not deleted. Archived members do not receive reminders
 
 - Record full or partial manual payments.
 - Show total, paid, outstanding, due date, and payment history.
-- Show due today, overdue, and expiring-soon queues.
+- Show partial-payment, overdue, and expiring-soon queues.
+- Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.
 - Open an individual prefilled WhatsApp reminder for the owner to review and send.
 - Record the reminder as opened/prepared, not delivered, because no WhatsApp API is used.
 - Correct payments through a void/reason flow instead of deletion.

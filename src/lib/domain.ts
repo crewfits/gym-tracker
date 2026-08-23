@@ -15,6 +15,10 @@ export function calculateRenewalStart(currentExpiry: string | null, renewalDate:
   return currentExpiry >= renewalDate ? formatDate(addDays(parseISO(currentExpiry), 1)) : renewalDate;
 }
 
+export function calculatePaymentFollowUpDate(startDate: string): string {
+  return formatDate(addDays(parseISO(startDate), 7));
+}
+
 export function calculateCharge(subtotalPaise: number, discountPaise: number, gstRateBasisPoints: number) {
   for (const value of [subtotalPaise, discountPaise, gstRateBasisPoints]) if (!Number.isInteger(value) || value < 0) throw new Error("Money and tax values must be non-negative integers");
   if (discountPaise > subtotalPaise) throw new Error("Discount cannot exceed subtotal");

@@ -113,7 +113,7 @@ gyms
 - Each membership has a charge with subtotal, discount, tax, total, paid, and outstanding values.
 - Payments are manual records tied to a charge.
 - Incorrect payments are voided with a reason instead of deleted.
-- An explicit charge due date is required for accurate due/overdue reminders.
+- Each charge keeps an internal follow-up date for reminder queries. The owner is not asked to choose this during normal enrollment; new memberships and renewals default it to seven days after the membership start.
 
 ### Reminder activity
 
@@ -123,7 +123,7 @@ V1 reminders are owner-initiated WhatsApp click-to-chat messages.
 - The owner reviews and sends it from their own account.
 - Without a WhatsApp API, the application records `opened` or `prepared`, never `sent` or `delivered`.
 - Archived members are excluded.
-- Renewal reminders use membership expiry; outstanding-payment reminders use the charge due date.
+- Renewal reminders use membership expiry; partial-payment and overdue reminders use the charge follow-up date.
 
 ## QR access and attendance
 

@@ -3,11 +3,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireGym } from "@/lib/auth";
-import { calculateCharge, calculateExpiry, calculateRenewalStart } from "@/lib/domain";
+import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
 import { Resend } from "resend";
 
 const text = z.string().trim().min(1);
 const money = z.coerce.number().min(0).transform(v => Math.round(v * 100));
+const optionalDate = z.union([z.iso.date(), z.literal("")]).optional();
 function done(path: string, message: string): never { revalidatePath("/", "layout"); redirect(`${path}?success=${encodeURIComponent(message)}`); }
 function fail(path: string, error: unknown): never {
   if (typeof error === "object" && error && "digest" in error && String((error as { digest: unknown }).digest).startsWith("NEXT_REDIRECT")) throw error;
@@ -18,7 +19,7 @@ export async function createMember(formData: FormData) {
   try {
     const input = z.object({
       name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), confirm_shared: z.string().optional(), generate_qr: z.string().optional(),
-      plan_id: z.uuid(), starts_on: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: z.iso.date(),
+      plan_id: z.uuid(), starts_on: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate,
       subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100), amount_paid: money,
       method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string(), paid_on: z.iso.date(),
     }).parse(Object.fromEntries(formData));
@@ -29,6 +30,7 @@ export async function createMember(formData: FormData) {
     if (planError || !plan) throw new Error("Active plan not found");
     const computedExpiry = calculateExpiry(input.starts_on, plan.duration_value, plan.duration_unit);
     const expiry = input.expires_on || computedExpiry;
+    const dueOn = input.due_on || calculatePaymentFollowUpDate(input.starts_on);
     const charge = calculateCharge(input.subtotal, input.discount, Math.round(input.gst_rate * 100));
     if (input.amount_paid > charge.totalPaise) throw new Error("Initial payment cannot exceed the total charge");
     const { data, error } = await supabase.rpc("create_member_with_enrollment", {
@@ -36,7 +38,7 @@ export async function createMember(formData: FormData) {
       p_plan_id: input.plan_id, p_starts_on: input.starts_on, p_expires_on: expiry, p_date_overridden: expiry !== computedExpiry,
       p_subtotal_paise: charge.subtotalPaise, p_discount_paise: charge.discountPaise,
       p_gst_rate_basis_points: charge.gstRateBasisPoints, p_tax_paise: charge.taxPaise, p_total_paise: charge.totalPaise,
-      p_due_on: input.due_on,
+      p_due_on: dueOn,
       p_payment_paise: input.amount_paid, p_payment_method: input.method,
       p_payment_reference: input.reference, p_paid_on: input.paid_on,
     });
@@ -92,14 +94,15 @@ export async function updatePlan(formData: FormData) {
 export async function createMembership(formData: FormData) {
   const memberId = String(formData.get("member_id"));
   try {
-    const input = z.object({ member_id: z.uuid(), plan_id: z.uuid(), starts_on: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: z.iso.date(), subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100) }).parse(Object.fromEntries(formData));
+    const input = z.object({ member_id: z.uuid(), plan_id: z.uuid(), starts_on: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate, subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100) }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
     const { data: plan, error: planError } = await supabase.from("plans").select("*").eq("id", input.plan_id).eq("gym_id", gym.id).eq("is_active", true).single();
     if (planError || !plan) throw new Error("Active plan not found");
     const computedExpiry = calculateExpiry(input.starts_on, plan.duration_value, plan.duration_unit);
     const expiry = input.expires_on || computedExpiry;
+    const dueOn = input.due_on || calculatePaymentFollowUpDate(input.starts_on);
     const charge = calculateCharge(input.subtotal, input.discount, Math.round(input.gst_rate * 100));
-    const { error } = await supabase.rpc("create_membership_charge", { p_member_id: input.member_id, p_plan_id: input.plan_id, p_starts_on: input.starts_on, p_expires_on: expiry, p_date_overridden: expiry !== computedExpiry, p_subtotal_paise: charge.subtotalPaise, p_discount_paise: charge.discountPaise, p_gst_rate_basis_points: charge.gstRateBasisPoints, p_tax_paise: charge.taxPaise, p_total_paise: charge.totalPaise, p_due_on: input.due_on });
+    const { error } = await supabase.rpc("create_membership_charge", { p_member_id: input.member_id, p_plan_id: input.plan_id, p_starts_on: input.starts_on, p_expires_on: expiry, p_date_overridden: expiry !== computedExpiry, p_subtotal_paise: charge.subtotalPaise, p_discount_paise: charge.discountPaise, p_gst_rate_basis_points: charge.gstRateBasisPoints, p_tax_paise: charge.taxPaise, p_total_paise: charge.totalPaise, p_due_on: dueOn });
     if (error) throw error; done(`/members/${memberId}`, "Membership created");
   } catch (e) { fail(`/members/${memberId}/enroll`, e); }
 }
@@ -109,7 +112,7 @@ export async function renewMembership(formData: FormData) {
   const returnPath = formData.get("return_path") === `/members/${memberId}` ? `/members/${memberId}` : `/members/${memberId}/renew`;
   try {
     const { supabase, gym } = await requireGym();
-    const input = z.object({ plan_id: z.uuid(), renewal_date: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: z.iso.date(), subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100), amount_paid: money, method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string() }).parse(Object.fromEntries(formData));
+    const input = z.object({ plan_id: z.uuid(), renewal_date: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate, subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100), amount_paid: money, method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string() }).parse(Object.fromEntries(formData));
     const [{ data: latest }, { data: plan, error: planError }] = await Promise.all([
       supabase.from("memberships").select("expires_on").eq("member_id", memberId).eq("gym_id", gym.id).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("plans").select("*").eq("id", input.plan_id).eq("gym_id", gym.id).eq("is_active", true).single(),
@@ -118,9 +121,10 @@ export async function renewMembership(formData: FormData) {
     const startsOn = calculateRenewalStart(latest?.expires_on ?? null, input.renewal_date);
     const computedExpiry = calculateExpiry(startsOn, plan.duration_value, plan.duration_unit);
     const expiry = input.expires_on || computedExpiry;
+    const dueOn = input.due_on || calculatePaymentFollowUpDate(startsOn);
     const charge = calculateCharge(input.subtotal, input.discount, Math.round(input.gst_rate * 100));
     if (input.amount_paid > charge.totalPaise) throw new Error("Payment cannot exceed the renewal total");
-    const { data: membershipId, error: membershipError } = await supabase.rpc("create_membership_charge", { p_member_id: memberId, p_plan_id: input.plan_id, p_starts_on: startsOn, p_expires_on: expiry, p_date_overridden: expiry !== computedExpiry, p_subtotal_paise: charge.subtotalPaise, p_discount_paise: charge.discountPaise, p_gst_rate_basis_points: charge.gstRateBasisPoints, p_tax_paise: charge.taxPaise, p_total_paise: charge.totalPaise, p_due_on: input.due_on });
+    const { data: membershipId, error: membershipError } = await supabase.rpc("create_membership_charge", { p_member_id: memberId, p_plan_id: input.plan_id, p_starts_on: startsOn, p_expires_on: expiry, p_date_overridden: expiry !== computedExpiry, p_subtotal_paise: charge.subtotalPaise, p_discount_paise: charge.discountPaise, p_gst_rate_basis_points: charge.gstRateBasisPoints, p_tax_paise: charge.taxPaise, p_total_paise: charge.totalPaise, p_due_on: dueOn });
     if (membershipError) throw membershipError;
     if (input.amount_paid <= 0) done(`/members/${memberId}`, "Renewal created with payment pending");
     const { data: createdCharge, error: chargeError } = await supabase.from("charges").select("id").eq("membership_id", membershipId).eq("gym_id", gym.id).single();
@@ -175,7 +179,7 @@ export async function updateChargeDueDate(formData: FormData) {
     const { supabase, gym } = await requireGym();
     const { error } = await supabase.from("charges").update({ due_on: input.due_on }).eq("id", input.charge_id).eq("gym_id", gym.id);
     if (error) throw error;
-    done(`/members/${memberId}`, "Payment due date updated");
+    done(`/members/${memberId}`, "Payment follow-up date updated");
   } catch (error) {
     fail(`/members/${memberId}`, error);
   }
