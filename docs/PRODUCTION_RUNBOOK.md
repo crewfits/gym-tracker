@@ -21,7 +21,13 @@ Last reviewed: 2026-08-22
 ## Supabase authentication
 
 - Disable public email signups in the hosted Supabase Authentication settings. Local config already sets `enable_signup = false`, but hosted settings are independent.
-- Set the production site URL and allowed redirect URLs to the exact HTTPS application origin.
+- Set the production site URL to the exact HTTPS application origin.
+- Add the production password-reset callback to Supabase allowed redirect URLs:
+
+```text
+https://gymdesk.gym-tracking-system.workers.dev/auth/callback
+```
+
 - Provision the single confirmed owner with:
 
 ```bash

@@ -17,7 +17,16 @@ export async function proxy(request: NextRequest) {
   });
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
-  const publicPath = pathname === "/login" || pathname === "/api/health" || pathname.startsWith("/pass/") || pathname.startsWith("/p/") || pathname.startsWith("/r/");
+  const hasAuthCode = request.nextUrl.searchParams.has("code");
+  if (pathname === "/" && hasAuthCode) {
+    const callback = new URL("/auth/callback", request.url);
+    callback.searchParams.set("code", request.nextUrl.searchParams.get("code") ?? "");
+    callback.searchParams.set("next", "/update-password");
+    const callbackResponse = NextResponse.redirect(callback);
+    response.cookies.getAll().forEach((cookie) => callbackResponse.cookies.set(cookie));
+    return callbackResponse;
+  }
+  const publicPath = pathname === "/login" || pathname === "/api/health" || pathname.startsWith("/auth/callback") || pathname.startsWith("/pass/") || pathname.startsWith("/p/") || pathname.startsWith("/r/");
   if (!user && !publicPath) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);

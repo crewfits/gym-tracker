@@ -37,35 +37,43 @@ function download(file: File) {
 
 export function QrShareActions({ memberCode, memberName, passUrl, phone, qrPngDataUrl, defaultCountryCode }: Props) {
   const [shareMessage, setShareMessage] = useState<string>();
+  const [fallbackUrl, setFallbackUrl] = useState<string>();
   const number = whatsappNumber(phone, defaultCountryCode);
   const message = `Hi ${memberName}, here is your ${memberCode} GymDesk QR pass. Open it whenever you need to show your gym QR: ${passUrl}`;
   const whatsappUrl = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 
   async function shareQrToWhatsApp() {
-    const file = pngFileFromDataUrl(qrPngDataUrl, `${memberCode}-gym-pass.png`);
+    setFallbackUrl(whatsappUrl);
+    setShareMessage("Preparing the QR pass for WhatsApp...");
 
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      try {
+    try {
+      const file = pngFileFromDataUrl(qrPngDataUrl, `${memberCode}-gym-pass.png`);
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: `${memberCode} gym pass`, text: message });
         setShareMessage("QR image opened in your device share sheet. Choose WhatsApp, review the chat and send it.");
         return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
       }
-    }
 
-    const whatsappWindow = window.open("about:blank", "_blank");
-    try {
-      if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") throw new Error("Image clipboard is unavailable");
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": file })]);
-      if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
-      else window.location.href = whatsappUrl;
-      setShareMessage("QR image copied. In the WhatsApp chat, paste it with Cmd+V or Ctrl+V, then send.");
-    } catch {
-      download(file);
-      if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
-      else window.location.href = whatsappUrl;
-      setShareMessage("QR image downloaded. Attach the downloaded PNG in the opened WhatsApp chat, then send.");
+      const whatsappWindow = window.open("about:blank", "_blank");
+      try {
+        if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") throw new Error("Image clipboard is unavailable");
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": file })]);
+        if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+        else window.location.href = whatsappUrl;
+        setShareMessage("QR image copied. In the WhatsApp chat, paste it with Cmd+V or Ctrl+V, then send.");
+      } catch {
+        download(file);
+        if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+        else window.location.href = whatsappUrl;
+        setShareMessage("QR image downloaded. Attach the downloaded PNG in the opened WhatsApp chat, then send.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setShareMessage(undefined);
+        return;
+      }
+      setShareMessage("Could not open WhatsApp automatically. Use the WhatsApp link below and attach the downloaded QR if needed.");
     }
   }
 
@@ -79,7 +87,7 @@ export function QrShareActions({ memberCode, memberName, passUrl, phone, qrPngDa
       <a className="button secondary" href={whatsappUrl} target="_blank" rel="noreferrer">Send pass link only</a>
       <button className="button secondary" type="button" onClick={downloadPng}>Download QR PNG</button>
     </div>
-    {shareMessage && <small className="muted">{shareMessage}</small>}
+    {shareMessage && <small className="muted">{shareMessage}{fallbackUrl && <> <a className="text-link" href={fallbackUrl} target="_blank" rel="noreferrer">Open WhatsApp</a></>}</small>}
     <small className="muted">On mobile, choose WhatsApp from the share sheet. On desktop, the QR is copied before the member chat opens; paste it into the chat and send.</small>
   </div>;
 }

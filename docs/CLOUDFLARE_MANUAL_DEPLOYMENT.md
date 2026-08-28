@@ -129,6 +129,8 @@ This command:
 3. Smoke-test the core owner flow:
 
    - sign in;
+   - open "Forgot or change password?" from the login page and confirm Supabase sends the reset email;
+   - open the reset email link and update the password in `/update-password`;
    - open dashboard;
    - open member list;
    - create or view one test member;
