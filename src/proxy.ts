@@ -38,8 +38,8 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user && !publicPath) {
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims && !publicPath) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     const loginResponse = NextResponse.redirect(login);
