@@ -11,6 +11,9 @@ alter table public.members
   add column if not exists whatsapp_reminders_enabled boolean not null default false;
 
 alter table public.reminder_deliveries
+  add column if not exists channel text not null default 'email';
+
+alter table public.reminder_deliveries
   drop constraint if exists reminder_deliveries_channel_check;
 
 alter table public.reminder_deliveries
