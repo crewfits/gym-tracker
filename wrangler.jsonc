@@ -8,6 +8,9 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://gymdesk.gym-tracking-system.workers.dev"
+  },
   "observability": {
     "enabled": true
   }
