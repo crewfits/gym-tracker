@@ -72,7 +72,7 @@ V1 uses the provisioned owner authentication and RLS boundary. Every Server Acti
 
 No WhatsApp API is used. Individual sharing opens a `wa.me` click-to-chat link for the member with pre-filled text. The message is sent from the WhatsApp account currently signed into the owner's app or browser, and the owner must press Send.
 
-Click-to-chat cannot attach a generated image reliably. GymDesk therefore shares the public pass link as the primary WhatsApp flow. The member opens that link to view the QR and can download/save the QR PNG from their phone. The owner can also download the QR PNG from the management screen for manual sharing when needed.
+Click-to-chat cannot attach a generated image reliably in every browser. GymDesk therefore offers native device sharing for the QR image where supported, plus the public pass link as the reliable fallback. The member opens that link to view the QR and can download/save the QR PNG from their phone. The owner can also download the QR PNG from the management screen for manual sharing when needed.
 
 Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUBLIC_DEFAULT_COUNTRY_CODE` (default `91`); international numbers should be stored with a leading `+`.
 

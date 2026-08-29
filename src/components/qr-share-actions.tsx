@@ -55,6 +55,18 @@ function whatsappChatUrl(number: string, text?: string): string {
   return `https://${host}/send?${params.toString()}`;
 }
 
+async function nativeShareQr(file: File, message: string, passUrl: string) {
+  if (!navigator.share) return false;
+
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: file.name, text: message, url: passUrl });
+    return true;
+  }
+
+  await navigator.share({ title: "GymDesk QR pass", text: message, url: passUrl });
+  return true;
+}
+
 async function copyMessage(message: string) {
   if (!navigator.clipboard?.writeText) return false;
   await navigator.clipboard.writeText(message);
@@ -72,6 +84,27 @@ export function QrShareActions({ memberCode, memberName, passUrl, phone, qrPngDa
     download(pngFileFromDataUrl(qrPngDataUrl, imageFilename));
   }
 
+  async function shareQrToWhatsApp() {
+    const file = pngFileFromDataUrl(qrPngDataUrl, imageFilename);
+    try {
+      const shared = await nativeShareQr(file, message, passUrl);
+      if (shared) {
+        setStatus("Share sheet opened. Choose WhatsApp, review the chat, and send.");
+        return;
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setStatus(null);
+        return;
+      }
+    }
+
+    const copied = await copyMessage(message).catch(() => false);
+    window.open(whatsappChatUrl(number, message), "gymdesk-whatsapp-share");
+    setWhatsappOpened(true);
+    setStatus(copied ? "WhatsApp opened. Message copied too; attach the downloaded QR only if needed." : "WhatsApp opened. Attach the downloaded QR only if needed.");
+  }
+
   async function shareQrLink() {
     const copied = await copyMessage(message).catch(() => false);
     if (whatsappOpened) {
@@ -86,6 +119,7 @@ export function QrShareActions({ memberCode, memberName, passUrl, phone, qrPngDa
 
   return <div className="stack">
     <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      <button className="button" type="button" onClick={shareQrToWhatsApp}>Share QR to WhatsApp</button>
       <button className="button" type="button" onClick={shareQrLink}>Share QR link</button>
       <button className="button secondary" type="button" onClick={downloadPng}>Download QR PNG</button>
     </div>
