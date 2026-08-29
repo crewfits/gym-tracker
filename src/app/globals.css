@@ -189,6 +189,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .qr-member-label { text-align: center; line-height: 1.25; }
 .qr-share-actions { display: grid; gap: 7px; }
 .qr-whatsapp-button { width: fit-content; min-height: 44px; }
+.qr-secondary-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .qr-share-confirm { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; color: var(--muted); background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; }
 .qr-share-confirm span { font-size: 13px; font-weight: 650; }
 .qr-share-confirm.is-shared { color: var(--success); background: #f0faf4; border-color: #ccebd8; }
@@ -412,6 +413,8 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
   .qr-manage-card { gap: 11px; padding-top: 17px; }
   .qr-manage-image { width: min(320px, 100%); }
   .qr-whatsapp-button { width: 100%; }
+  .qr-secondary-actions { display: grid; }
+  .qr-secondary-actions .button { width: 100%; }
   .qr-share-confirm { align-items: stretch; flex-direction: column; }
   .qr-share-confirm .button { width: 100%; }
   .qr-danger-actions .button { width: 100%; }

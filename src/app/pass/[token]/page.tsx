@@ -47,7 +47,8 @@ export default async function PublicPassPage({ params }: { params: Promise<{ tok
       <div><p className="eyebrow">Member pass</p><h1>{gym.name}</h1><p className="muted">Show this QR to an authorized gym operator.</p></div>
       <div style={{ width: "min(360px, 100%)", margin: "auto" }}><QrCode value={scanUrl} label={`Gym pass for ${member.member_code}`}/></div>
       <div><strong>{member.name}</strong><br/><span className="muted">{member.member_code}</span></div>
-      <DownloadQrButton dataUrl={qrPng} filename={downloadName}/>
+      <p className="muted" style={{ margin: 0 }}>Download this QR and save it on your phone. This link is temporary and may stop opening after 7 days.</p>
+      <DownloadQrButton dataUrl={qrPng} filename={downloadName} label="Download QR image"/>
     </section>
   </main>;
 }

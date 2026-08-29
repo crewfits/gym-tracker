@@ -73,6 +73,7 @@ export function MemberPhotoField({ existingUrl, memberName }: Props) {
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const submittingRef = useRef(false);
   const [preview, setPreview] = useState(existingUrl ?? "");
   const [dataUrl, setDataUrl] = useState("");
   const [removed, setRemoved] = useState(false);
@@ -96,6 +97,7 @@ export function MemberPhotoField({ existingUrl, memberName }: Props) {
     if (!hasPendingPhotoChange) return;
     const message = "You captured or changed a member photo but have not saved the profile yet.";
     const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (submittingRef.current) return;
       event.preventDefault();
       event.returnValue = message;
     };
@@ -107,11 +109,16 @@ export function MemberPhotoField({ existingUrl, memberName }: Props) {
       event.preventDefault();
       event.stopPropagation();
     };
+    const markSubmitting = () => {
+      submittingRef.current = true;
+    };
 
     window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("submit", markSubmitting, true);
     document.addEventListener("click", guardNavigation, true);
     return () => {
       window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("submit", markSubmitting, true);
       document.removeEventListener("click", guardNavigation, true);
     };
   }, [hasPendingPhotoChange]);
