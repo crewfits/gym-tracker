@@ -6,6 +6,7 @@ import { QrCode } from "@/components/qr-code";
 import { QrShareActions } from "@/components/qr-share-actions";
 import { disableMemberQr, issueMemberQr, markMemberQrShared } from "@/app/actions/attendance";
 import { requireGym } from "@/lib/auth";
+import { requestAppOrigin } from "@/lib/app-origin";
 import { attendanceLabel } from "@/lib/domain";
 import { qrUrls } from "@/lib/qr-token";
 
@@ -14,7 +15,7 @@ type Credential = { public_code: string; version: number; enabled: boolean; issu
 
 export default async function MemberQrPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Query> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const { supabase, gym } = await requireGym();
+  const [{ supabase, gym }, origin] = await Promise.all([requireGym(), requestAppOrigin()]);
   const [{ data: member }, { data: credentialData }, { data: attendance }] = await Promise.all([
     supabase.from("members").select("id,member_code,name,phone,is_archived").eq("id", id).eq("gym_id", gym.id).maybeSingle(),
     supabase.from("member_qr_credentials").select("public_code,version,enabled,issued_at,rotated_at,shared_at").eq("member_id", id).eq("gym_id", gym.id).maybeSingle(),
@@ -24,7 +25,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
 
   const credential = credentialData as Credential | null;
   const token = credential?.enabled ? credential.public_code : null;
-  const urls = token ? qrUrls(token) : null;
+  const urls = token ? qrUrls(token, origin) : null;
   const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91";
   const sharedAt = credential?.shared_at ? new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(credential.shared_at)) : null;
 

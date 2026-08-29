@@ -2,14 +2,14 @@ import { notFound } from "next/navigation";
 import { emailReceipt } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
 import { PrintButton, ShareReceiptButton, WhatsAppReceiptButton } from "@/components/print-button";
+import { requestAppOrigin } from "@/lib/app-origin";
 import { requireGym } from "@/lib/auth";
 import { formatInr, formatPaymentMethod } from "@/lib/domain";
-import { appUrl } from "@/lib/qr-token";
 import { createReceiptToken } from "@/lib/receipt-token";
 import { whatsappNumber } from "@/lib/reminders";
 
 export default async function ReceiptPage({ params, searchParams }: PageProps<"/receipts/[id]">) {
-  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const [{ id }, query, origin] = await Promise.all([params, searchParams, requestAppOrigin()]);
   const { supabase, gym } = await requireGym();
   const { data: payment } = await supabase.from("payments").select("*, payment_reversals(amount_paise,reason,created_at), charges!inner(*, memberships!inner(*, members!inner(*)))").eq("id", id).eq("gym_id", gym.id).single();
   if (!payment) notFound();
@@ -19,7 +19,7 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
   const reversedPaise = payment.payment_reversals.reduce((sum: number, reversal: { amount_paise: number }) => sum + Number(reversal.amount_paise), 0);
   const success = typeof query.success === "string" ? query.success : undefined;
   const error = typeof query.error === "string" ? query.error : undefined;
-  const publicUrl = `${appUrl()}/r/${createReceiptToken(payment.id)}`;
+  const publicUrl = `${origin}/r/${createReceiptToken(payment.id)}`;
   const receiptMessage = `Hi ${member.name}, payment receipt ${payment.receipt_number} for ${formatInr(Number(payment.amount_paise))}, paid on ${payment.paid_on} to ${gym.name}: ${publicUrl}`;
   const whatsappUrl = `https://wa.me/${whatsappNumber(member.phone, process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91")}?text=${encodeURIComponent(receiptMessage)}`;
 

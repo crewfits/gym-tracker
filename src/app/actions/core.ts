@@ -2,9 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { requestAppOrigin } from "@/lib/app-origin";
 import { requireGym } from "@/lib/auth";
 import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
-import { appUrl } from "@/lib/qr-token";
 import { memberPhotoBucket, memberPhotoPath } from "@/lib/member-photo";
 import { createReceiptToken } from "@/lib/receipt-token";
 import { duplicatePhoneOutcome } from "@/lib/member-rules";
@@ -291,7 +291,7 @@ export async function emailReceipt(formData: FormData) {
     const member = p.charges.memberships.members;
     if (!member.email) throw new Error("This member has no email address");
     if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
-    const url = `${appUrl()}/r/${createReceiptToken(p.id)}`;
+    const url = `${await requestAppOrigin()}/r/${createReceiptToken(p.id)}`;
     const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({ from: process.env.RESEND_FROM_EMAIL ?? "GymDesk <onboarding@resend.dev>", to: member.email, subject: `Receipt ${p.receipt_number} from ${gym.name}`, html: `<p>Hi ${escapeHtml(member.name)},</p><p>We received your payment of ₹${(Number(p.amount_paise) / 100).toFixed(2)}.</p><p><a href="${url}">View receipt ${p.receipt_number}</a></p><p>${escapeHtml(gym.name)}</p>` });
     if (error) throw new Error(error.message); done(`/receipts/${p.id}`, "Receipt emailed");
   } catch (e) { fail(`/receipts/${paymentId}`, e); }

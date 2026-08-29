@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import { DownloadQrButton } from "@/components/download-qr-button";
 import { QrCode, qrPngDataUrl } from "@/components/qr-code";
+import { requestAppOrigin } from "@/lib/app-origin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isShortQrCode, qrUrls, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
 
 export const dynamic = "force-dynamic";
 
 export default async function PublicPassPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
+  const [{ token }, origin] = await Promise.all([params, requestAppOrigin()]);
   const db = createAdminClient();
 
   let payload: QrTokenPayload | null = null;
@@ -33,7 +34,7 @@ export default async function PublicPassPage({ params }: { params: Promise<{ tok
   ]);
   if (!credential?.enabled || credential.version !== payload.version || !member || member.is_archived || !gym) notFound();
 
-  const { scanUrl } = qrUrls(token);
+  const { scanUrl } = qrUrls(token, origin);
   const qrPng = await qrPngDataUrl(scanUrl);
   const memberNameSlug = member.name
     .trim()

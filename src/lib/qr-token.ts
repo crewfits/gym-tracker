@@ -133,8 +133,8 @@ export function appUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
-export function qrUrls(token: string) {
-  const base = appUrl();
+export function qrUrls(token: string, origin = appUrl()) {
+  const base = origin.replace(/\/$/, "");
   return {
     passUrl: `${base}/p/${token}`,
     scanUrl: `${base}/s/${token}`,
