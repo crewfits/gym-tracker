@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Feedback } from "@/components/feedback";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
-import { QrCode, qrPngDataUrl } from "@/components/qr-code";
+import { QrCode } from "@/components/qr-code";
 import { QrShareActions } from "@/components/qr-share-actions";
 import { disableMemberQr, issueMemberQr, markMemberQrShared } from "@/app/actions/attendance";
 import { requireGym } from "@/lib/auth";
@@ -25,7 +25,6 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
   const credential = credentialData as Credential | null;
   const token = credential?.enabled ? credential.public_code : null;
   const urls = token ? qrUrls(token) : null;
-  const pngDataUrl = urls ? await qrPngDataUrl(urls.scanUrl) : null;
   const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91";
   const sharedAt = credential?.shared_at ? new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(credential.shared_at)) : null;
 
@@ -38,23 +37,23 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
     {member.is_archived && <div className="alert error">Archived members cannot receive or use a QR pass.</div>}
     <div className="grid-2">
       <section className="card stack qr-manage-card">
-        {credential?.enabled && urls && pngDataUrl ? <>
+        {credential?.enabled && urls ? <>
           <div className="qr-manage-layout">
             <div className="qr-preview-panel">
               <div className="qr-manage-image"><QrCode value={urls.scanUrl} label={`Attendance QR for ${member.member_code}`}/></div>
               <div className="qr-member-label"><strong>{member.name}</strong><br/><span className="muted">{member.member_code}</span></div>
             </div>
             <div className="qr-control-panel">
-              <QrShareActions memberCode={member.member_code} memberName={member.name} passUrl={urls.passUrl} phone={member.phone} qrPngDataUrl={pngDataUrl} defaultCountryCode={defaultCountryCode}/>
+              <QrShareActions memberCode={member.member_code} memberName={member.name} passUrl={urls.passUrl} phone={member.phone} defaultCountryCode={defaultCountryCode}/>
               <div className={`qr-share-confirm ${sharedAt ? "is-shared" : ""}`}>
-                {!sharedAt && <form action={markMemberQrShared}><input type="hidden" name="member_id" value={id}/><button className="button success">Mark QR as shared</button></form>}
-                <div><strong>{sharedAt ? "QR marked as shared" : "QR not marked as shared"}</strong><br/><span>{sharedAt ? `Confirmed manually on ${sharedAt}.` : "After sharing, mark it shared so the members list stays accurate."}</span></div>
+                <span>{sharedAt ? `Marked shared · ${sharedAt}` : "Not marked as shared"}</span>
+                {!sharedAt && <form action={markMemberQrShared}><input type="hidden" name="member_id" value={id}/><button className="button secondary small">Mark as shared</button></form>}
               </div>
               <hr className="qr-actions-divider"/>
-              <div className="qr-danger-actions">
-                <ConfirmActionForm action={issueMemberQr} memberId={id} message="Regenerate this QR? Every previously shared or printed copy will stop working immediately."><button className="button danger" disabled={member.is_archived}>Regenerate and invalidate old QR</button></ConfirmActionForm>
+              <details className="qr-settings"><summary>QR settings</summary><div className="qr-danger-actions">
+                <ConfirmActionForm action={issueMemberQr} memberId={id} message="Regenerate this QR? Every previously shared or printed copy will stop working immediately."><button className="button danger" disabled={member.is_archived}>Regenerate QR</button></ConfirmActionForm>
                 <form action={disableMemberQr}><input type="hidden" name="member_id" value={id}/><button className="button secondary">Disable QR</button></form>
-              </div>
+              </div></details>
             </div>
           </div>
         </> : <div className="empty">

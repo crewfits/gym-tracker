@@ -171,14 +171,15 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .qr-control-panel { display: grid; gap: 12px; align-content: center; }
 .qr-manage-image { width: min(290px, 100%); margin: 0 auto; }
 .qr-member-label { text-align: center; line-height: 1.25; }
-.qr-share-actions { gap: 8px; }
-.qr-share-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
-.qr-share-buttons .button { min-height: 38px; padding: 8px 13px; }
-.qr-share-confirm { display: flex; align-items: center; justify-content: flex-start; gap: 14px; padding: 14px 16px; color: var(--warning); background: #fff7e6; border: 1px solid #f1d49a; border-radius: 10px; }
-.qr-share-confirm span { font-size: 14px; }
-.qr-share-confirm.is-shared { color: var(--success); background: #ebf8f0; border-color: #bfe8cf; }
+.qr-share-actions { display: grid; gap: 7px; }
+.qr-whatsapp-button { width: fit-content; min-height: 44px; }
+.qr-share-confirm { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; color: var(--muted); background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; }
+.qr-share-confirm span { font-size: 13px; font-weight: 650; }
+.qr-share-confirm.is-shared { color: var(--success); background: #f0faf4; border-color: #ccebd8; }
 .qr-actions-divider { width: 100%; margin: 2px 0 0; border: 0; border-top: 1px solid var(--line); }
 .qr-danger-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.qr-settings summary { width: fit-content; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
+.qr-settings[open] summary { margin-bottom: 10px; color: var(--brand); }
 .dashboard-overview { grid-template-columns: 1fr; gap: 16px; }
 .dashboard-overview .overview-stack { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .member-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(340px, .8fr); grid-template-areas: "membership details" "payments details"; gap: 18px; align-items: start; }
@@ -390,7 +391,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
   .qr-manage-layout { grid-template-columns: 1fr; gap: 12px; }
   .qr-manage-card { gap: 11px; padding-top: 17px; }
   .qr-manage-image { width: min(320px, 100%); }
-  .qr-share-buttons .button { flex: 1 1 145px; }
+  .qr-whatsapp-button { width: 100%; }
   .qr-share-confirm { align-items: stretch; flex-direction: column; }
   .qr-share-confirm .button { width: 100%; }
   .qr-danger-actions .button { width: 100%; }
