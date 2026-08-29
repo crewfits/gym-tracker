@@ -22,12 +22,13 @@ The older encrypted/signed token shape remains accepted for backward compatibili
 The database stores only credential state:
 
 - whether the QR is enabled;
+- whether the current QR was manually marked as shared;
 - the current short public code;
 - its current integer version;
 - issuance and rotation timestamps;
 - the user who last changed it.
 
-Re-sharing uses the same public code for the current version. Regenerating replaces the code and increments the version atomically, immediately invalidating every older QR. Disabling a QR prevents scans; issuing it again creates a fresh code and increments the version so a previously disabled copy cannot become valid again.
+Re-sharing uses the same public code for the current version. After the owner manually shares the QR, they can mark that current credential as shared for operational tracking. Regenerating replaces the code, increments the version atomically, and clears the shared flag because every older QR is immediately invalid. Disabling a QR prevents scans and also clears the shared flag; issuing it again creates a fresh code and increments the version so a previously disabled copy cannot become valid again.
 
 The QR is an identifier, not proof that the person holding it is the member. The scan confirmation screen must show the member code and identifying information to the owner.
 
@@ -40,6 +41,7 @@ The QR is an identifier, not proof that the person holding it is the member. The
 5. The owner can:
    - open WhatsApp with an individual pre-filled message containing the public pass link;
    - download the QR PNG;
+   - mark the current QR as shared after manual handoff;
    - re-share the current QR without changing it;
    - regenerate it, invalidating older copies;
    - disable it.
@@ -74,6 +76,8 @@ No WhatsApp API is used. Individual sharing opens a `wa.me` click-to-chat link f
 
 Click-to-chat cannot attach a generated image reliably in every browser. GymDesk therefore offers native device sharing for the QR image where supported, plus the public pass link as the reliable fallback. The member opens that link to view the QR and can download/save the QR PNG from their phone. The owner can also download the QR PNG from the management screen for manual sharing when needed.
 
+Because there is no WhatsApp provider callback, GymDesk does not know whether the owner actually pressed Send or whether the member received the message. The `shared_at` status is an owner-maintained operational flag, not delivery proof.
+
 Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUBLIC_DEFAULT_COUNTRY_CODE` (default `91`); international numbers should be stored with a leading `+`.
 
 ## Operational rules
@@ -97,3 +101,4 @@ Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUB
 - Entry/exit attendance ledger.
 - Today, current-occupancy, missed-exit, filtered history, pagination, and CSV export.
 - Individual WhatsApp click-to-chat using the public pass link and a direct QR PNG download.
+- Manual QR shared/not-shared tracking with member-list filters.

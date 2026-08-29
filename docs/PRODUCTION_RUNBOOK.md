@@ -62,10 +62,12 @@ Additionally:
 npm run data:backup -- --gym-id=<gym-uuid> --output=/secure/path/gym-snapshot.json
 supabase db dump --linked --file=/secure/path/public-schema.sql
 supabase db dump --linked --data-only --use-copy --file=/secure/path/public-data.sql
+supabase storage cp --linked --recursive ss:///member-photos /secure/path/member-photos
 ```
 
 - Take the gym snapshot before imports and material support changes.
 - Take encrypted schema/data dumps weekly and before every migration.
+- Export the private `member-photos` bucket with the same retention as database dumps when profile photos are enabled.
 - Keep at least four weekly copies in storage separate from the application and database providers.
 - The JSON snapshot is a support/reconciliation artifact, not the sole disaster-recovery mechanism.
 
@@ -77,7 +79,7 @@ Once before launch and quarterly thereafter:
 2. Apply the repository migrations in order.
 3. Restore the approved SQL data dump with `psql` using the isolated database connection.
 4. Restore or create a test auth owner and link its `owner_id` only in the isolated environment.
-5. Verify member counts, outstanding totals, receipts, QR metadata, and attendance counts against the backup report.
+5. Verify member counts, outstanding totals, receipts, QR metadata, member-photo object counts, and attendance counts against the backup report.
 6. Run the smoke scenarios without contacting real members.
 7. Record the date, operator, backup timestamp, result, duration, and any corrective action in the release issue.
 

@@ -29,6 +29,7 @@ Record evidence and the tester for every item in the release issue. A failed req
 - [ ] Search and active, expiring, expired, outstanding, archived, and all views return correct totals beyond 1,000 rows.
 - [ ] Future renewal does not hide the currently active membership.
 - [ ] Archive preserves history and prevents QR/reminder actions.
+- [ ] Optional member profile photo can be added, replaced, removed, and remains private.
 - [ ] Initial CSV dry run has zero invalid rows and approved counts/balances.
 - [ ] Apply creates a pre-import snapshot and the final reconciliation passes.
 
@@ -45,6 +46,9 @@ Record evidence and the tester for every item in the release issue. A failed req
 
 - [ ] Create member with QR enabled and with QR skipped both succeed.
 - [ ] Current QR PNG can be shared/downloaded; no image or signed token is stored in the database.
+- [ ] Current QR can be marked as shared after manual handoff; regenerated or disabled QR clears the shared state.
+- [ ] Members list shows QR shared/not shared/generated/disabled state and the QR status filters return the expected members.
+- [ ] QR scan confirmation shows the private member photo when available and never shows it on the public pass page.
 - [ ] Regeneration invalidates the previous version; disable, archived, expired, invalid, and cross-gym passes are denied.
 - [ ] Scanning only opens review; a POST confirmation records movement.
 - [ ] First movement today suggests entry, second suggests exit, and manual override remains available.

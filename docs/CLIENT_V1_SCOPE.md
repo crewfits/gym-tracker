@@ -20,6 +20,7 @@ This workload does not require microservices, multi-location architecture, datab
 ### Members and packages
 
 - Create, edit, search, and archive members.
+- Optionally attach one private member profile photo for owner/operator identity verification.
 - Select a package and membership start/expiry dates.
 - Show active, expiring, expired, outstanding, and archived states.
 - Renew a membership without losing earlier membership history.
@@ -41,6 +42,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 ### QR attendance
 
 - Generate, share, regenerate, and disable a member QR.
+- Let the owner mark the current QR as manually shared, then view/filter members by QR shared status.
 - Admit only non-archived members with an active membership and current QR version.
 - First confirmed scan in the business day records Check-in; the next records Check-out. The database continues to store the stable `entry`/`exit` enum values.
 - Ignore an unfinished prior-day entry when suggesting today's first movement.
@@ -55,6 +57,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Dashboard counts for active/expiring/outstanding members and today's attendance.
 - CSV export and a documented backup process.
 - Mobile-friendly QR scanning and WhatsApp handoff.
+- Private member photos on owner-only operational screens when captured.
 - Clear validation, error, empty, and expired/denied states.
 
 ## Initial data migration
@@ -89,7 +92,7 @@ A reusable customer-facing import UI is not required for V1.
 2. Owner finds an existing member or creates a new one and assigns a package.
 3. Owner records a full or partial payment and sees the correct balance/history.
 4. Owner finds due/expiring members and opens a prefilled WhatsApp reminder.
-5. Owner generates and shares a QR, then records entry and exit through confirmed scans.
+5. Owner generates and shares a QR, marks it shared after the manual handoff, then records entry and exit through confirmed scans.
 6. Expired, archived, disabled, replaced, or invalid QR passes are denied.
 7. A missed prior-day exit does not make the next day's first scan an exit.
 8. Old members remain searchable in archived/all views without cluttering daily operations.

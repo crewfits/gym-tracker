@@ -3,8 +3,8 @@ import { requireGym } from "@/lib/auth";
 import { csvDocument } from "@/lib/csv";
 import { businessDate } from "@/lib/domain";
 
-type MemberExportRow = { member_code: string; name: string; phone: string; email: string | null; is_archived: boolean; plan_name: string | null; starts_on: string | null; expires_on: string | null; membership_status: string; balance_paise: number; qr_enabled: boolean; total_count: number };
-const statuses = new Set(["active", "expiring", "expired", "upcoming", "not_enrolled", "outstanding", "archived", "all"]);
+type MemberExportRow = { member_code: string; name: string; phone: string; email: string | null; is_archived: boolean; plan_name: string | null; starts_on: string | null; expires_on: string | null; membership_status: string; balance_paise: number; qr_version: number | null; qr_enabled: boolean; qr_shared_at: string | null; total_count: number };
+const statuses = new Set(["active", "expiring", "expired", "upcoming", "not_enrolled", "outstanding", "qr_not_generated", "qr_not_shared", "qr_shared", "qr_disabled", "archived", "all"]);
 
 export async function GET(request: NextRequest) {
   const { supabase, gym } = await requireGym();
@@ -23,8 +23,11 @@ export async function GET(request: NextRequest) {
     if (page === 50) return Response.json({ error: "Export is limited to 5,000 members" }, { status: 413 });
   }
   const csv = csvDocument(
-    ["Member ID", "Name", "Phone", "Email", "Archived", "Plan", "Plan start date", "Plan end date", "Membership status", "Outstanding (INR)", "QR enabled"],
-    rows.map((row) => [row.member_code, row.name, row.phone, row.email, row.is_archived, row.plan_name, row.starts_on, row.expires_on, row.is_archived ? "archived" : row.membership_status, (Number(row.balance_paise) / 100).toFixed(2), row.qr_enabled]),
+    ["Member ID", "Name", "Phone", "Email", "Archived", "Plan", "Plan start date", "Plan end date", "Membership status", "Outstanding (INR)", "QR status", "QR shared at"],
+    rows.map((row) => {
+      const qrStatus = row.is_archived ? "archived" : !row.qr_version ? "not generated" : !row.qr_enabled ? "disabled" : row.qr_shared_at ? "shared" : "not shared";
+      return [row.member_code, row.name, row.phone, row.email, row.is_archived, row.plan_name, row.starts_on, row.expires_on, row.is_archived ? "archived" : row.membership_status, (Number(row.balance_paise) / 100).toFixed(2), qrStatus, row.qr_shared_at];
+    }),
   );
   return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="members-${status ?? "current"}-${businessDate(gym.timezone)}.csv"`, "Cache-Control": "private, no-store" } });
 }

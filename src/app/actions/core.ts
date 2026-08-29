@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireGym } from "@/lib/auth";
 import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
 import { appUrl } from "@/lib/qr-token";
+import { memberPhotoBucket, memberPhotoPath } from "@/lib/member-photo";
 import { createReceiptToken } from "@/lib/receipt-token";
 import { duplicatePhoneOutcome } from "@/lib/member-rules";
 import { Resend } from "resend";
@@ -12,10 +13,46 @@ import { Resend } from "resend";
 const text = z.string().trim().min(1);
 const money = z.coerce.number().min(0).transform(v => Math.round(v * 100));
 const optionalDate = z.union([z.iso.date(), z.literal("")]).optional();
+const allowedPhotoMimeTypes = new Set(["image/webp", "image/jpeg", "image/png"]);
+const maxPhotoBytes = 512 * 1024;
 function done(path: string, message: string): never { revalidatePath("/", "layout"); redirect(`${path}?success=${encodeURIComponent(message)}`); }
 function fail(path: string, error: unknown): never {
   if (typeof error === "object" && error && "digest" in error && String((error as { digest: unknown }).digest).startsWith("NEXT_REDIRECT")) throw error;
   const message = error instanceof Error ? error.message : String(error); redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+function photoInput(formData: FormData) {
+  const dataUrl = String(formData.get("profile_photo_data_url") ?? "");
+  const removed = String(formData.get("profile_photo_removed") ?? "") === "true";
+  return { dataUrl, removed };
+}
+
+function decodePhotoDataUrl(dataUrl: string) {
+  if (!dataUrl) return null;
+  const match = /^data:(image\/(?:webp|jpeg|png));base64,([a-z0-9+/=]+)$/i.exec(dataUrl);
+  if (!match) throw new Error("Photo must be a compressed WebP, JPEG, or PNG image");
+  const [, contentType, base64] = match;
+  if (!allowedPhotoMimeTypes.has(contentType)) throw new Error("Unsupported photo type");
+  const binary = atob(base64);
+  if (binary.length > maxPhotoBytes) throw new Error("Photo must be under 512 KB after compression");
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return { blob: new Blob([bytes], { type: contentType }), contentType };
+}
+
+async function saveMemberPhoto(supabase: Awaited<ReturnType<typeof requireGym>>["supabase"], gymId: string, memberId: string, dataUrl: string, existingPath?: string | null) {
+  const decoded = decodePhotoDataUrl(dataUrl);
+  if (!decoded) return existingPath ?? null;
+  const nextPath = memberPhotoPath(gymId, memberId);
+  const { error: uploadError } = await supabase.storage.from(memberPhotoBucket).upload(nextPath, decoded.blob, { contentType: decoded.contentType, upsert: true });
+  if (uploadError) throw uploadError;
+  if (existingPath && existingPath !== nextPath) await supabase.storage.from(memberPhotoBucket).remove([existingPath]);
+  return nextPath;
+}
+
+async function removeMemberPhoto(supabase: Awaited<ReturnType<typeof requireGym>>["supabase"], existingPath?: string | null) {
+  if (!existingPath) return;
+  await supabase.storage.from(memberPhotoBucket).remove([existingPath]);
 }
 
 export async function createMember(formData: FormData) {
@@ -27,6 +64,7 @@ export async function createMember(formData: FormData) {
       method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string(), paid_on: z.iso.date(),
     }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
+    const selectedPhoto = photoInput(formData);
     const { data: duplicate } = await supabase.from("members").select("id,member_code,name,is_archived").eq("gym_id", gym.id).eq("phone", input.phone).order("is_archived", { ascending: true }).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const duplicateOutcome = duplicatePhoneOutcome(duplicate, input.confirm_shared === "on");
     if (duplicate && duplicateOutcome !== "allow") {
@@ -52,13 +90,23 @@ export async function createMember(formData: FormData) {
     if (error) throw error;
     const result = data as { member_id?: string; payment_id?: string } | null;
     if (!result?.member_id) throw new Error("Member was created but the result could not be loaded");
+    let photoWarning = "";
+    if (selectedPhoto.dataUrl) {
+      try {
+        const path = await saveMemberPhoto(supabase, gym.id, result.member_id, selectedPhoto.dataUrl);
+        const { error: photoUpdateError } = await supabase.from("members").update({ profile_photo_path: path, updated_at: new Date().toISOString() }).eq("id", result.member_id).eq("gym_id", gym.id);
+        if (photoUpdateError) throw photoUpdateError;
+      } catch (photoError) {
+        photoWarning = ` Photo upload failed: ${photoError instanceof Error ? photoError.message : String(photoError)}`;
+      }
+    }
     if (input.generate_qr === "on") {
       const { error: qrError } = await supabase.rpc("issue_member_qr", { p_member_id: result.member_id });
       if (qrError) redirect(`/members/${result.member_id}?error=${encodeURIComponent(`Member created, but QR generation failed: ${qrError.message}`)}`);
-      done(`/members/${result.member_id}/qr`, input.amount_paid > 0 ? "Member enrolled, payment recorded and QR generated" : "Member enrolled and QR generated");
+      done(`/members/${result.member_id}/qr`, `${input.amount_paid > 0 ? "Member enrolled, payment recorded and QR generated" : "Member enrolled and QR generated"}${photoWarning}`);
     }
     if (input.amount_paid > 0 && result.payment_id) done(`/receipts/${result.payment_id}`, "Payment recorded. Send or share the receipt below.");
-    done(`/members/${result.member_id}`, "Member enrolled");
+    done(`/members/${result.member_id}`, `Member enrolled${photoWarning}`);
   } catch (e) { fail("/members/new", e); }
 }
 
@@ -67,7 +115,17 @@ export async function updateMember(formData: FormData) {
   try {
     const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), is_archived: z.string().optional() }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
-    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
+    const selectedPhoto = photoInput(formData);
+    const { data: existing, error: existingError } = await supabase.from("members").select("profile_photo_path").eq("id", id).eq("gym_id", gym.id).maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) throw new Error("Member not found");
+    let profilePhotoPath = existing.profile_photo_path ?? null;
+    if (selectedPhoto.dataUrl) profilePhotoPath = await saveMemberPhoto(supabase, gym.id, id, selectedPhoto.dataUrl, existing.profile_photo_path);
+    else if (selectedPhoto.removed) {
+      await removeMemberPhoto(supabase, existing.profile_photo_path);
+      profilePhotoPath = null;
+    }
+    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
     if (error) throw error; done(`/members/${id}`, "Member updated");
   } catch (e) { fail(`/members/${id}`, e); }
 }

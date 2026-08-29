@@ -47,6 +47,7 @@ Important modules:
 - `src/app/actions/attendance.ts` handles QR lifecycle and attendance writes.
 - `src/lib/qr-token.ts` keeps backward compatibility for older signed QR tokens and identifies the current short QR-code format.
 - `src/lib/receipt-token.ts` creates signed bearer links for member-readable payment receipts.
+- `src/lib/member-photo.ts` centralizes the private Supabase Storage bucket and member photo paths.
 - `supabase/migrations/001_initial_schema.sql` contains the main operational schema and RLS.
 - `supabase/migrations/002_create_member_with_enrollment.sql` makes onboarding transactional.
 - `supabase/migrations/005_qr_attendance.sql` contains QR credential and attendance persistence.
@@ -59,6 +60,8 @@ Important modules:
 - `supabase/migrations/013_disable_qr_when_member_archived.sql` enforces QR invalidation when a member is archived.
 - `supabase/migrations/014_reactivate_archived_member.sql` restores an archived profile transactionally while keeping the previous QR invalid.
 - `supabase/migrations/015_short_qr_public_codes.sql` adds first-party short QR codes for WhatsApp-friendly pass links.
+- `supabase/migrations/016_member_profile_photos.sql` adds private member profile-photo storage.
+- `supabase/migrations/017_qr_share_tracking.sql` adds manual QR share tracking and member-list QR share filters.
 
 ## Authentication and data isolation
 
@@ -100,10 +103,12 @@ gyms
 ### Members
 
 - A member belongs to the gym and receives a stable member code.
+- A member may have one private compressed profile photo stored in Supabase Storage and referenced by `profile_photo_path`.
 - Old members are archived, never permanently deleted through normal UI.
 - Archived members retain membership, payment, and attendance history.
 - Archived members cannot receive reminders or use QR access.
 - Phone numbers should be normalized and duplicates reported, while intentional shared family numbers remain possible. A duplicate belonging to an archived profile routes the owner to reactivation so its history is preserved.
+- Profile photos are owner-only operational data for human verification on member and QR scan screens. They are not exposed on public pass or receipt links.
 
 ### Packages and memberships
 
@@ -132,7 +137,7 @@ V1 reminders are owner-initiated WhatsApp click-to-chat messages.
 
 ## QR access and attendance
 
-The QR image is generated on demand and is not stored. The database stores the current short public code, enabled state, credential version, and lifecycle metadata.
+The QR image is generated on demand and is not stored. The database stores the current short public code, enabled state, credential version, manual share confirmation, and lifecycle metadata.
 
 ```text
 code = 12-character non-sequential public code
@@ -141,6 +146,8 @@ scan = /s/{code}
 ```
 
 Current QR links use a first-party short code instead of exposing member IDs or relying on a third-party URL shortener. The verifier remains backward-compatible with older signed/encrypted tokens until the owner regenerates that member's QR. Regeneration replaces the short code, increments the credential version, and invalidates old copies. Archiving or explicitly disabling the credential denies all scans until a new version is issued.
+
+The owner can mark the current enabled QR as shared after manually sending it through WhatsApp or another channel. This writes `shared_at`, `shared_by`, and `share_method` on the current credential. Regenerating or disabling a QR clears that confirmation because previously shared copies are no longer the valid pass.
 
 Attendance rules:
 
@@ -183,8 +190,9 @@ Initial onboarding uses a one-time controlled CSV import performed by us, not a 
 - Secrets stay server-only and must not use `NEXT_PUBLIC_` names.
 - Supabase sessions are cookie-backed and refreshed in the request proxy. They persist for the same browser and hostname; a new device, private window, or changed tunnel hostname requires authentication.
 - Application and provider logs must not contain secrets or unnecessary personal data.
+- Member profile photos are stored in the private `member-photos` bucket under `{gym_id}/{member_id}/profile`, with owner-only Storage policies and short-lived signed URLs for display.
 - Database migrations are append-only after deployment.
-- CSV export and a tested backup/restore process are launch requirements.
+- CSV export, Storage-file backup, and a tested backup/restore process are launch requirements.
 
 ## V1 rollout boundary
 

@@ -49,6 +49,24 @@ export async function disableMemberQr(formData: FormData) {
   }
 }
 
+export async function markMemberQrShared(formData: FormData) {
+  const memberId = z.uuid().parse(formData.get("member_id"));
+  try {
+    const { supabase, gym, user } = await requireGym();
+    const { data: credential, error: credentialError } = await supabase.from("member_qr_credentials").select("member_id,enabled").eq("member_id", memberId).eq("gym_id", gym.id).maybeSingle();
+    if (credentialError) throw credentialError;
+    if (!credential?.enabled) throw new Error("Generate an active QR before marking it shared");
+    const { error } = await supabase.from("member_qr_credentials").update({ shared_at: new Date().toISOString(), shared_by: user.id, share_method: "manual_whatsapp", updated_at: new Date().toISOString() }).eq("member_id", memberId).eq("gym_id", gym.id).eq("enabled", true);
+    if (error) throw error;
+    revalidatePath("/members");
+    revalidatePath(`/members/${memberId}/qr`);
+    go(`/members/${memberId}/qr`, "success", "QR marked as shared.");
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    go(`/members/${memberId}/qr`, "error", messageFrom(error));
+  }
+}
+
 export async function recordAttendance(formData: FormData) {
   const input = z.object({
     token: z.string().min(12).max(1000),

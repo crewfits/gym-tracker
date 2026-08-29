@@ -117,8 +117,8 @@ export function QrShareActions({ memberCode, memberName, passUrl, phone, qrPngDa
     setStatus(copied ? "WhatsApp opened in a new tab. Message copied too." : "WhatsApp opened in a new tab.");
   }
 
-  return <div className="stack">
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+  return <div className="stack qr-share-actions">
+    <div className="qr-share-buttons">
       <button className="button" type="button" onClick={shareQrToWhatsApp}>Share QR to WhatsApp</button>
       <button className="button" type="button" onClick={shareQrLink}>Share QR link</button>
       <button className="button secondary" type="button" onClick={downloadPng}>Download QR PNG</button>

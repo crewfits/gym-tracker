@@ -5,6 +5,7 @@ import { recordAttendance } from "@/app/actions/attendance";
 import { Feedback } from "@/components/feedback";
 import { requireGym } from "@/lib/auth";
 import { attendanceLabel, businessDate, nextAttendanceDirection } from "@/lib/domain";
+import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import { isShortQrCode, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
 
 type Query = { success?: string; error?: string };
@@ -35,11 +36,12 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
   if (payload.gymId !== gym.id) notFound();
   const today = businessDate(gym.timezone);
   const [{ data: member }, { data: membership }, { data: lastEvent }] = await Promise.all([
-    supabase.from("members").select("id,member_code,name,phone,email,is_archived").eq("id", payload.memberId).eq("gym_id", gym.id).maybeSingle(),
+    supabase.from("members").select("id,member_code,name,phone,email,profile_photo_path,is_archived").eq("id", payload.memberId).eq("gym_id", gym.id).maybeSingle(),
     supabase.from("memberships").select("id,plan_name,starts_on,expires_on").eq("member_id", payload.memberId).eq("gym_id", gym.id).lte("starts_on", today).gte("expires_on", today).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("attendance_events").select("direction,occurred_at").eq("member_id", payload.memberId).eq("gym_id", gym.id).order("occurred_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!member) notFound();
+  const photoUrl = await signedMemberPhotoUrl(supabase, member.profile_photo_path);
 
   const qrValid = credential?.enabled && credential.version === payload.version && !member.is_archived;
   const allowed = qrValid && Boolean(membership);
@@ -64,6 +66,7 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
     <div className="scan-layout">
       <section className={`card scan-card ${allowed ? "allowed" : "denied"}`}>
         <div className="scan-status">
+          <span className="member-avatar scan">{photoUrl ? <img src={photoUrl} alt=""/> : member.name.slice(0, 1).toUpperCase()}</span>
           <span className={`scan-pill ${allowed ? "allowed" : "denied"}`}>{allowed ? "Access allowed" : "Access denied"}</span>
           <h2>{member.name}</h2>
           <p>{member.member_code} · {member.phone}</p>
