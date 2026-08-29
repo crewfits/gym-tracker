@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { Bell, Dumbbell, LayoutDashboard, LogOut, Menu, ReceiptText, ScanLine, Settings, Tags, Users } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
+import { BackButton } from "@/components/back-button";
 
 const links = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -15,9 +17,20 @@ const links = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+function logicalBackFallback(pathname: string): string {
+  const memberTask = pathname.match(/^\/members\/([^/]+)\/(?:enroll|pay|qr|renew)$/);
+  if (memberTask) return `/members/${memberTask[1]}`;
+  if (/^\/members\/[^/]+$/.test(pathname) || pathname === "/members/new") return "/members";
+  if (/^\/plans\/[^/]+\/edit$/.test(pathname)) return "/plans";
+  if (/^\/receipts\/[^/]+$/.test(pathname)) return "/transactions";
+  if (/^\/scan\/[^/]+$/.test(pathname)) return "/attendance";
+  return "/";
+}
+
 export function AppShell({ gymName, children }: { gymName: string; children: React.ReactNode }) {
   const pathname = usePathname();
+  const [initialPath] = useState(pathname);
   const scanMode = pathname.startsWith("/scan") || pathname.startsWith("/s/");
 
-  return <div className={`app ${scanMode ? "scan-app" : ""}`}><aside className="sidebar"><div className="brand-row"><div className="brand"><span className="brand-mark"><Dumbbell size={20}/></span> GymDesk</div><details className="scan-menu"><summary aria-label="Open navigation"><Menu size={20}/></summary><div className="scan-menu-panel"><Link href="/attendance"><ScanLine size={17}/> Attendance</Link><Link href="/members"><Users size={17}/> Members</Link><Link href="/"><LayoutDashboard size={17}/> Dashboard</Link><form action={signOut}><button><LogOut size={17}/> Sign out</button></form></div></details></div><nav className="nav">{links.map(({ href, label, icon: Icon }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <Link className={active ? "active" : undefined} href={href} key={href}><Icon size={18}/> {label}</Link>; })}<form action={signOut}><button><LogOut size={18}/> Sign out</button></form></nav></aside><main className="main"><header className="topbar"><span className="muted">Membership operations</span><strong>{gymName}</strong></header><div className="content" key={pathname}>{children}</div></main></div>;
+  return <div className={`app ${scanMode ? "scan-app" : ""}`}><aside className="sidebar"><div className="brand-row"><div className="brand"><span className="brand-mark"><Dumbbell size={20}/></span> GymDesk</div><details className="scan-menu"><summary aria-label="Open navigation"><Menu size={20}/></summary><div className="scan-menu-panel"><Link href="/attendance"><ScanLine size={17}/> Attendance</Link><Link href="/members"><Users size={17}/> Members</Link><Link href="/"><LayoutDashboard size={17}/> Dashboard</Link><form action={signOut}><button><LogOut size={17}/> Sign out</button></form></div></details></div><nav className="nav">{links.map(({ href, label, icon: Icon }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <Link className={active ? "active" : undefined} href={href} key={href}><Icon size={18}/> {label}</Link>; })}<form action={signOut}><button><LogOut size={18}/> Sign out</button></form></nav></aside><main className="main"><header className="topbar"><span className="muted">Membership operations</span><strong>{gymName}</strong></header><div className="content" key={pathname}>{pathname !== "/" && <div className="route-back no-print"><BackButton fallback={logicalBackFallback(pathname)} useHistory={pathname !== initialPath}/></div>}{children}</div></main></div>;
 }

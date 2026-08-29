@@ -20,20 +20,18 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 ### Member onboarding
 
 1. An owner signs in and creates a member with contact details.
-2. The owner may attach a private compressed profile photo for later operator verification.
-3. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and initial payment.
-4. The database creates the member, membership, charge, and optional payment transactionally.
-5. QR issuance is optional. It may happen immediately or later from the member list.
+2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and initial payment.
+3. The database creates the member, membership, charge, and optional payment transactionally.
+4. QR issuance is optional. It may happen immediately or later from the member list.
 
 ### QR access and attendance
 
 1. GymDesk generates a compact first-party QR URL using a short random code stored on the QR credential row. The QR image itself is not stored.
 2. The owner shares the pass link or PNG manually, including through WhatsApp.
-3. After the handoff, the owner can mark the current QR as shared so the member list shows who still needs a QR handoff.
-4. An authenticated operator scans the member's QR.
-5. GymDesk validates tenant ownership, QR version, member state, and active membership.
-6. The operator explicitly confirms Check-in or Check-out; opening the URL never records attendance.
-7. The first confirmed scan of a gym business day is a Check-in. Later movements alternate, with a manual override for missed scans.
+3. An authenticated operator scans the member's QR.
+4. GymDesk validates tenant ownership, QR version, member state, and active membership.
+5. The operator explicitly confirms Check-in or Check-out; opening the URL never records attendance.
+6. The first confirmed scan of a gym business day is a Check-in. Later movements alternate, with a manual override for missed scans.
 
 ### Membership and payment operations
 
@@ -43,6 +41,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 - Produce immutable receipt numbers and signed, member-readable receipt links for individual WhatsApp sharing.
 - Void incorrect payments with a reason instead of deleting them.
 - Open owner-reviewed WhatsApp payment/renewal reminders and record only that the handoff was opened.
+- Optionally submit one idempotent WhatsApp Utility template on the charge follow-up date for members who have opted in, recording submitted, skipped, or failed attempts.
 
 ### Daily operations and reporting
 
@@ -58,15 +57,14 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 - Money is stored as integer paise; display formatting is not the source of truth.
 - Applied plans, prices, and membership terms are snapshotted for historical accuracy.
 - Attendance and financial activity are append-only or corrected through audited actions.
-- WhatsApp handoffs are never represented as sent or delivered without a provider API; QR share tracking records only a manual owner confirmation.
+- Manual WhatsApp handoffs are never represented as sent or delivered, and QR share tracking records only owner confirmation; automated Cloud API records are labelled submitted until webhook delivery tracking is added.
 - Public QR pages expose the minimum information required for the pass.
-- Member photos are private operational data and are not shown on public pass or receipt pages.
 - Frontend visibility is never the authorization boundary.
 
 ## Deliberately out of scope for the current MVP
 
 - Online payment gateways and automatic refunds.
-- WhatsApp Business API and bulk messaging.
+- Bulk WhatsApp campaigns, marketing automation, inbound messaging, and webhook-based delivered/read tracking.
 - Full staff invitation/RBAC implementation.
 - Multiple physical locations.
 - Platform subscription billing and feature entitlements.

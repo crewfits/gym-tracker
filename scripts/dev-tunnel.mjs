@@ -1,15 +1,23 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const port = process.env.PORT || "3000";
 const ngrokApiUrl = process.env.NGROK_API_URL || "http://127.0.0.1:4040/api/tunnels";
 const ngrokArgs = ["http", port, "--log=stdout", "--log-format=logfmt"];
+const nextCli = fileURLToPath(new URL("../node_modules/next/dist/bin/next", import.meta.url));
 
 if (process.env.NGROK_URL) ngrokArgs.push(`--url=${process.env.NGROK_URL}`);
 
 const children = [];
+const childCompletions = new WeakMap();
 let shuttingDown = false;
+
+function commandExists(command) {
+  const locator = process.platform === "win32" ? "where.exe" : "which";
+  return spawnSync(locator, [command], { stdio: "ignore" }).status === 0;
+}
 
 function start(command, args, options = {}) {
   const child = spawn(command, args, {
@@ -18,6 +26,7 @@ function start(command, args, options = {}) {
     ...options,
   });
   children.push(child);
+  childCompletions.set(child, childExit(child, command));
   return child;
 }
 
@@ -65,21 +74,33 @@ async function waitForTunnel(ngrok) {
 process.once("SIGINT", () => stopAll("SIGINT"));
 process.once("SIGTERM", () => stopAll("SIGTERM"));
 
-const ngrok = start("ngrok", ngrokArgs);
-
 try {
-  const publicUrl = await waitForTunnel(ngrok);
+  if (!commandExists("ngrok")) {
+    throw new Error(
+      "ngrok is not installed or is not on PATH. On Windows, install it with " +
+        "`winget install ngrok -s msstore`, open a new terminal, then run " +
+        "`ngrok config add-authtoken <YOUR_TOKEN>`.",
+    );
+  }
+
+  const ngrok = start("ngrok", ngrokArgs);
+  const publicUrl = await Promise.race([
+    waitForTunnel(ngrok),
+    childCompletions.get(ngrok).then((result) => {
+      const reason = result.error?.message || result.signal || `exit code ${result.code ?? 0}`;
+      throw new Error(`ngrok stopped before opening a tunnel (${reason})`);
+    }),
+  ]);
   console.log(`\nGymDesk tunnel: ${publicUrl}`);
   console.log("Starting Next.js with this URL for QR links...\n");
 
-  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-  const next = start(npm, ["run", "dev"], {
+  const next = start(process.execPath, [nextCli, "dev"], {
     env: { ...process.env, PORT: port, NEXT_PUBLIC_APP_URL: publicUrl },
   });
 
   const result = await Promise.race([
-    childExit(ngrok, "ngrok"),
-    childExit(next, "Next.js"),
+    childCompletions.get(ngrok),
+    childCompletions.get(next),
   ]);
 
   if (!shuttingDown) {

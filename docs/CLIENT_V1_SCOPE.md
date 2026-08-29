@@ -35,8 +35,9 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Show partial-payment, overdue, and expiring-soon queues.
 - Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.
 - Open an individual prefilled WhatsApp reminder for the owner to review and send.
+- Optionally submit one approved WhatsApp Utility template on the charge follow-up date when the member has explicitly opted in and Meta Cloud API is configured.
 - Share a payment receipt through a signed, member-readable WhatsApp link.
-- Record the reminder as opened/prepared, not delivered, because no WhatsApp API is used.
+- Record manual WhatsApp reminders as opened/prepared. Record automated Cloud API attempts as submitted, skipped, or failed with the Meta message ID when accepted.
 - Correct payments through a void/reason flow instead of deletion.
 
 ### QR attendance
@@ -82,7 +83,7 @@ A reusable customer-facing import UI is not required for V1.
 - Multiple locations.
 - Member-facing app/login.
 - Online payments.
-- WhatsApp Business API, bulk messaging, or delivery tracking.
+- Bulk WhatsApp campaigns, marketing templates, inbound message handling, and webhook-based delivered/read tracking.
 - Trainer workflows and workout visibility.
 - SaaS subscription billing and advanced analytics.
 

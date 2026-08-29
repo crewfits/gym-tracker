@@ -48,6 +48,15 @@ These should already be done for the current deployment:
    RESEND_FROM_EMAIL=...
    ```
 
+   Automated WhatsApp reminder variables:
+
+   ```env
+   WHATSAPP_ACCESS_TOKEN=...
+   WHATSAPP_PHONE_NUMBER_ID=...
+   WHATSAPP_GRAPH_API_VERSION=v23.0
+   CRON_SECRET=...
+   ```
+
 4. Upload or update Cloudflare Worker secrets when a value changes:
 
    ```bash

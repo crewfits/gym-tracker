@@ -18,3 +18,13 @@ export function whatsappNumber(phone: string, defaultCountryCode: string): strin
   if (number.length < 10 || number.length > 15) throw new Error("Member phone number is not valid for WhatsApp");
   return number;
 }
+
+export function whatsappClickToChatUrl(phone: string, defaultCountryCode: string, message: string): string {
+  const number = whatsappNumber(phone, defaultCountryCode);
+  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+}
+
+export function whatsappAppUrl(phone: string, defaultCountryCode: string, message: string): string {
+  const number = whatsappNumber(phone, defaultCountryCode);
+  return `whatsapp://send?phone=${number}&text=${encodeURIComponent(message)}`;
+}

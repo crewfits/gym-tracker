@@ -58,7 +58,7 @@ async function removeMemberPhoto(supabase: Awaited<ReturnType<typeof requireGym>
 export async function createMember(formData: FormData) {
   try {
     const input = z.object({
-      name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), confirm_shared: z.string().optional(), generate_qr: z.string().optional(),
+      name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), generate_qr: z.string().optional(), whatsapp_reminders_enabled: z.string().optional(),
       plan_id: z.uuid(), starts_on: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate,
       subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100), amount_paid: money,
       method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string(), paid_on: z.iso.date(),
@@ -66,7 +66,7 @@ export async function createMember(formData: FormData) {
     const { supabase, gym } = await requireGym();
     const selectedPhoto = photoInput(formData);
     const { data: duplicate } = await supabase.from("members").select("id,member_code,name,is_archived").eq("gym_id", gym.id).eq("phone", input.phone).order("is_archived", { ascending: true }).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    const duplicateOutcome = duplicatePhoneOutcome(duplicate, input.confirm_shared === "on");
+    const duplicateOutcome = duplicatePhoneOutcome(duplicate);
     if (duplicate && duplicateOutcome !== "allow") {
       if (duplicateOutcome === "reactivate") redirect(`/members/${duplicate.id}?reactivate=1`);
       throw new Error(`${duplicate.name} (${duplicate.member_code}) already uses this phone. Select the shared-phone confirmation to continue.`);
@@ -100,6 +100,8 @@ export async function createMember(formData: FormData) {
         photoWarning = ` Photo upload failed: ${photoError instanceof Error ? photoError.message : String(photoError)}`;
       }
     }
+    const { error: reminderPreferenceError } = await supabase.from("members").update({ whatsapp_reminders_enabled: input.whatsapp_reminders_enabled === "on" }).eq("id", result.member_id).eq("gym_id", gym.id);
+    if (reminderPreferenceError) throw reminderPreferenceError;
     if (input.generate_qr === "on") {
       const { error: qrError } = await supabase.rpc("issue_member_qr", { p_member_id: result.member_id });
       if (qrError) redirect(`/members/${result.member_id}?error=${encodeURIComponent(`Member created, but QR generation failed: ${qrError.message}`)}`);
@@ -113,7 +115,7 @@ export async function createMember(formData: FormData) {
 export async function updateMember(formData: FormData) {
   const id = String(formData.get("id"));
   try {
-    const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), is_archived: z.string().optional() }).parse(Object.fromEntries(formData));
+    const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), is_archived: z.string().optional(), whatsapp_reminders_enabled: z.string().optional() }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
     const selectedPhoto = photoInput(formData);
     const { data: existing, error: existingError } = await supabase.from("members").select("profile_photo_path").eq("id", id).eq("gym_id", gym.id).maybeSingle();
@@ -125,7 +127,7 @@ export async function updateMember(formData: FormData) {
       await removeMemberPhoto(supabase, existing.profile_photo_path);
       profilePhotoPath = null;
     }
-    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
+    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", whatsapp_reminders_enabled: input.whatsapp_reminders_enabled === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
     if (error) throw error; done(`/members/${id}`, "Member updated");
   } catch (e) { fail(`/members/${id}`, e); }
 }
