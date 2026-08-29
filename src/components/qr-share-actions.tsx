@@ -48,7 +48,7 @@ async function buildPassImage({ gymName, memberName, memberCode, qrPngDataUrl }:
   ctx.fillStyle = "#14213d";
   ctx.textAlign = "center";
   ctx.font = "700 34px Arial, sans-serif";
-  ctx.fillText("GymDesk QR pass", 450, 150);
+  ctx.fillText("FitKiro QR pass", 450, 150);
   ctx.font = "800 58px Arial, sans-serif";
   ctx.fillText(gymName.slice(0, 28), 450, 230);
   ctx.fillStyle = "#64748b";
@@ -67,9 +67,6 @@ async function buildPassImage({ gymName, memberName, memberCode, qrPngDataUrl }:
   ctx.fillStyle = "#078447";
   ctx.font = "700 24px Arial, sans-serif";
   ctx.fillText("Save this image on your phone", 450, 1125);
-  ctx.fillStyle = "#64748b";
-  ctx.font = "500 22px Arial, sans-serif";
-  ctx.fillText("The gym operator will scan this QR for Check-in / Check-out.", 450, 1165);
 
   const blob = await canvasToBlob(canvas);
   if (!blob) throw new Error("Could not prepare the QR pass image");
