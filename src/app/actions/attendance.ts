@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireGym } from "@/lib/auth";
 import { attendanceLabel } from "@/lib/domain";
-import { verifyQrToken } from "@/lib/qr-token";
+import { isShortQrCode, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
 
 function isRedirect(error: unknown): boolean {
   return typeof error === "object" && error !== null && "digest" in error && String((error as { digest: unknown }).digest).startsWith("NEXT_REDIRECT");
@@ -51,16 +51,24 @@ export async function disableMemberQr(formData: FormData) {
 
 export async function recordAttendance(formData: FormData) {
   const input = z.object({
-    token: z.string().min(20).max(1000),
+    token: z.string().min(12).max(1000),
     direction: z.enum(["entry", "exit"]),
     request_id: z.uuid(),
   }).parse(Object.fromEntries(formData));
   const scanPath = `/s/${input.token}`;
 
   try {
-    const payload = verifyQrToken(input.token);
-    if (!payload) throw new Error("This QR is invalid");
     const { supabase, gym } = await requireGym();
+    let payload: QrTokenPayload | null = null;
+
+    if (isShortQrCode(input.token)) {
+      const { data: credential } = await supabase.from("member_qr_credentials").select("member_id,version").eq("public_code", input.token).eq("gym_id", gym.id).maybeSingle();
+      if (credential) payload = { gymId: gym.id, memberId: credential.member_id, version: credential.version };
+    } else {
+      payload = verifyQrToken(input.token);
+    }
+
+    if (!payload) throw new Error("This QR is invalid");
     if (payload.gymId !== gym.id) throw new Error("This QR belongs to another gym");
     const { error } = await supabase.rpc("record_attendance", {
       p_member_id: payload.memberId,

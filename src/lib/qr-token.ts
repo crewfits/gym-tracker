@@ -7,6 +7,11 @@ export type QrTokenPayload = {
 };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const shortQrCodePattern = /^[A-HJ-NP-Z2-9]{12}$/;
+
+export function isShortQrCode(value: string): boolean {
+  return shortQrCodePattern.test(value);
+}
 
 function signingSecret(): string {
   const secret = process.env.QR_SIGNING_SECRET;

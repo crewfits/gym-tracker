@@ -7,23 +7,23 @@ import { QrShareActions } from "@/components/qr-share-actions";
 import { disableMemberQr, issueMemberQr } from "@/app/actions/attendance";
 import { requireGym } from "@/lib/auth";
 import { attendanceLabel } from "@/lib/domain";
-import { createQrToken, qrUrls } from "@/lib/qr-token";
+import { qrUrls } from "@/lib/qr-token";
 
 type Query = { success?: string; error?: string };
-type Credential = { version: number; enabled: boolean; issued_at: string; rotated_at: string | null };
+type Credential = { public_code: string; version: number; enabled: boolean; issued_at: string; rotated_at: string | null };
 
 export default async function MemberQrPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Query> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { supabase, gym } = await requireGym();
   const [{ data: member }, { data: credentialData }, { data: attendance }] = await Promise.all([
     supabase.from("members").select("id,member_code,name,phone,is_archived").eq("id", id).eq("gym_id", gym.id).maybeSingle(),
-    supabase.from("member_qr_credentials").select("version,enabled,issued_at,rotated_at").eq("member_id", id).eq("gym_id", gym.id).maybeSingle(),
+    supabase.from("member_qr_credentials").select("public_code,version,enabled,issued_at,rotated_at").eq("member_id", id).eq("gym_id", gym.id).maybeSingle(),
     supabase.from("attendance_events").select("id,direction,occurred_at").eq("member_id", id).eq("gym_id", gym.id).order("occurred_at", { ascending: false }).limit(10),
   ]);
   if (!member) notFound();
 
   const credential = credentialData as Credential | null;
-  const token = credential?.enabled ? createQrToken({ gymId: gym.id, memberId: member.id, version: credential.version }) : null;
+  const token = credential?.enabled ? credential.public_code : null;
   const urls = token ? qrUrls(token) : null;
   const pngDataUrl = urls ? await qrPngDataUrl(urls.scanUrl) : null;
   const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91";

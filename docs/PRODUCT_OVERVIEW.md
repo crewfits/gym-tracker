@@ -26,7 +26,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 ### QR access and attendance
 
-1. GymDesk generates a compact first-party, signed, versioned QR URL without storing the QR image, token, or short-link row.
+1. GymDesk generates a compact first-party QR URL using a short random code stored on the QR credential row. The QR image itself is not stored.
 2. The owner shares the pass link or PNG manually, including through WhatsApp.
 3. An authenticated operator scans the member's QR.
 4. GymDesk validates tenant ownership, QR version, member state, and active membership.

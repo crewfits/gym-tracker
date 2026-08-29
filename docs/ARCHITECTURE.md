@@ -45,7 +45,7 @@ Important modules:
 - `src/lib/auth.ts` resolves the authenticated gym owner.
 - `src/app/actions/core.ts` handles member, membership, payment and settings mutations.
 - `src/app/actions/attendance.ts` handles QR lifecycle and attendance writes.
-- `src/lib/qr-token.ts` signs and verifies versioned QR tokens.
+- `src/lib/qr-token.ts` keeps backward compatibility for older signed QR tokens and identifies the current short QR-code format.
 - `src/lib/receipt-token.ts` creates signed bearer links for member-readable payment receipts.
 - `supabase/migrations/001_initial_schema.sql` contains the main operational schema and RLS.
 - `supabase/migrations/002_create_member_with_enrollment.sql` makes onboarding transactional.
@@ -58,6 +58,7 @@ Important modules:
 - `supabase/migrations/012_partial_payment_reminder_window.sql` adds the upcoming outstanding-payment queue.
 - `supabase/migrations/013_disable_qr_when_member_archived.sql` enforces QR invalidation when a member is archived.
 - `supabase/migrations/014_reactivate_archived_member.sql` restores an archived profile transactionally while keeping the previous QR invalid.
+- `supabase/migrations/015_short_qr_public_codes.sql` adds first-party short QR codes for WhatsApp-friendly pass links.
 
 ## Authentication and data isolation
 
@@ -131,15 +132,15 @@ V1 reminders are owner-initiated WhatsApp click-to-chat messages.
 
 ## QR access and attendance
 
-The QR image and signed token are generated on demand and are not stored. The database stores only enabled state, credential version, and lifecycle metadata.
+The QR image is generated on demand and is not stored. The database stores the current short public code, enabled state, credential version, and lifecycle metadata.
 
 ```text
-payload   = gym ID + member ID + credential version
-signature = HMAC-SHA256(server-only secret, payload)
-QR        = public scan URL containing payload.signature
+code = 12-character non-sequential public code
+pass = /p/{code}
+scan = /s/{code}
 ```
 
-New tokens use an authenticated-encrypted fixed binary payload to keep the first-party `/p/` and `/s/` URLs short without exposing member or gym identifiers. The verifier remains backward-compatible with older signed tokens. Regeneration increments the credential version and invalidates old copies. Archiving or explicitly disabling the credential denies all scans until a new version is issued.
+Current QR links use a first-party short code instead of exposing member IDs or relying on a third-party URL shortener. The verifier remains backward-compatible with older signed/encrypted tokens until the owner regenerates that member's QR. Regeneration replaces the short code, increments the credential version, and invalidates old copies. Archiving or explicitly disabling the credential denies all scans until a new version is issued.
 
 Attendance rules:
 
