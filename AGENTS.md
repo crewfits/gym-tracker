@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# GymDesk project context
+# FitKiro project context
 
 Read `docs/CLIENT_V1_SCOPE.md`, `docs/PRODUCT_OVERVIEW.md`, `docs/ARCHITECTURE.md`, and `docs/DEVELOPMENT.md` before substantial product, schema, architecture, authentication, or release work. Implement only the approved first-client V1 scope unless the user explicitly changes it.
 

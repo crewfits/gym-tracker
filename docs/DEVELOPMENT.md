@@ -1,4 +1,4 @@
-# GymDesk development workflow
+# FitKiro development workflow
 
 Last reviewed: 2026-08-23
 

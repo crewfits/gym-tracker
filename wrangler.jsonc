@@ -9,8 +9,14 @@
     "binding": "ASSETS"
   },
   "vars": {
-    "NEXT_PUBLIC_APP_URL": "https://fitkiro.crewfitss.workers.dev"
+    "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com"
   },
+  "routes": [
+    {
+      "pattern": "musclefitness.fitkiro.com",
+      "custom_domain": true
+    }
+  ],
   "observability": {
     "enabled": true
   }

@@ -43,7 +43,7 @@ export async function requestPasswordReset(formData: FormData) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) redirect(`/login?mode=reset&error=${encodeURIComponent(passwordResetErrorMessage(error.message))}&next=${encodeURIComponent(next)}`);
 
-  redirect(`/login?mode=reset&reset=sent&success=${encodeURIComponent("If this email belongs to a GymDesk owner account, a reset link will be sent.")}&next=${encodeURIComponent(next)}`);
+  redirect(`/login?mode=reset&reset=sent&success=${encodeURIComponent("If this email belongs to a FitKiro owner account, a reset link will be sent.")}&next=${encodeURIComponent(next)}`);
 }
 
 export async function updatePassword(formData: FormData) {

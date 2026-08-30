@@ -106,7 +106,7 @@ export function QrShareActions({ defaultCountryCode, filename, gymName, memberCo
     try {
       await copyPassImage();
     } finally {
-      if (whatsappUrl) window.open(whatsappUrl, "gymdesk-whatsapp-qr-share", "noopener,noreferrer");
+      if (whatsappUrl) window.open(whatsappUrl, "fitkiro-whatsapp-qr-share", "noopener,noreferrer");
     }
   }
 

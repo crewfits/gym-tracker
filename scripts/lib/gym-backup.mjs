@@ -29,7 +29,7 @@ export async function gymBackup(client, gymId) {
   if (gyms.length !== 1) throw new Error("Gym not found");
   const tables = { gyms };
   for (const table of gymTables) tables[table] = await allRows(client, table, "gym_id", gymId);
-  return { format: "gymdesk-gym-backup", version: 1, created_at: new Date().toISOString(), gym_id: gymId, tables };
+  return { format: "fitkiro-gym-backup", version: 1, created_at: new Date().toISOString(), gym_id: gymId, tables };
 }
 
 export async function writeGymBackup(client, gymId, outputPath) {

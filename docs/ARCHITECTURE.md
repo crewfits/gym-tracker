@@ -1,4 +1,4 @@
-# GymDesk V1 architecture
+# FitKiro V1 architecture
 
 Last reviewed: 2026-08-23
 
@@ -6,7 +6,7 @@ This document describes only the architecture required for the contracted first-
 
 ## Product boundary
 
-GymDesk V1 is a single-gym, single-location, owner-operated application for:
+FitKiro V1 is a single-gym, single-location, owner-operated application for:
 
 1. member and package management;
 2. manual payment tracking and individual payment reminders;

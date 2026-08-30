@@ -1,6 +1,6 @@
 # Automated WhatsApp payment reminders
 
-GymDesk can submit one approved WhatsApp Utility template on a charge's `due_on` date. Automation is opt-in at both gym and member level, uses Meta WhatsApp Cloud API directly, records submitted/skipped/failed attempts, and will not submit the same charge reminder twice for the same date.
+FitKiro can submit one approved WhatsApp Utility template on a charge's `due_on` date. Automation is opt-in at both gym and member level, uses Meta WhatsApp Cloud API directly, records submitted/skipped/failed attempts, and will not submit the same charge reminder twice for the same date.
 
 Manual `wa.me` reminders remain available at no platform cost. Automated reminders are limited to individual payment follow-ups; bulk campaigns and marketing automation are not included.
 
@@ -27,7 +27,7 @@ Never prefix these values with `NEXT_PUBLIC_`.
 
 ## Required Meta template
 
-Create and obtain approval for a Utility template named `gymdesk_payment_follow_up` (or save the approved name in GymDesk Settings). Its language code and parameter order must match the application:
+Create and obtain approval for a Utility template named `fitkiro_payment_follow_up` (or save the approved name in FitKiro Settings). Its language code and parameter order must match the application:
 
 ```text
 Hi {{1}}, this is a payment reminder from {{2}} for your {{3}} membership.
@@ -51,7 +51,7 @@ Enable Supabase Cron (`pg_cron`) and `pg_net`, then create an HTTP job:
 
 - Schedule: `0 3 * * *` (08:30 Asia/Kolkata)
 - Method: `POST`
-- URL: `https://gymdesk.gym-tracking-system.workers.dev/api/cron/reminders`
+- URL: `https://musclefitness.fitkiro.com/api/cron/reminders`
 - Header: `Authorization: Bearer <the same CRON_SECRET>`
 - Header: `Content-Type: application/json`
 - Body: `{}`
@@ -62,7 +62,7 @@ The endpoint calculates each enabled gym's local date. It processes only outstan
 
 1. Apply the latest Supabase migration.
 2. Configure Meta billing, the approved template, and production secrets.
-3. In GymDesk Settings, save the exact template name/language and enable automatic WhatsApp reminders.
+3. In FitKiro Settings, save the exact template name/language and enable automatic WhatsApp reminders.
 4. Record member consent on the member profile.
 5. Ensure the member has an outstanding charge due today.
 6. Use **Send due WhatsApp reminders** once.

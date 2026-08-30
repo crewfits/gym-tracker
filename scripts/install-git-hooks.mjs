@@ -22,4 +22,4 @@ const config = spawnSync("git", ["config", "core.hooksPath", ".githooks"], {
 if (config.status !== 0) process.exit(config.status ?? 1);
 
 chmodSync(hookPath, 0o755);
-console.log("Installed GymDesk pre-commit checks from .githooks/pre-commit.");
+console.log("Installed FitKiro pre-commit checks from .githooks/pre-commit.");

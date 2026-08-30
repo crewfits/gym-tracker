@@ -1,6 +1,6 @@
-# GymDesk
+# FitKiro
 
-GymDesk is the minimal owner-operated application for the first contracted gym client: member/package management, manual payment and WhatsApp follow-up, and versioned QR entry/exit attendance.
+FitKiro is the minimal owner-operated application for the first contracted gym client: member/package management, manual payment and WhatsApp follow-up, and versioned QR entry/exit attendance.
 
 ## V1 capabilities
 
@@ -22,7 +22,7 @@ GymDesk is the minimal owner-operated application for the first contracted gym c
 5. Provision the owner account:
 
 ```bash
-GYMDESK_OWNER_PASSWORD='<temporary-strong-password>' npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
+FITKIRO_OWNER_PASSWORD='<temporary-strong-password>' npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
 ```
 
 6. Start with `npm run dev`. For mobile QR testing through ngrok, use `npm run dev:tunnel`.
@@ -51,4 +51,4 @@ The import command is a dry run unless `--apply` is explicitly supplied. See [co
 - [Production runbook](docs/PRODUCTION_RUNBOOK.md)
 - [V1 rollout checklist](docs/V1_ROLLOUT_CHECKLIST.md)
 
-Receipt email remains an optional existing convenience when Resend is configured. V1 membership/payment reminders are manual WhatsApp click-to-chat actions; GymDesk does not use a WhatsApp API and never claims message delivery.
+Receipt email remains an optional existing convenience when Resend is configured. V1 membership/payment reminders are manual WhatsApp click-to-chat actions; FitKiro does not use a WhatsApp API and never claims message delivery.

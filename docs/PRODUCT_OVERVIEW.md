@@ -1,4 +1,4 @@
-# GymDesk product overview
+# FitKiro product overview
 
 Last reviewed: 2026-08-23
 
@@ -6,7 +6,7 @@ This document defines the intended product boundary. Update it whenever a major 
 
 ## Product direction
 
-GymDesk is currently a minimal, owner-operated gym management application for the first contracted client. It manages members/packages, manual payments/reminders, and QR attendance.
+FitKiro is currently a minimal, owner-operated gym management application for the first contracted client. It manages members/packages, manual payments/reminders, and QR attendance.
 
 The V1 client has approximately 300 active members and 1,500 total current/historical member records. The existing modular monolith and PostgreSQL database are more than sufficient for this workload.
 
@@ -26,10 +26,10 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 ### QR access and attendance
 
-1. GymDesk generates a compact first-party QR URL using a short random code stored on the QR credential row. The QR image itself is not stored.
+1. FitKiro generates a compact first-party QR URL using a short random code stored on the QR credential row. The QR image itself is not stored.
 2. The owner shares the pass link or PNG manually, including through WhatsApp.
 3. An authenticated operator scans the member's QR.
-4. GymDesk validates tenant ownership, QR version, member state, and active membership.
+4. FitKiro validates tenant ownership, QR version, member state, and active membership.
 5. The operator explicitly confirms Check-in or Check-out; opening the URL never records attendance.
 6. The first confirmed scan of a gym business day is a Check-in. Later movements alternate, with a manual override for missed scans.
 

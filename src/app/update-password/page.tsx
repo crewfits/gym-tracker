@@ -9,7 +9,7 @@ export default async function UpdatePassword({ searchParams }: { searchParams: P
     <main className="auth-page">
       <div className="card auth-card">
         <div className="brand auth-brand">
-          <span className="brand-mark"><Dumbbell size={20} /></span> GymDesk
+          <span className="brand-mark"><Dumbbell size={20} /></span> FitKiro
         </div>
         <p className="eyebrow">Owner password reset</p>
         <h1>Set a new password.</h1>

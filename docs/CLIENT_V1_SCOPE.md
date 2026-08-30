@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-08-23
 
-This is the delivery and acceptance boundary for the first GymDesk client. Future architecture documents are not part of this committed V1 scope unless separately agreed.
+This is the delivery and acceptance boundary for the first FitKiro client. Future architecture documents are not part of this committed V1 scope unless separately agreed.
 
 ## Client profile
 

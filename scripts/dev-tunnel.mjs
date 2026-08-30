@@ -91,7 +91,7 @@ try {
       throw new Error(`ngrok stopped before opening a tunnel (${reason})`);
     }),
   ]);
-  console.log(`\nGymDesk tunnel: ${publicUrl}`);
+  console.log(`\nFitKiro tunnel: ${publicUrl}`);
   console.log("Starting Next.js with this URL for QR links...\n");
 
   const next = start(process.execPath, [nextCli, "dev"], {

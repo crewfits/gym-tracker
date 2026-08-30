@@ -11,8 +11,8 @@ describe("manual reminders", () => {
   });
   it("rejects numbers WhatsApp cannot route", () => expect(() => whatsappNumber("1234", "91")).toThrow());
   it("creates a direct click-to-chat link with the message encoded once", () => {
-    const passUrl = "https://gymdesk.example/p/9NVNG3B4RQ99";
-    const message = `Hi Harini, open your GymDesk QR pass: ${passUrl}`;
+    const passUrl = "https://fitkiro.example/p/9NVNG3B4RQ99";
+    const message = `Hi Harini, open your FitKiro QR pass: ${passUrl}`;
     const url = whatsappClickToChatUrl("98765 43210", "91", message);
 
     expect(url).toBe(`https://wa.me/919876543210?text=${encodeURIComponent(message)}`);

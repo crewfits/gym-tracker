@@ -12,7 +12,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
     <main className="auth-page">
       <div className="card auth-card">
         <div className="brand auth-brand">
-          <span className="brand-mark"><Dumbbell size={20} /></span> GymDesk
+          <span className="brand-mark"><Dumbbell size={20} /></span> FitKiro
         </div>
         <div className="auth-intro auth-intro-signin">
           <p className="eyebrow">Provisioned owner access</p>
@@ -56,7 +56,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         </details>
 
         <div className="auth-note">
-          <small>New gym accounts are created by the GymDesk team</small>
+          <small>New gym accounts are created by the FitKiro team</small>
         </div>
       </div>
     </main>

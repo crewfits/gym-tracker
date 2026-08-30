@@ -2,7 +2,7 @@
 
 ## Goal
 
-GymDesk will issue an optional QR pass to each member. An authenticated gym operator scans the pass, reviews the member and membership status, and explicitly records an entry or exit event.
+FitKiro will issue an optional QR pass to each member. An authenticated gym operator scans the pass, reviews the member and membership status, and explicitly records an entry or exit event.
 
 The QR image is never persisted. A PNG is regenerated on demand from a signed URL.
 
@@ -36,8 +36,8 @@ The QR is an identifier, not proof that the person holding it is the member. The
 
 1. The owner creates and enrolls a member.
 2. The owner may select **Generate QR after creation** or skip issuance.
-3. If selected, GymDesk issues QR version 1 and opens the QR management screen.
-4. GymDesk renders the QR from the short scan URL.
+3. If selected, FitKiro issues QR version 1 and opens the QR management screen.
+4. FitKiro renders the QR from the short scan URL.
 5. The owner can:
    - open WhatsApp with an individual pre-filled message containing the public pass link;
    - download the QR PNG;
@@ -47,7 +47,7 @@ The QR is an identifier, not proof that the person holding it is the member. The
    - disable it.
 6. The member opens the public pass link to display their QR. The public view contains no phone, email, payments, or membership details.
 7. An owner scans the QR using any QR scanner. It opens `/s/{token}`.
-8. If necessary, GymDesk requests login and returns to the original scan URL.
+8. If necessary, FitKiro requests login and returns to the original scan URL.
 9. The server validates the HMAC, gym, member, credential version, enabled state, archive state, and active membership.
 10. The operator explicitly records **Check-in** or **Check-out** through an authenticated POST action. Stored enum values remain `entry` and `exit` for compatibility.
 11. A transactional database function records the event and prevents duplicate submissions.
@@ -74,9 +74,9 @@ V1 uses the provisioned owner authentication and RLS boundary. Every Server Acti
 
 No WhatsApp API is used. Individual sharing opens a `wa.me` click-to-chat link for the member with pre-filled text. The message is sent from the WhatsApp account currently signed into the owner's app or browser, and the owner must press Send.
 
-Click-to-chat cannot attach a generated image reliably in every browser. GymDesk therefore opens the WhatsApp app directly on mobile, or one reusable WhatsApp Web tab on desktop, with a pre-filled message containing the public pass link exactly once. This works without saving the member as a contact; the owner still reviews the chat and presses Send. The WhatsApp action never downloads a file; PNG download remains a separate, explicitly selected fallback because WhatsApp does not expose file attachment through click-to-chat URLs.
+Click-to-chat cannot attach a generated image reliably in every browser. FitKiro therefore opens the WhatsApp app directly on mobile, or one reusable WhatsApp Web tab on desktop, with a pre-filled message containing the public pass link exactly once. This works without saving the member as a contact; the owner still reviews the chat and presses Send. The WhatsApp action never downloads a file; PNG download remains a separate, explicitly selected fallback because WhatsApp does not expose file attachment through click-to-chat URLs.
 
-Because there is no WhatsApp provider callback, GymDesk does not know whether the owner actually pressed Send or whether the member received the message. The `shared_at` status is an owner-maintained operational flag, not delivery proof.
+Because there is no WhatsApp provider callback, FitKiro does not know whether the owner actually pressed Send or whether the member received the message. The `shared_at` status is an owner-maintained operational flag, not delivery proof.
 
 Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUBLIC_DEFAULT_COUNTRY_CODE` (default `91`); international numbers should be stored with a leading `+`.
 
@@ -84,7 +84,7 @@ Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUB
 
 - Membership dates, not QR age, decide whether entry is allowed.
 - Attendance direction resets by the gym's configured timezone: the first confirmed scan of each calendar day is Check-in, then movements alternate Check-out/Check-in within that day.
-- A previous-day Check-in without a Check-out remains visible as a missing Check-out but never makes the next day's first scan a Check-out. GymDesk does not invent a Check-out time.
+- A previous-day Check-in without a Check-out remains visible as a missing Check-out but never makes the next day's first scan a Check-out. FitKiro does not invent a Check-out time.
 - Operators retain a manual Check-in/Check-out override because a missed same-day scan cannot be inferred reliably.
 - Archived members and disabled, replaced, malformed, or cross-gym QRs are denied.
 - Regeneration is a security action and requires explicit confirmation in the UI.

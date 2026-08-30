@@ -1,10 +1,10 @@
-# GymDesk V1 production runbook
+# FitKiro V1 production runbook
 
 Last reviewed: 2026-08-22
 
 ## Ownership
 
-- Application deployment, secrets, migrations, owner provisioning, and restore tests: Crewfits/GymDesk delivery team.
+- Application deployment, secrets, migrations, owner provisioning, and restore tests: Crewfits/FitKiro delivery team.
 - Day-to-day member, payment, reminder, and attendance data: gym owner.
 - Hosting and Supabase invoices after the contracted period: client, with credentials handed over through a secure channel.
 
@@ -13,7 +13,7 @@ Last reviewed: 2026-08-22
 1. Run `npm run check:release` on the exact commit.
 2. Run `supabase migration list --linked`; stop if local and remote history diverge unexpectedly.
 3. Review `supabase db push --linked --dry-run`, take a backup, then apply the pending append-only migrations during the agreed window.
-4. Configure production variables from `.env.example`. Do not deploy `GYMDESK_OWNER_PASSWORD`; it is only for the provisioning command.
+4. Configure production variables from `.env.example`. Do not deploy `FITKIRO_OWNER_PASSWORD`; it is only for the provisioning command.
 5. Run `npm run ops:preflight` in the production environment.
 6. Deploy the Next.js application, then verify `/api/health` returns HTTP 200.
 7. Complete every item in [V1_ROLLOUT_CHECKLIST.md](V1_ROLLOUT_CHECKLIST.md).
@@ -25,13 +25,13 @@ Last reviewed: 2026-08-22
 - Add the production password-reset callback to Supabase allowed redirect URLs:
 
 ```text
-https://gymdesk.gym-tracking-system.workers.dev/auth/callback
+https://musclefitness.fitkiro.com/auth/callback
 ```
 
 - Provision the single confirmed owner with:
 
 ```bash
-GYMDESK_OWNER_PASSWORD='<temporary-strong-password>' npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
+FITKIRO_OWNER_PASSWORD='<temporary-strong-password>' npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
 ```
 
 - Share the temporary password separately and rotate it after handoff.

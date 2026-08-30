@@ -21,7 +21,7 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const email = argument("email").trim().toLowerCase();
 const gymName = argument("gym-name").trim();
 const timezone = argument("timezone", "Asia/Kolkata").trim();
-const password = process.env.GYMDESK_OWNER_PASSWORD;
+const password = process.env.FITKIRO_OWNER_PASSWORD;
 
 if (!url || !serviceRoleKey) throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");
 if (!email || !email.includes("@")) throw new Error("Pass a valid --email=owner@example.com");
@@ -32,7 +32,7 @@ let user = await findUserByEmail(admin, email);
 let createdUser = false;
 
 if (!user) {
-  if (!password || password.length < 12) throw new Error("Set GYMDESK_OWNER_PASSWORD to a temporary password of at least 12 characters");
+  if (!password || password.length < 12) throw new Error("Set FITKIRO_OWNER_PASSWORD to a temporary password of at least 12 characters");
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password,

@@ -6,7 +6,7 @@ const argument = (name) => process.argv.find((value) => value.startsWith(`--${na
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const gymId = argument("gym-id");
-const output = resolve(argument("output") || `gymdesk-backup-${gymId}-${new Date().toISOString().replaceAll(":", "-")}.json`);
+const output = resolve(argument("output") || `fitkiro-backup-${gymId}-${new Date().toISOString().replaceAll(":", "-")}.json`);
 
 if (!url || !serviceRoleKey) throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");
 if (!gymId) throw new Error("Pass --gym-id=<uuid>");
