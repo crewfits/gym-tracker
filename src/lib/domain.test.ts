@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attendanceLabel, businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, membershipStatus, nextAttendanceDirection, paymentStatus, selectEffectiveMembership } from "./domain";
+import { attendanceLabel, businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatDisplayDate, formatDisplayDateTime, membershipStatus, nextAttendanceDirection, paymentStatus, planDurationDays, selectEffectiveMembership } from "./domain";
 
 describe("membership dates", () => {
   it("uses inclusive expiry dates", () => expect(calculateExpiry("2026-01-15", 1, "months")).toBe("2026-02-14"));
@@ -7,6 +7,14 @@ describe("membership dates", () => {
   it("preserves paid time for early renewals", () => expect(calculateRenewalStart("2026-08-31", "2026-08-14")).toBe("2026-09-01"));
   it("starts late renewals on renewal date", () => expect(calculateRenewalStart("2026-07-31", "2026-08-14")).toBe("2026-08-14"));
   it("sets payment follow-up seven days after membership start", () => expect(calculatePaymentFollowUpDate("2026-08-23")).toBe("2026-08-30"));
+  it("formats visible dates as day month year", () => expect(formatDisplayDate("2026-08-31")).toBe("31 08 2026"));
+  it("formats visible timestamps as day month year with local time", () => expect(formatDisplayDateTime("2026-08-31T12:34:56.000Z", "UTC", true)).toBe("31 08 2026, 12:34:56"));
+});
+
+describe("plans", () => {
+  it("normalizes plan durations for descending display", () => {
+    expect(planDurationDays({ duration_value: 1, duration_unit: "months" })).toBeGreaterThan(planDurationDays({ duration_value: 7, duration_unit: "days" }));
+  });
 });
 
 describe("finance", () => {

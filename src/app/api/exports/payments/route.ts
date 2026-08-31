@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireGym } from "@/lib/auth";
 import { csvDocument } from "@/lib/csv";
-import { businessDate } from "@/lib/domain";
+import { businessDate, formatDisplayDate } from "@/lib/domain";
 import type { PaymentMethod } from "@/lib/types";
 
 type PaymentExportRow = { receipt_number: string; paid_on: string; method: PaymentMethod; reference: string | null; amount_paise: number; reversed_paise: number; net_paise: number; voided_at: string | null; void_reason: string | null; member_code: string; member_name: string; plan_name: string; total_count: number };
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
   const csv = csvDocument(
     ["Receipt", "Payment date", "Member ID", "Member name", "Plan", "Method", "Reference", "Original amount (INR)", "Reversed (INR)", "Net amount (INR)", "Status", "Reversal reason"],
-    rows.map((row) => [row.receipt_number, row.paid_on, row.member_code, row.member_name, row.plan_name, row.method, row.reference, (Number(row.amount_paise) / 100).toFixed(2), (Number(row.reversed_paise) / 100).toFixed(2), (Number(row.net_paise) / 100).toFixed(2), row.voided_at ? "reversed" : Number(row.reversed_paise) > 0 ? "partially reversed" : "completed", row.void_reason]),
+    rows.map((row) => [row.receipt_number, formatDisplayDate(row.paid_on), row.member_code, row.member_name, row.plan_name, row.method, row.reference, (Number(row.amount_paise) / 100).toFixed(2), (Number(row.reversed_paise) / 100).toFixed(2), (Number(row.net_paise) / 100).toFixed(2), row.voided_at ? "reversed" : Number(row.reversed_paise) > 0 ? "partially reversed" : "completed", row.void_reason]),
   );
   return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="payments-${businessDate(gym.timezone)}.csv"`, "Cache-Control": "private, no-store" } });
 }

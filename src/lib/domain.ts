@@ -3,6 +3,30 @@ import type { AttendanceDirection, DurationUnit, MembershipStatus, PaymentStatus
 
 export function formatDate(date: Date): string { return format(date, "yyyy-MM-dd"); }
 
+export function formatDisplayDate(value: string | null | undefined): string {
+  return value ? format(parseISO(value), "dd MM yyyy") : "—";
+}
+
+export function formatDisplayDateTime(value: string | null | undefined, timeZone: string, includeSeconds = false): string {
+  if (!value) return "—";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(includeSeconds ? { second: "2-digit" } : {}),
+    hour12: false,
+  }).formatToParts(new Date(value)).reduce<Record<string, string>>((result, part) => ({ ...result, [part.type]: part.value }), {});
+  const time = `${parts.hour}:${parts.minute}${includeSeconds ? `:${parts.second}` : ""}`;
+  return `${parts.day} ${parts.month} ${parts.year}, ${time}`;
+}
+
+export function planDurationDays(plan: { duration_value: number; duration_unit: DurationUnit }): number {
+  return plan.duration_unit === "months" ? plan.duration_value * 31 : plan.duration_value;
+}
+
 export function calculateExpiry(startDate: string, value: number, unit: DurationUnit): string {
   if (!Number.isInteger(value) || value <= 0) throw new Error("Duration must be a positive whole number");
   const start = parseISO(startDate);

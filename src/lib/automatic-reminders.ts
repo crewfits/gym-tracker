@@ -1,6 +1,6 @@
 import "server-only";
 
-import { businessDate, formatInr } from "@/lib/domain";
+import { businessDate, formatDisplayDate, formatInr } from "@/lib/domain";
 import { renderReminderTemplate, whatsappNumber } from "@/lib/reminders";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -41,7 +41,8 @@ export async function processAutomaticPaymentReminders(gymId?: string): Promise<
       if (prior?.status === "sent" || prior?.status === "skipped") continue;
 
       const balanceText = formatInr(Number(balance.balance_paise));
-      const values = { name: member.name, gym_name: gym.name, plan_name: membership.plan_name, balance: balanceText, due_date: balance.due_on };
+      const dueDate = formatDisplayDate(balance.due_on);
+      const values = { name: member.name, gym_name: gym.name, plan_name: membership.plan_name, balance: balanceText, due_date: dueDate };
       const message = renderReminderTemplate(gym.payment_reminder_template, values);
       let recipient: string | null = null;
       let skipReason: string | null = null;
@@ -66,7 +67,7 @@ export async function processAutomaticPaymentReminders(gymId?: string): Promise<
       const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: recipient, type: "template", template: { name: gym.whatsapp_payment_template_name, language: { code: gym.whatsapp_template_language }, components: [{ type: "body", parameters: [member.name, gym.name, membership.plan_name, balanceText, balance.due_on].map((text) => ({ type: "text", text })) }] } }),
+        body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: recipient, type: "template", template: { name: gym.whatsapp_payment_template_name, language: { code: gym.whatsapp_template_language }, components: [{ type: "body", parameters: [member.name, gym.name, membership.plan_name, balanceText, dueDate].map((text) => ({ type: "text", text })) }] } }),
       });
       const payload = await response.json() as MetaResponse;
       const providerId = payload.messages?.[0]?.id;

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { recordAttendance } from "@/app/actions/attendance";
 import { Feedback } from "@/components/feedback";
 import { requireGym } from "@/lib/auth";
-import { attendanceLabel, businessDate, nextAttendanceDirection } from "@/lib/domain";
+import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateTime, nextAttendanceDirection } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import { isShortQrCode, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
 
@@ -51,10 +51,10 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
   const accessMessage = !qrValid
     ? "QR disabled or replaced"
     : membership
-      ? `${membership.plan_name} · valid through ${membership.expires_on}`
-      : `No active membership for ${today}`;
+      ? `${membership.plan_name} · valid through ${formatDisplayDate(membership.expires_on)}`
+      : `No active membership for ${formatDisplayDate(today)}`;
   const lastMovement = lastEvent
-    ? `${attendanceLabel(lastEvent.direction)} · ${new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(lastEvent.occurred_at))}${lastEventDate !== today ? " · today starts with Check-in" : ""}`
+    ? `${attendanceLabel(lastEvent.direction)} · ${formatDisplayDateTime(lastEvent.occurred_at, gym.timezone)}${lastEventDate !== today ? " · today starts with Check-in" : ""}`
     : "No attendance recorded yet";
 
   return <>

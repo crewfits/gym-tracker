@@ -7,7 +7,7 @@ import { QrShareActions } from "@/components/qr-share-actions";
 import { disableMemberQr, issueMemberQr, markMemberQrShared } from "@/app/actions/attendance";
 import { requireGym } from "@/lib/auth";
 import { requestAppOrigin } from "@/lib/app-origin";
-import { attendanceLabel } from "@/lib/domain";
+import { attendanceLabel, formatDisplayDateTime } from "@/lib/domain";
 import { qrUrls } from "@/lib/qr-token";
 
 type Query = { success?: string; error?: string };
@@ -27,7 +27,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
   const token = credential?.enabled ? credential.public_code : null;
   const urls = token ? qrUrls(token, origin) : null;
   const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91";
-  const sharedAt = credential?.shared_at ? new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(credential.shared_at)) : null;
+  const sharedAt = credential?.shared_at ? formatDisplayDateTime(credential.shared_at, gym.timezone) : null;
   const qrPng = urls ? await qrPngDataUrl(urls.scanUrl) : null;
   const memberNameSlug = member.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   const qrFilename = `${memberNameSlug || "member"}-${member.member_code.toLowerCase()}-gym-pass.png`;
@@ -48,7 +48,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
               <div className="qr-member-label"><strong>{member.name}</strong><br/><span className="muted">{member.member_code}</span></div>
             </div>
             <div className="qr-control-panel">
-              {qrPng && <QrShareActions defaultCountryCode={defaultCountryCode} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} passUrl={urls.passUrl} phone={member.phone} qrPngDataUrl={qrPng}/>}
+              {qrPng && <QrShareActions defaultCountryCode={defaultCountryCode} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} phone={member.phone} qrPngDataUrl={qrPng}/>}
               <div className={`qr-share-confirm ${sharedAt ? "is-shared" : ""}`}>
                 <span>{sharedAt ? `Marked shared · ${sharedAt}` : "Not marked as shared"}</span>
                 {!sharedAt && <form action={markMemberQrShared}><input type="hidden" name="member_id" value={id}/><button className="button secondary small">Mark as shared</button></form>}
@@ -69,7 +69,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
       <aside className="card">
         <h2>Recent attendance</h2>
         <div className="timeline" style={{ marginTop: 22 }}>
-          {(attendance ?? []).map((event) => <div className="timeline-item" key={event.id}><strong>{attendanceLabel(event.direction)}</strong><br/><small className="muted">{new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(event.occurred_at))}</small></div>)}
+          {(attendance ?? []).map((event) => <div className="timeline-item" key={event.id}><strong>{attendanceLabel(event.direction)}</strong><br/><small className="muted">{formatDisplayDateTime(event.occurred_at, gym.timezone)}</small></div>)}
           {!attendance?.length && <div className="empty">No attendance recorded yet.</div>}
         </div>
       </aside>
