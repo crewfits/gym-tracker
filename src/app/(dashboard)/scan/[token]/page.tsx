@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { recordAttendance } from "@/app/actions/attendance";
 import { Feedback } from "@/components/feedback";
 import { requireGym } from "@/lib/auth";
 import { attendanceLabel, businessDate, nextAttendanceDirection } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
+import { SubmitButton } from "@/components/submit-button";
 import { isShortQrCode, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
 
 type Query = { success?: string; error?: string };
@@ -66,7 +68,7 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
     <div className="scan-layout">
       <section className={`card scan-card ${allowed ? "allowed" : "denied"}`}>
         <div className="scan-status">
-          <span className="member-avatar scan">{photoUrl ? <img src={photoUrl} alt=""/> : member.name.slice(0, 1).toUpperCase()}</span>
+          <span className="member-avatar scan">{photoUrl ? <Image src={photoUrl} alt="" width={96} height={96} unoptimized/> : member.name.slice(0, 1).toUpperCase()}</span>
           <span className={`scan-pill ${allowed ? "allowed" : "denied"}`}>{allowed ? "Access allowed" : "Access denied"}</span>
           <h2>{member.name}</h2>
           <p>{member.member_code} · {member.phone}</p>
@@ -78,7 +80,7 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
         {allowed && <div className="scan-actions">
           {directions.map((direction) => <form action={recordAttendance} key={direction}>
             <input type="hidden" name="token" value={token}/><input type="hidden" name="direction" value={direction}/><input type="hidden" name="request_id" value={randomUUID()}/>
-            <button className={`button scan-action ${direction} ${direction === suggestedDirection ? "suggested" : "secondary"}`}>{attendanceLabel(direction)}</button>
+            <SubmitButton className={`button scan-action ${direction} ${direction === suggestedDirection ? "suggested" : "secondary"}`} pendingLabel={`Recording ${attendanceLabel(direction)}…`}>{attendanceLabel(direction)}</SubmitButton>
           </form>)}
         </div>}
         <p className="scan-context"><span>Last movement</span><strong>{lastMovement}</strong></p>

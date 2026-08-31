@@ -1,6 +1,7 @@
 "use client";
 
 import { Camera, ImageUp, Trash2, X } from "lucide-react";
+import NextImage from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -238,7 +239,7 @@ export function MemberPhotoField({ existingUrl, memberName }: Props) {
     <input type="hidden" name="profile_photo_data_url" value={dataUrl}/>
     <input type="hidden" name="profile_photo_removed" value={removed ? "true" : ""}/>
     <div className="member-photo-preview" aria-label="Member photo preview">
-      {preview ? <img src={preview} alt={memberName ? `${memberName} profile photo` : "Member profile photo"}/> : <span>{initials}</span>}
+      {preview ? <NextImage src={preview} alt={memberName ? `${memberName} profile photo` : "Member profile photo"} width={84} height={84} unoptimized/> : <span>{initials}</span>}
     </div>
     <div className="member-photo-actions">
       <button className="button secondary small" type="button" onClick={() => void openCamera()}><Camera size={14}/> Capture photo</button>

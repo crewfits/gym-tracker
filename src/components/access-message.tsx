@@ -1,5 +1,6 @@
 import { Dumbbell, LogOut } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
+import { SubmitButton } from "@/components/submit-button";
 
 export function AccessMessage({ title, message }: { title: string; message: string }) {
   return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20, background: "linear-gradient(135deg,#10271c,#1c5136)" }}>
@@ -8,7 +9,7 @@ export function AccessMessage({ title, message }: { title: string; message: stri
       <p className="eyebrow">Owner access</p>
       <h1>{title}</h1>
       <p className="muted" style={{ marginBottom: 24 }}>{message}</p>
-      <form action={signOut}><button className="button secondary"><LogOut size={17}/> Sign out</button></form>
+      <form action={signOut}><SubmitButton className="button secondary" pendingLabel="Signing out…"><LogOut size={17}/> Sign out</SubmitButton></form>
     </section>
   </main>;
 }

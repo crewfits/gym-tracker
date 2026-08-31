@@ -2,6 +2,7 @@ import { Dumbbell } from "lucide-react";
 import { requestPasswordReset, signIn } from "@/app/actions/auth";
 import { Feedback } from "@/components/feedback";
 import { safeReturnPath } from "@/lib/return-path";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; mode?: string; next?: string; reset?: string; success?: string }> }) {
   const p = await searchParams;
@@ -36,7 +37,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
             <label>Password</label>
             <input name="password" type="password" autoComplete="current-password" minLength={8} required />
           </div>
-          <button className="button" formAction={signIn}>Sign in</button>
+          <SubmitButton className="button" formAction={signIn} pendingLabel="Signing in…">Sign in</SubmitButton>
         </form>
 
         <details className="auth-reset" open={resetMode}>
@@ -51,7 +52,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
               <label>Owner email</label>
               <input name="email" type="email" autoComplete="email" required />
             </div>
-            <button className="button" formAction={requestPasswordReset}>Send reset link</button>
+            <SubmitButton className="button" formAction={requestPasswordReset} pendingLabel="Sending reset link…">Send reset link</SubmitButton>
           </form>
         </details>
 

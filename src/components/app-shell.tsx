@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition, type MouseEvent } from "react";
 import { Bell, Dumbbell, LayoutDashboard, LogOut, Menu, ReceiptText, ScanLine, Settings, Tags, Users } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 import { BackButton } from "@/components/back-button";
+import { SubmitButton } from "@/components/submit-button";
 
 const links = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -27,20 +28,87 @@ function logicalBackFallback(pathname: string): string {
   return "/";
 }
 
+function routeTitle(pathname: string): string {
+  if (pathname === "/") return "Dashboard";
+  if (pathname === "/members") return "Members";
+  if (pathname === "/members/new") return "Add member";
+  if (/^\/members\/[^/]+\/qr$/.test(pathname)) return "Member QR pass";
+  if (/^\/members\/[^/]+\/pay$/.test(pathname)) return "Record payment";
+  if (/^\/members\/[^/]+\/renew$/.test(pathname)) return "Renew membership";
+  if (/^\/members\/[^/]+\/enroll$/.test(pathname)) return "Enroll member";
+  if (/^\/members\/[^/]+$/.test(pathname)) return "Member profile";
+  if (pathname === "/reminders") return "Reminders";
+  if (pathname === "/attendance") return "Attendance";
+  if (/^\/scan\/[^/]+$/.test(pathname) || /^\/s\/[^/]+$/.test(pathname)) return "QR attendance";
+  if (pathname === "/transactions") return "Transactions";
+  if (/^\/receipts\/[^/]+$/.test(pathname)) return "Payment receipt";
+  if (pathname === "/plans") return "Membership plans";
+  if (/^\/plans\/[^/]+\/edit$/.test(pathname)) return "Edit membership plan";
+  if (pathname === "/settings") return "Gym settings";
+  return "FitKiro";
+}
+
 function pathMatchesTarget(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function currentRoute(pathname: string, search: string): string {
+  return `${pathname}${search ? `?${search}` : ""}`;
+}
+
+function routePath(route: string): string {
+  return route.split("?")[0] || "/";
+}
+
+function RouteLoadingPreview() {
+  return <div className="loading-page" aria-label="Loading page">
+    <div className="loading-head">
+      <span className="skeleton-line short"/>
+      <span className="skeleton-line title"/>
+    </div>
+    <div className="loading-grid">
+      <div className="card loading-card">
+        <span className="skeleton-line medium"/>
+        <span className="skeleton-block tall"/>
+        <span className="skeleton-line"/>
+        <span className="skeleton-line medium"/>
+      </div>
+      <div className="card loading-card">
+        <span className="skeleton-line medium"/>
+        <span className="skeleton-block"/>
+        <span className="skeleton-line"/>
+      </div>
+    </div>
+  </div>;
+}
+
 export function AppShell({ gymName, children }: { gymName: string; children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
+  const currentHref = currentRoute(pathname, search);
   const [initialPath] = useState(pathname);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [isNavigating, startNavigation] = useTransition();
   const scanMode = pathname.startsWith("/scan") || pathname.startsWith("/s/");
-  const isNavigating = pendingHref !== null && !pathMatchesTarget(pathname, pendingHref);
+  const activePath = isNavigating && pendingHref ? routePath(pendingHref) : pathname;
 
-  function markNavigating(href: string) {
-    if (!pathMatchesTarget(pathname, href)) setPendingHref(href);
+  function handleInternalNavigation(event: MouseEvent<HTMLDivElement>) {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    if (!(anchor instanceof HTMLAnchorElement)) return;
+    if (anchor.target || anchor.hasAttribute("download")) return;
+    const rawHref = anchor.getAttribute("href");
+    if (!rawHref || rawHref.startsWith("#")) return;
+    const url = new URL(rawHref, window.location.href);
+    if (url.origin !== window.location.origin || url.pathname.startsWith("/api/")) return;
+    const targetHref = currentRoute(url.pathname, url.searchParams.toString());
+    if (targetHref === currentHref) return;
+    event.preventDefault();
+    setPendingHref(targetHref);
+    startNavigation(() => router.push(`${targetHref}${url.hash}`));
   }
 
-  return <div className={`app ${scanMode ? "scan-app" : ""}`}><aside className="sidebar"><div className="brand-row"><div className="brand"><span className="brand-mark"><Dumbbell size={20}/></span> FitKiro</div><details className="scan-menu"><summary aria-label="Open navigation"><Menu size={20}/></summary><div className="scan-menu-panel"><Link href="/attendance" onClick={() => markNavigating("/attendance")}><ScanLine size={17}/> Attendance</Link><Link href="/members" onClick={() => markNavigating("/members")}><Users size={17}/> Members</Link><Link href="/" onClick={() => markNavigating("/")}><LayoutDashboard size={17}/> Dashboard</Link><form action={signOut}><button><LogOut size={17}/> Sign out</button></form></div></details></div><nav className="nav">{links.map(({ href, label, icon: Icon }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <Link className={active ? "active" : undefined} href={href} key={href} onClick={() => markNavigating(href)}><Icon size={18}/> {label}</Link>; })}<form action={signOut}><button><LogOut size={18}/> Sign out</button></form></nav></aside><main className="main"><div className={`route-progress ${isNavigating ? "is-active" : ""}`} aria-hidden="true"/><header className="topbar"><span className="muted">Membership operations</span><strong>{gymName}</strong></header><div className="content" key={pathname}>{pathname !== "/" && <div className="route-back no-print"><BackButton fallback={logicalBackFallback(pathname)} useHistory={pathname !== initialPath}/></div>}{children}</div></main></div>;
+  return <div className={`app ${scanMode ? "scan-app" : ""}`} onClick={handleInternalNavigation}><aside className="sidebar"><div className="brand-row"><div className="brand"><span className="brand-mark"><Dumbbell size={20}/></span> FitKiro</div><details className="scan-menu"><summary aria-label="Open navigation"><Menu size={20}/></summary><div className="scan-menu-panel"><Link href="/attendance"><ScanLine size={17}/> Attendance</Link><Link href="/members"><Users size={17}/> Members</Link><Link href="/"><LayoutDashboard size={17}/> Dashboard</Link><form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={17}/> Sign out</SubmitButton></form></div></details></div><nav className="nav">{links.map(({ href, label, icon: Icon }) => { const active = pathMatchesTarget(activePath, href); return <Link className={active ? "active" : undefined} href={href} key={href}><Icon size={18}/> {label}</Link>; })}<form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={18}/> Sign out</SubmitButton></form></nav></aside><main className="main"><div className={`route-progress ${isNavigating ? "is-active" : ""}`} aria-hidden="true"/><header className="topbar"><div className="topbar-page">{pathname !== "/" && <BackButton fallback={logicalBackFallback(pathname)} useHistory={pathname !== initialPath}/>}<strong className="topbar-title">{routeTitle(activePath)}</strong></div><strong className="topbar-gym">{gymName}</strong></header><div className="content" key={isNavigating ? `pending-${pendingHref}` : currentHref}>{isNavigating ? <RouteLoadingPreview/> : children}</div></main></div>;
 }

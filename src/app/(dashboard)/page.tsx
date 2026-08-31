@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { AlertCircle, ArrowRight, CalendarClock, Clock3, IndianRupee, LogIn, RefreshCw, ScanLine, TrendingUp, UserPlus, Users, WalletCards } from "lucide-react";
+import { Activity, ArrowRight, CalendarClock, CheckCircle2, Clock3, IndianRupee, LogIn, RefreshCw, ScanLine, Sparkles, TrendingUp, UserPlus, WalletCards } from "lucide-react";
 import { DashboardViewSelector } from "@/components/dashboard-view-selector";
+import { DashboardLiveRefresh } from "@/components/dashboard-live-refresh";
 import { requireGym } from "@/lib/auth";
 import { businessDate, formatInr, formatPaymentMethod } from "@/lib/domain";
 
@@ -26,42 +27,74 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const trends = (trendsData ?? []) as MonthlyTrend[];
 
   return <>
-    <div className="page-head dashboard-hero"><div><p className="eyebrow">Today · {today}</p><h1>Dashboard</h1><p className="muted">{selectedView === "current" ? "Today’s membership, collection, attendance, and follow-up picture." : "Compare member growth, renewals, and collections over the last six months."}</p></div><div className="dashboard-hero-actions"><DashboardViewSelector value={selectedView}/><Link className="button" href="/members/new">Add member</Link></div></div>
-    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} expiring={expiring}/>}
+    <div className="page-head dashboard-hero"><div><p className="eyebrow">Today · {today}</p><h1>Dashboard</h1><p className="muted">{selectedView === "current" ? "Today’s membership, collection, attendance, and follow-up picture." : "Compare member growth, renewals, and collections over the last six months."}</p></div><div className="dashboard-hero-actions"><DashboardViewSelector value={selectedView}/><Link className="button" href="/members/new"><UserPlus size={16}/> Add member</Link></div></div>
+    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} expiring={expiring} gymName={gym.name}/>}
   </>;
 }
 
-function CurrentDashboard({ summary, expiring }: { summary: DashboardSummary; expiring: ExpiringMember[] }) {
+function CurrentDashboard({ summary, expiring, gymName }: { summary: DashboardSummary; expiring: ExpiringMember[]; gymName: string }) {
   const averagePayment = Number(summary.month_payment_count) ? Math.round(Number(summary.month_collected_paise) / Number(summary.month_payment_count)) : 0;
   const paymentMethods = [["cash", Number(summary.method_cash_paise)], ["upi", Number(summary.method_upi_paise)], ["card", Number(summary.method_card_paise)], ["bank_transfer", Number(summary.method_bank_transfer_paise)]] as const;
   const methodMax = Math.max(1, ...paymentMethods.map(([, amount]) => amount));
+  const healthTotal = Math.max(1, Number(summary.active_members) + Number(summary.expiring_members) + Number(summary.expired_members));
+  const activeAngle = (Number(summary.active_members) / healthTotal) * 360;
+  const expiringAngle = activeAngle + (Number(summary.expiring_members) / healthTotal) * 360;
+  const attentionCount = Number(summary.expiring_members) + Number(summary.pending_accounts);
   return <div className="dashboard-sections">
-    <div className="dashboard-group-grid">
-    <DashboardGroup title="Today at the gym" detail="Live floor activity for today.">
-      <Metric href="/attendance" icon={<LogIn/>} label="Check-ins today" value={String(summary.attendance_entries_today)} tone="blue"/>
-      <Metric href="/attendance?direction=exit" icon={<ScanLine/>} label="Check-outs today" value={String(summary.attendance_exits_today)} tone="violet"/>
-      <Metric href="/attendance?view=inside" icon={<Users/>} label="Currently inside" value={String(summary.attendance_inside_now)} tone="green"/>
-      <Metric href="/transactions" icon={<IndianRupee/>} label="Collected today" value={formatInr(Number(summary.today_collected_paise))} tone="amber"/>
-    </DashboardGroup>
-    <DashboardGroup title="Membership health" detail="Current access and expiry status.">
-      <Metric href="/members?status=active" icon={<Users/>} label="Active members" value={String(summary.active_members)} tone="green"/>
-      <Metric href="/members?status=expiring" icon={<Clock3/>} label="Expiring in 7 days" value={String(summary.expiring_members)} tone="amber"/>
-      <Metric href="/members?status=expired" icon={<AlertCircle/>} label="Expired memberships" value={String(summary.expired_members)} tone="red"/>
-      <Metric href="/members" icon={<Users/>} label="Current roster" value={String(summary.total_members)} tone="blue"/>
-    </DashboardGroup>
-    <DashboardGroup title="Collections and follow-up" detail="Balances needing attention.">
-      <Metric href="/members?status=outstanding" icon={<WalletCards/>} label="Total outstanding" value={formatInr(Number(summary.outstanding_paise))} tone="violet"/>
-      <Metric href="/reminders?filter=overdue" icon={<CalendarClock/>} label="Overdue balance" value={formatInr(Number(summary.overdue_paise))} tone="red"/>
-      <Metric href="/members?status=outstanding" icon={<AlertCircle/>} label="Pending accounts" value={String(summary.pending_accounts)} tone="amber"/>
-      <Metric href="/transactions" icon={<IndianRupee/>} label="Collected this month" value={formatInr(Number(summary.month_collected_paise))} tone="green"/>
-    </DashboardGroup>
-    <DashboardGroup title="Growth this month" detail="Member and collection momentum.">
-      <Metric href="/members" icon={<UserPlus/>} label="New members" value={String(summary.new_members_month)} tone="blue"/>
-      <Metric href="/transactions" icon={<RefreshCw/>} label="Membership renewals" value={String(summary.renewals_month)} tone="violet"/>
-      <Metric href="/transactions" icon={<WalletCards/>} label="Payments received" value={String(summary.month_payment_count)} tone="green"/>
-      <Metric href="/transactions" icon={<TrendingUp/>} label="Average payment" value={formatInr(averagePayment)} tone="amber"/>
-    </DashboardGroup>
+    <div className="dashboard-command-grid">
+      <section className="gym-pulse-card">
+        <div className="gym-pulse-top"><span className="live-label"><i/> Live floor</span><div className="live-floor-actions"><DashboardLiveRefresh/><Link href="/attendance">View attendance <ArrowRight size={15}/></Link></div></div>
+        <div className="gym-pulse-main">
+          <div className="gym-pulse-copy"><span className="dashboard-kicker">{gymName} · today</span><h2><strong>{summary.attendance_inside_now}</strong> members are inside now</h2><p>The live floor is ready. Every QR movement appears here as it happens.</p></div>
+          <div className="pulse-visual" aria-hidden="true"><span className="pulse-ring pulse-ring-one"/><span className="pulse-ring pulse-ring-two"/><span className="pulse-core"><Activity size={28}/></span></div>
+        </div>
+        <div className="gym-pulse-stats">
+          <Link href="/attendance"><span className="pulse-stat-icon entry"><LogIn size={18}/></span><span><strong>{summary.attendance_entries_today}</strong><small>Check-ins</small></span></Link>
+          <Link href="/attendance?direction=exit"><span className="pulse-stat-icon exit"><ScanLine size={18}/></span><span><strong>{summary.attendance_exits_today}</strong><small>Check-outs</small></span></Link>
+          <Link href="/transactions"><span className="pulse-stat-icon cash"><IndianRupee size={18}/></span><span><strong>{formatInr(Number(summary.today_collected_paise))}</strong><small>Collected today</small></span></Link>
+        </div>
+      </section>
+
+      <aside className="priority-card">
+        <div className="priority-head"><div><span className="dashboard-kicker">Priority queue</span><h2>{attentionCount ? `${attentionCount} items need you` : "You're all caught up"}</h2></div><span className={`priority-count ${attentionCount ? "has-items" : "is-clear"}`}>{attentionCount || <CheckCircle2 size={20}/>}</span></div>
+        <div className="priority-list">
+          <Priority href="/reminders?filter=expiring" icon={<Clock3/>} tone="amber" label="Memberships expiring" value={String(summary.expiring_members)} detail="within 7 days"/>
+          <Priority href="/reminders?filter=overdue" icon={<CalendarClock/>} tone="red" label="Overdue to recover" value={formatInr(Number(summary.overdue_paise))} detail="send a reminder"/>
+          <Priority href="/members?status=outstanding" icon={<WalletCards/>} tone="violet" label="Pending accounts" value={String(summary.pending_accounts)} detail="with open balance"/>
+        </div>
+        <Link className="priority-footer" href="/reminders">Open follow-up centre <ArrowRight size={16}/></Link>
+      </aside>
     </div>
+
+    <div className="dashboard-insight-grid">
+      <section className="insight-card membership-health-card">
+        <div className="insight-head"><div><span className="dashboard-kicker">Membership health</span><h2>Access status</h2></div><Link href="/members">View roster <ArrowRight size={14}/></Link></div>
+        <div className="health-content">
+          <div className="health-ring" style={{ background: `conic-gradient(#18a66a 0deg ${activeAngle}deg, #f5a524 ${activeAngle}deg ${expiringAngle}deg, #e45858 ${expiringAngle}deg 360deg)` }}><div><strong>{summary.total_members}</strong><span>Total</span></div></div>
+          <div className="health-legend">
+            <HealthItem href="/members?status=active" tone="green" label="Active" value={summary.active_members}/>
+            <HealthItem href="/members?status=expiring" tone="amber" label="Expiring" value={summary.expiring_members}/>
+            <HealthItem href="/members?status=expired" tone="red" label="Expired" value={summary.expired_members}/>
+          </div>
+        </div>
+      </section>
+
+      <section className="insight-card revenue-card">
+        <div className="insight-head"><div><span className="dashboard-kicker">Collections</span><h2>This month</h2></div><Link href="/transactions">Open ledger <ArrowRight size={14}/></Link></div>
+        <div className="revenue-total"><strong>{formatInr(Number(summary.month_collected_paise))}</strong><span>{summary.month_payment_count} payments · {formatInr(averagePayment)} average</span></div>
+        <div className="revenue-methods">{paymentMethods.map(([method, amount]) => <div className="revenue-method" key={method}><div><span>{formatPaymentMethod(method)}</span><strong>{formatInr(amount)}</strong></div><div className="mix-track"><span style={{ width: `${(amount / methodMax) * 100}%` }}/></div></div>)}</div>
+      </section>
+
+      <section className="insight-card momentum-card">
+        <div className="insight-head"><div><span className="dashboard-kicker">Momentum</span><h2>This month</h2></div><span className="spark-icon"><Sparkles size={18}/></span></div>
+        <div className="momentum-list">
+          <Momentum icon={<UserPlus/>} label="New members" value={String(summary.new_members_month)} href="/members"/>
+          <Momentum icon={<RefreshCw/>} label="Renewals" value={String(summary.renewals_month)} href="/transactions"/>
+          <Momentum icon={<TrendingUp/>} label="Total outstanding" value={formatInr(Number(summary.outstanding_paise))} href="/members?status=outstanding"/>
+        </div>
+      </section>
+    </div>
+
     <div className="grid-2 dashboard-overview"><section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Member follow-up</span><h2>Expiring in 7 days</h2><span className="muted">Open an individual reminder before the membership ends.</span></div><Link className="text-link" href="/reminders?filter=expiring">Open reminders <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Plan end</th><th>Status</th></tr></thead><tbody>{expiring.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{item.expires_on ?? "—"}</td><td><span className={`badge ${item.membership_status}`}>{statusLabel(item.membership_status)}</span></td></tr>)}</tbody></table>{!expiring.length && <div className="empty">No memberships expire in the next 7 days.</div>}</div></section>
       <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Collection split</span><h2>Payment method mix</h2><span className="muted">This month’s collected amount by payment method.</span></div><Link className="text-link" href="/transactions">Open ledger <ArrowRight size={15}/></Link></div><div className="method-list">{paymentMethods.map(([method, amount]) => <div className="method-row" key={method}><div><strong>{formatPaymentMethod(method)}</strong><span>{formatInr(amount)}</span></div><div className="mix-track"><span style={{ width: `${(amount / methodMax) * 100}%` }}/></div></div>)}</div></section>
     </div>
@@ -88,8 +121,9 @@ function TrendDashboard({ trends }: { trends: MonthlyTrend[] }) {
   </div>;
 }
 
-function DashboardGroup({ title, detail, children }: { title: string; detail: string; children: React.ReactNode }) { return <section className="dashboard-group"><div className="dashboard-group-head"><div><h2>{title}</h2><p>{detail}</p></div></div><div className="cards dashboard-kpis">{children}</div></section>; }
-function Metric({ href, icon, label, value, tone }: { href: string; icon: React.ReactNode; label: string; value: string; tone: string }) { return <Link href={href} className={`card dashboard-metric tone-${tone}`}><span className="metric-icon">{icon}</span><div className="metric">{value}</div><span className="metric-label">{label}</span></Link>; }
+function Priority({ href, icon, tone, label, value, detail }: { href: string; icon: React.ReactNode; tone: string; label: string; value: string; detail: string }) { return <Link href={href} className="priority-item"><span className={`priority-icon ${tone}`}>{icon}</span><span className="priority-copy"><strong>{label}</strong><small>{detail}</small></span><span className="priority-value">{value}</span><ArrowRight className="priority-arrow" size={15}/></Link>; }
+function HealthItem({ href, tone, label, value }: { href: string; tone: string; label: string; value: number }) { return <Link href={href} className="health-item"><i className={tone}/><span>{label}</span><strong>{value}</strong></Link>; }
+function Momentum({ href, icon, label, value }: { href: string; icon: React.ReactNode; label: string; value: string }) { return <Link href={href} className="momentum-item"><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div><ArrowRight size={15}/></Link>; }
 function Comparison({ label, value, change: delta }: { label: string; value: string; change: number | null }) { return <div className="card comparison-card"><span className="metric-label">{label}</span><div className="metric">{value}</div><span className={`trend-change ${delta !== null && delta < 0 ? "down" : "up"}`}>{delta === null ? "No prior-month baseline" : `${delta >= 0 ? "+" : ""}${delta}% from last month`}</span></div>; }
 function TrendChart({ title, detail, trends, max, value, format }: { title: string; detail: string; trends: MonthlyTrend[]; max: number; value: (item: MonthlyTrend) => number; format: (value: number) => string }) { return <section className="card trend-chart"><div className="section-head"><div><h2>{title}</h2><span className="muted">{detail}</span></div></div><div className="trend-bars">{trends.map((item) => { const amount = value(item); return <div className="trend-bar-item" key={item.month_start}><div className="trend-bar-value">{format(amount)}</div><div className="trend-bar-track"><span style={{ height: `${Math.max(amount ? 8 : 2, (amount / max) * 100)}%` }}/></div><strong>{shortMonth(item.month_start)}</strong></div>; })}</div></section>; }
 function change(current: number, previous: number) { return previous === 0 ? (current === 0 ? 0 : null) : Math.round(((current - previous) / previous) * 100); }

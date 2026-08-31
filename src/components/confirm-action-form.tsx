@@ -1,18 +1,26 @@
 "use client";
 
+import { SubmitButton } from "@/components/submit-button";
+
 export function ConfirmActionForm({
   action,
   memberId,
   message,
-  children,
+  className,
+  disabled,
+  label,
+  pendingLabel = "Working…",
 }: {
   action: (formData: FormData) => Promise<void>;
   memberId: string;
   message: string;
-  children: React.ReactNode;
+  className?: string;
+  disabled?: boolean;
+  label: string;
+  pendingLabel?: string;
 }) {
   return <form action={action} onSubmit={(event) => { if (!window.confirm(message)) event.preventDefault(); }}>
     <input type="hidden" name="member_id" value={memberId}/>
-    {children}
+    <SubmitButton className={className} disabled={disabled} pendingLabel={pendingLabel}>{label}</SubmitButton>
   </form>;
 }

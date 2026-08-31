@@ -1,6 +1,7 @@
 import { requireGym } from "@/lib/auth";
 import { updateSettings } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
   const params = await searchParams;
@@ -24,7 +25,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <div className="field"><label>Membership renewal message</label><textarea name="renewal_reminder_template" rows={7} defaultValue={gym.renewal_reminder_template}/><small>Variables: {"{{name}}"}, {"{{expiry_date}}"}, {"{{plan_name}}"}, {"{{gym_name}}"}.</small></div>
         <div className="automation-setting"><div><strong>Automatic WhatsApp payment reminders</strong><p className="muted">Submit one approved Utility template on the follow-up date for members who have opted in.</p></div><label className="toggle"><input type="checkbox" name="automatic_payment_whatsapp_enabled" defaultChecked={Boolean(gym.automatic_payment_whatsapp_enabled)}/><span/></label></div>
         <div className="form-grid"><div className="field"><label>Approved Meta template name</label><input name="whatsapp_payment_template_name" defaultValue={gym.whatsapp_payment_template_name ?? "fitkiro_payment_follow_up"} pattern="[a-z0-9_]+" required/><small>Must exactly match the approved Utility template.</small></div><div className="field"><label>Template language code</label><input name="whatsapp_template_language" defaultValue={gym.whatsapp_template_language ?? "en"} required/><small>For example: en or en_US.</small></div></div>
-        <button className="button">Save all settings</button>
+        <SubmitButton className="button" pendingLabel="Saving settings…">Save all settings</SubmitButton>
       </section>
     </form>
   </>;

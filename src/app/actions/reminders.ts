@@ -12,8 +12,7 @@ function fail(error: unknown): never {
   redirect(`/reminders?error=${encodeURIComponent(message)}`);
 }
 
-export async function openWhatsAppReminder(formData: FormData) {
-  let whatsappUrl = "";
+export async function openWhatsAppReminder(formData: FormData): Promise<{ url?: string; error?: string }> {
   try {
     const input = z.object({
       kind: z.enum(["payment", "renewal"]),
@@ -67,11 +66,10 @@ export async function openWhatsAppReminder(formData: FormData) {
       prepared_by: user.id,
     });
     if (historyError) throw historyError;
-    whatsappUrl = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    return { url: `https://wa.me/${number}?text=${encodeURIComponent(message)}` };
   } catch (error) {
-    fail(error);
+    return { error: error instanceof Error ? error.message : String(error) };
   }
-  redirect(whatsappUrl);
 }
 
 export async function runAutomaticPaymentReminders() {

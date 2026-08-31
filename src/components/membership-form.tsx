@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Plan } from "@/lib/types";
 import { calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
+import { SubmitButton } from "@/components/submit-button";
 
 function planEndDate(plan: Plan | undefined, startDate: string) {
   return plan && startDate ? calculateExpiry(startDate, plan.duration_value, plan.duration_unit) : "";
@@ -68,7 +69,7 @@ export function MembershipForm({ memberId, plans, action, today, renew = false, 
       <div className="field"><label>GST rate (%)</label><input type="number" name="gst_rate" min="0" max="100" step="0.01" value={gstRate} onChange={(event) => setGstRate(event.target.value)}/><small>Set to 0 for a non-GST charge.</small></div>
       {renew && <><div className="field"><label>Amount paid now (₹)</label><input type="number" name="amount_paid" min="0" max={totalAmount} step="0.01" value={amountPaid} onChange={(event) => changeAmountPaid(event.target.value)} required/><small>Defaults to the full total. Enter a lower amount for partial payment.</small></div><div className="field"><label>Payment method</label><select name="method"><option value="cash">Cash</option><option value="upi">UPI</option><option value="card">Card</option><option value="bank_transfer">Bank Transfer</option></select></div><div className="field"><label>Transaction/reference</label><input name="reference" placeholder="Optional reference number"/></div></>}
     </div>
-    <button className="button" style={{ justifySelf: "start" }} disabled={!plans.length}>{renew ? "Create renewal" : "Create membership"}</button>
+    <SubmitButton className="button" style={{ justifySelf: "start" }} disabled={!plans.length} pendingLabel={renew ? "Creating renewal…" : "Creating membership…"}>{renew ? "Create renewal" : "Create membership"}</SubmitButton>
     {!plans.length && <p className="alert error">Create an active plan before enrolling this member.</p>}
   </form>;
 }

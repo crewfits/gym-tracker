@@ -4,6 +4,8 @@ import { Feedback } from "@/components/feedback";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
 import { QrCode, qrPngDataUrl } from "@/components/qr-code";
 import { QrShareActions } from "@/components/qr-share-actions";
+import { SubmitButton } from "@/components/submit-button";
+import { QrSharedStatusForm } from "@/components/qr-shared-status-form";
 import { disableMemberQr, issueMemberQr, markMemberQrShared } from "@/app/actions/attendance";
 import { requireGym } from "@/lib/auth";
 import { requestAppOrigin } from "@/lib/app-origin";
@@ -39,7 +41,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
     </div>
     <Feedback success={query.success} error={query.error}/>
     {member.is_archived && <div className="alert error">Archived members cannot receive or use a QR pass.</div>}
-    <div className="grid-2">
+    <div className="grid-2 qr-page-grid">
       <section className="card stack qr-manage-card">
         {credential?.enabled && urls ? <>
           <div className="qr-manage-layout">
@@ -49,21 +51,20 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
             </div>
             <div className="qr-control-panel">
               {qrPng && <QrShareActions defaultCountryCode={defaultCountryCode} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} passUrl={urls.passUrl} phone={member.phone} qrPngDataUrl={qrPng}/>}
-              <div className={`qr-share-confirm ${sharedAt ? "is-shared" : ""}`}>
-                <span>{sharedAt ? `Marked shared · ${sharedAt}` : "Not marked as shared"}</span>
-                {!sharedAt && <form action={markMemberQrShared}><input type="hidden" name="member_id" value={id}/><button className="button secondary small">Mark as shared</button></form>}
-              </div>
+              {sharedAt
+                ? <div className="qr-share-confirm is-shared"><span>{`Marked shared · ${sharedAt}`}</span></div>
+                : <QrSharedStatusForm action={markMemberQrShared} memberId={id}/>}
               <hr className="qr-actions-divider"/>
               <details className="qr-settings"><summary>QR settings</summary><div className="qr-danger-actions">
-                <ConfirmActionForm action={issueMemberQr} memberId={id} message="Regenerate this QR? Every previously shared or printed copy will stop working immediately."><button className="button danger" disabled={member.is_archived}>Regenerate QR</button></ConfirmActionForm>
-                <form action={disableMemberQr}><input type="hidden" name="member_id" value={id}/><button className="button secondary">Disable QR</button></form>
+                <ConfirmActionForm action={issueMemberQr} memberId={id} message="Regenerate this QR? Every previously shared or printed copy will stop working immediately." className="button danger" disabled={member.is_archived} label="Regenerate QR" pendingLabel="Regenerating…"/>
+                <form action={disableMemberQr}><input type="hidden" name="member_id" value={id}/><SubmitButton className="button secondary" pendingLabel="Disabling…">Disable QR</SubmitButton></form>
               </div></details>
             </div>
           </div>
         </> : <div className="empty">
           <h2>No active QR</h2>
           <p className="muted">Generating a QR creates versioned credential metadata. The QR image itself is not saved.</p>
-          <form action={issueMemberQr}><input type="hidden" name="member_id" value={id}/><button className="button" disabled={member.is_archived}>{credential ? "Issue a new QR" : "Generate QR"}</button></form>
+          <form action={issueMemberQr}><input type="hidden" name="member_id" value={id}/><SubmitButton className="button" disabled={member.is_archived} pendingLabel="Generating QR…">{credential ? "Issue a new QR" : "Generate QR"}</SubmitButton></form>
         </div>}
       </section>
       <aside className="card">

@@ -1,6 +1,7 @@
 import { Dumbbell } from "lucide-react";
 import { updatePassword } from "@/app/actions/auth";
 import { Feedback } from "@/components/feedback";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function UpdatePassword({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const p = await searchParams;
@@ -25,7 +26,7 @@ export default async function UpdatePassword({ searchParams }: { searchParams: P
             <label>Confirm password</label>
             <input name="confirmPassword" type="password" autoComplete="new-password" minLength={8} required />
           </div>
-          <button className="button" formAction={updatePassword}>Update password</button>
+          <SubmitButton className="button" formAction={updatePassword} pendingLabel="Updating password…">Update password</SubmitButton>
         </form>
       </div>
     </main>
