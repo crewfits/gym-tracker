@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition, type MouseEvent } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent, type MouseEvent } from "react";
 import { Bell, Dumbbell, LayoutDashboard, LogOut, Menu, ReceiptText, ScanLine, Settings, Tags, Users } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 import { BackButton } from "@/components/back-button";
@@ -91,8 +91,30 @@ export function AppShell({ gymName, children }: { gymName: string; children: Rea
   const [initialPath] = useState(pathname);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [isNavigating, startNavigation] = useTransition();
+  const pendingTableRef = useRef<HTMLElement | null>(null);
   const scanMode = pathname.startsWith("/scan") || pathname.startsWith("/s/");
   const activePath = isNavigating && pendingHref ? routePath(pendingHref) : pathname;
+  const isQueryNavigation = Boolean(isNavigating && pendingHref && routePath(pendingHref) === pathname);
+
+  useEffect(() => {
+    if (isNavigating || !pendingTableRef.current) return;
+    pendingTableRef.current.classList.remove("is-query-updating");
+    pendingTableRef.current.removeAttribute("aria-busy");
+    pendingTableRef.current = null;
+  }, [isNavigating]);
+
+  function markTablePending(source: Element) {
+    const sortableHeader = document.querySelector<HTMLElement>(".sortable-heading");
+    const table = source.closest<HTMLElement>(".table-wrap")
+      ?? sortableHeader?.closest<HTMLElement>(".table-wrap")
+      ?? document.querySelector<HTMLElement>(".table-wrap");
+    if (!table) return;
+    pendingTableRef.current?.classList.remove("is-query-updating");
+    pendingTableRef.current?.removeAttribute("aria-busy");
+    table.classList.add("is-query-updating");
+    table.setAttribute("aria-busy", "true");
+    pendingTableRef.current = table;
+  }
 
   function handleInternalNavigation(event: MouseEvent<HTMLDivElement>) {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -106,9 +128,26 @@ export function AppShell({ gymName, children }: { gymName: string; children: Rea
     const targetHref = currentRoute(url.pathname, url.searchParams.toString());
     if (targetHref === currentHref) return;
     event.preventDefault();
+    if (url.pathname === pathname) markTablePending(anchor);
     setPendingHref(targetHref);
     startNavigation(() => router.push(`${targetHref}${url.hash}`));
   }
 
-  return <div className={`app ${scanMode ? "scan-app" : ""}`} onClick={handleInternalNavigation}><aside className="sidebar"><div className="brand-row"><div className="brand"><span className="brand-mark"><Dumbbell size={20}/></span> FitKiro</div><details className="scan-menu"><summary aria-label="Open navigation"><Menu size={20}/></summary><div className="scan-menu-panel"><Link href="/attendance"><ScanLine size={17}/> Attendance</Link><Link href="/members"><Users size={17}/> Members</Link><Link href="/"><LayoutDashboard size={17}/> Dashboard</Link><form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={17}/> Sign out</SubmitButton></form></div></details></div><nav className="nav">{links.map(({ href, label, icon: Icon }) => { const active = pathMatchesTarget(activePath, href); return <Link className={active ? "active" : undefined} href={href} key={href}><Icon size={18}/> {label}</Link>; })}<form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={18}/> Sign out</SubmitButton></form></nav></aside><main className="main"><div className={`route-progress ${isNavigating ? "is-active" : ""}`} aria-hidden="true"/><header className="topbar"><div className="topbar-page">{pathname !== "/" && <BackButton fallback={logicalBackFallback(pathname)} useHistory={pathname !== initialPath}/>}<strong className="topbar-title">{routeTitle(activePath)}</strong></div><strong className="topbar-gym">{gymName}</strong></header><div className="content" key={isNavigating ? `pending-${pendingHref}` : currentHref}>{isNavigating ? <RouteLoadingPreview/> : children}</div></main></div>;
+  function handleQuerySubmit(event: FormEvent<HTMLDivElement>) {
+    if (event.defaultPrevented || !(event.target instanceof HTMLFormElement)) return;
+    const form = event.target;
+    if (form.method.toLowerCase() !== "get" || form.target) return;
+    const url = new URL(form.action || window.location.href, window.location.href);
+    if (url.origin !== window.location.origin || url.pathname.startsWith("/api/")) return;
+    const query = new URLSearchParams();
+    for (const [name, value] of new FormData(form)) if (typeof value === "string") query.append(name, value);
+    const targetHref = currentRoute(url.pathname, query.toString());
+    if (targetHref === currentHref) return;
+    event.preventDefault();
+    if (url.pathname === pathname) markTablePending(form);
+    setPendingHref(targetHref);
+    startNavigation(() => router.push(targetHref, { scroll: false }));
+  }
+
+  return <div className={`app ${scanMode ? "scan-app" : ""}`} onClick={handleInternalNavigation} onSubmit={handleQuerySubmit}><aside className="sidebar"><div className="brand-row"><div className="brand"><span className="brand-mark"><Dumbbell size={20}/></span> FitKiro</div><details className="scan-menu"><summary aria-label="Open navigation"><Menu size={20}/></summary><div className="scan-menu-panel"><Link href="/attendance"><ScanLine size={17}/> Attendance</Link><Link href="/members"><Users size={17}/> Members</Link><Link href="/"><LayoutDashboard size={17}/> Dashboard</Link><form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={17}/> Sign out</SubmitButton></form></div></details></div><nav className="nav">{links.map(({ href, label, icon: Icon }) => { const active = pathMatchesTarget(activePath, href); return <Link className={active ? "active" : undefined} href={href} key={href}><Icon size={18}/> {label}</Link>; })}<form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={18}/> Sign out</SubmitButton></form></nav></aside><main className="main"><div className={`route-progress ${isNavigating && !isQueryNavigation ? "is-active" : ""}`} aria-hidden="true"/><header className="topbar"><div className="topbar-page">{pathname !== "/" && <BackButton fallback={logicalBackFallback(pathname)} useHistory={pathname !== initialPath}/>}<strong className="topbar-title">{routeTitle(activePath)}</strong></div><strong className="topbar-gym">{gymName}</strong></header><div className="content">{isNavigating && !isQueryNavigation ? <RouteLoadingPreview/> : children}</div></main></div>;
 }

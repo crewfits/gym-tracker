@@ -4,22 +4,22 @@ import type { AttendanceDirection, DurationUnit, MembershipStatus, PaymentStatus
 export function formatDate(date: Date): string { return format(date, "yyyy-MM-dd"); }
 
 export function formatDisplayDate(value: string | null | undefined): string {
-  return value ? format(parseISO(value), "dd MM yyyy") : "—";
+  return value ? format(parseISO(value), "d MMM yyyy") : "—";
 }
 
 export function formatDisplayDateTime(value: string | null | undefined, timeZone: string, includeSeconds = false): string {
   if (!value) return "—";
-  const parts = new Intl.DateTimeFormat("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-IN", {
     timeZone,
     year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
     minute: "2-digit",
     ...(includeSeconds ? { second: "2-digit" } : {}),
-    hour12: false,
+    hour12: true,
   }).formatToParts(new Date(value)).reduce<Record<string, string>>((result, part) => ({ ...result, [part.type]: part.value }), {});
-  const time = `${parts.hour}:${parts.minute}${includeSeconds ? `:${parts.second}` : ""}`;
+  const time = `${parts.hour}:${parts.minute}${includeSeconds ? `:${parts.second}` : ""} ${parts.dayPeriod.toLowerCase()}`;
   return `${parts.day} ${parts.month} ${parts.year}, ${time}`;
 }
 

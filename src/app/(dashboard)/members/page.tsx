@@ -5,11 +5,13 @@ import { requireGym } from "@/lib/auth";
 import { businessDate, formatDisplayDate, formatInr } from "@/lib/domain";
 import { Feedback } from "@/components/feedback";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
+import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
 import { issueMemberQr } from "@/app/actions/attendance";
 import { signedMemberPhotoUrls } from "@/lib/member-photo";
 
 const pageSize = 50;
 const allowedStatuses = new Set(["active", "expiring", "expired", "upcoming", "not_enrolled", "outstanding", "qr_not_generated", "qr_not_shared", "qr_shared", "qr_disabled", "archived", "all"]);
+const memberSorts = new Set(["created_at", "name", "expires_on", "balance", "status"]);
 
 type MemberDirectoryRow = {
   id: string;
@@ -39,12 +41,16 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   const requestedStatus = typeof params.status === "string" ? params.status : "";
   const status = allowedStatuses.has(requestedStatus) ? requestedStatus : "";
+  const sort = typeof params.sort === "string" && memberSorts.has(params.sort) ? params.sort : "created_at";
+  const order: SortOrder = params.order === "asc" || params.order === "desc" ? params.order : "desc";
   const { data, error: loadError } = await supabase.rpc("list_members", {
     p_query: q || null,
     p_status: status || null,
     p_today: businessDate(gym.timezone),
     p_page: page,
     p_page_size: pageSize,
+    p_sort: sort,
+    p_order: order,
   });
   if (loadError) throw loadError;
   const rows = (data ?? []) as MemberDirectoryRow[];
@@ -53,23 +59,30 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const success = typeof params.success === "string" ? params.success : undefined;
   const error = typeof params.error === "string" ? params.error : undefined;
-  const pageHref = (target: number) => {
+  const queryFor = ({ targetPage, nextSort, nextOrder }: { targetPage?: number; nextSort?: string; nextOrder?: SortOrder } = {}) => {
     const query = new URLSearchParams();
     if (q) query.set("q", q);
     if (status) query.set("status", status);
-    if (target > 1) query.set("page", String(target));
-    const suffix = query.toString();
-    return `/members${suffix ? `?${suffix}` : ""}`;
+    const selectedSort = nextSort ?? sort;
+    const selectedOrder = nextOrder ?? order;
+    if (selectedSort !== "created_at") query.set("sort", selectedSort);
+    if (selectedSort !== "created_at" || selectedOrder !== "desc") query.set("order", selectedOrder);
+    if (targetPage && targetPage > 1) query.set("page", String(targetPage));
+    return query;
   };
-  const exportQuery = new URLSearchParams();
-  if (q) exportQuery.set("q", q);
-  if (status) exportQuery.set("status", status);
+  const hrefForSort = (field: string, firstOrder: SortOrder) => {
+    if (sort === field && order !== firstOrder) return `/members?${queryFor({ nextSort: "created_at", nextOrder: "desc" }).toString()}`.replace(/\?$/, "");
+    const nextOrder = sort === field ? (order === "asc" ? "desc" : "asc") : firstOrder;
+    return `/members?${queryFor({ nextSort: field, nextOrder }).toString()}`;
+  };
+  const pageHref = (targetPage: number) => `/members?${queryFor({ targetPage }).toString()}`.replace(/\?$/, "");
+  const exportQuery = queryFor();
 
   return <>
     <div className="page-head"><div><p className="eyebrow">Directory</p><h1>Members</h1><p className="muted">Search, review and take action across the full member history.</p></div><div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}><a className="button secondary" href={`/api/exports/members?${exportQuery.toString()}`}><ArrowDownToLine size={16}/> Export this view</a><Link className="button" href="/members/new"><Plus size={17}/> Add member</Link></div></div>
     <Feedback success={success} error={error}/>
-    <form className="toolbar"><input className="search" name="q" defaultValue={q} maxLength={100} placeholder="Search name, phone or member ID"/><select className="search" name="status" defaultValue={status}><option value="">Current roster</option><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="upcoming">Upcoming</option><option value="not_enrolled">Not enrolled</option><option value="outstanding">Outstanding</option><option value="qr_not_generated">QR not generated</option><option value="qr_not_shared">QR not shared</option><option value="qr_shared">QR shared</option><option value="qr_disabled">QR disabled</option><option value="archived">Archived members</option><option value="all">All current and archived</option></select><button className="button secondary">Filter</button></form>
-    <div className="card table-wrap"><table className="table"><thead><tr><th>Member</th><th>Contact</th><th>Plan</th><th>Plan end</th><th>Balance</th><th>Status</th><th>QR</th><th>Actions</th></tr></thead><tbody>{rows.map((member) => {
+    <form className="toolbar">{sort !== "created_at" && <input type="hidden" name="sort" value={sort}/>} {(sort !== "created_at" || order !== "desc") && <input type="hidden" name="order" value={order}/>}<input className="search" name="q" defaultValue={q} maxLength={100} placeholder="Search name, phone or member ID"/><select className="search" name="status" defaultValue={status}><option value="">Current roster</option><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="upcoming">Upcoming</option><option value="not_enrolled">Not enrolled</option><option value="outstanding">Outstanding</option><option value="qr_not_generated">QR not generated</option><option value="qr_not_shared">QR not shared</option><option value="qr_shared">QR shared</option><option value="qr_disabled">QR disabled</option><option value="archived">Archived members</option><option value="all">All current and archived</option></select><button className="button secondary">Filter</button></form>
+    <div className="card table-wrap"><table className="table"><thead><tr><SortableTableHeader label="Member" href={hrefForSort("name", "asc")} active={sort === "name"} order={order}/><th>Contact</th><th>Plan</th><SortableTableHeader label="Plan end" href={hrefForSort("expires_on", "asc")} active={sort === "expires_on"} order={order}/><SortableTableHeader label="Balance" href={hrefForSort("balance", "desc")} active={sort === "balance"} order={order}/><SortableTableHeader label="Status" href={hrefForSort("status", "asc")} active={sort === "status"} order={order}/><th>QR</th><th>Actions</th></tr></thead><tbody>{rows.map((member) => {
       const displayStatus = member.is_archived ? "archived" : member.membership_status;
       const photoUrl = photoUrls.get(member.profile_photo_path ?? "") ?? null;
       const qrStatus = member.is_archived ? "—" : !member.qr_version ? "not generated" : !member.qr_enabled ? "disabled" : member.qr_shared_at ? "shared" : "not shared";

@@ -45,7 +45,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 ### Daily operations and reporting
 
-- Member, payment, and attendance lists are filtered and paginated in PostgreSQL rather than loading the full gym history into a browser request.
+- Member, payment, attendance, and reminder lists are filtered, allowlist-sorted, and paginated in PostgreSQL rather than loading the full gym history into a browser request. The member directory defaults to newest-created first so recently enrolled members remain immediately available for QR sharing.
 - The dashboard uses database aggregates, so counts remain accurate beyond the Data API row cap.
 - Attendance shows today, current occupancy, yesterday's missing Check-outs, and searchable/exportable history.
 - Member, payment, and attendance CSV exports are owner-authenticated and reflect the selected operational view.

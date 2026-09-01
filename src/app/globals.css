@@ -46,6 +46,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .topbar-title { overflow: hidden; font-size: 18px; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-gym { flex: 0 0 auto; font-size: 14px; }
 .content { width: 100%; max-width: 1440px; margin: 0 auto; padding: 16px clamp(20px, 2.5vw, 36px) 56px; animation: page-in .3s ease both; }
+.table-wrap.is-query-updating { opacity: .58; pointer-events: none; }
+.table-wrap.is-query-updating::after { content: ""; position: absolute; z-index: 3; width: 24px; height: 24px; top: 18px; right: 18px; border: 3px solid #d8e5f7; border-top-color: var(--brand); border-radius: 50%; animation: spin .7s linear infinite; }
 .loading-page { display: grid; gap: 18px; }
 .loading-head { display: grid; gap: 8px; max-width: 420px; }
 .loading-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(290px, .75fr); gap: 18px; }
@@ -310,6 +312,11 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; }
 .table th { padding: 11px 12px; color: var(--muted); border-bottom: 1px solid var(--line); text-align: left; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.sortable-heading { width: max-content; display: inline-flex; align-items: center; gap: 5px; color: inherit; border-radius: 6px; transition: color .16s ease, background .16s ease; }
+.sortable-heading svg { opacity: .45; transition: opacity .16s ease, transform .16s ease; }
+.sortable-heading:hover, .sortable-heading.active { color: var(--brand); }
+.sortable-heading:hover svg, .sortable-heading.active svg { opacity: 1; }
+.sortable-heading:hover svg { transform: translateY(-1px); }
 .table td { padding: 14px 12px; border-bottom: 1px solid #edf1ed; vertical-align: middle; }
 .table tbody tr { transition: background .16s ease; }
 .table tbody tr:hover { background: #f9fbf8; }
@@ -460,6 +467,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes grow-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes route-progress { from { transform: translateX(-110%); } 55% { transform: translateX(120%); } to { transform: translateX(240%); } }
+@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { to { transform: translateX(100%); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes orbit { to { transform: rotate(360deg); } }

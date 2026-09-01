@@ -184,6 +184,7 @@ Initial onboarding uses a one-time controlled CSV import performed by us, not a 
 
 - Default member views should focus on active/expiring/outstanding records.
 - Expired, archived, and all-record views must remain available.
+- Operational directories must apply allowlisted sorting in PostgreSQL before pagination; sorting only the visible browser page is not valid. Stable tie-breakers prevent rows moving between pages, and the member directory defaults to `created_at DESC` for the enrollment-to-QR workflow.
 - Payment and attendance history must be paginated as it grows.
 - Sensitive actions require server-side validation and clear confirmation.
 - Secrets stay server-only and must not use `NEXT_PUBLIC_` names.

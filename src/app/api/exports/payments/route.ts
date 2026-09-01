@@ -5,6 +5,7 @@ import { businessDate, formatDisplayDate } from "@/lib/domain";
 import type { PaymentMethod } from "@/lib/types";
 
 type PaymentExportRow = { receipt_number: string; paid_on: string; method: PaymentMethod; reference: string | null; amount_paise: number; reversed_paise: number; net_paise: number; voided_at: string | null; void_reason: string | null; member_code: string; member_name: string; plan_name: string; total_count: number };
+const sorts = new Set(["paid_on", "member_name", "amount"]);
 
 export async function GET(request: NextRequest) {
   const { supabase, gym } = await requireGym();
@@ -14,9 +15,12 @@ export async function GET(request: NextRequest) {
   const status = ["completed", "reversed", "partial_reversal"].includes(params.get("status") ?? "") ? params.get("status") : null;
   const from = /^\d{4}-\d{2}-\d{2}$/.test(params.get("from") ?? "") ? params.get("from") : null;
   const to = /^\d{4}-\d{2}-\d{2}$/.test(params.get("to") ?? "") ? params.get("to") : null;
+  const sortValue = params.get("sort") ?? "paid_on";
+  const sort = sorts.has(sortValue) ? sortValue : "paid_on";
+  const order = params.get("order") === "asc" ? "asc" : "desc";
   const rows: PaymentExportRow[] = [];
   for (let page = 1; page <= 500; page++) {
-    const { data, error } = await supabase.rpc("list_transactions", { p_query: q, p_method: method, p_status: status, p_from: from, p_to: to, p_page: page, p_page_size: 100 });
+    const { data, error } = await supabase.rpc("list_transactions", { p_query: q, p_method: method, p_status: status, p_from: from, p_to: to, p_page: page, p_page_size: 100, p_sort: sort, p_order: order });
     if (error) return Response.json({ error: error.message }, { status: 500 });
     const batch = (data ?? []) as PaymentExportRow[];
     rows.push(...batch);
