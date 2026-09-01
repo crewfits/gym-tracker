@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireGym } from "@/lib/auth";
 import { csvDocument } from "@/lib/csv";
-import { attendanceLabel, businessDate } from "@/lib/domain";
+import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/domain";
 import type { AttendanceDirection } from "@/lib/types";
 
 type AttendanceExportRow = { member_code: string; member_name: string; direction: AttendanceDirection; plan_name: string | null; qr_version: number; occurred_at: string; business_date: string; total_count: number };
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const csv = csvDocument(
     ["Business date", "Occurred at", "Member ID", "Member name", "Attendance", "Membership"],
-    rows.map((row) => [row.business_date, new Intl.DateTimeFormat("en-IN", { timeZone: gym.timezone, dateStyle: "medium", timeStyle: "long" }).format(new Date(row.occurred_at)), row.member_code, row.member_name, attendanceLabel(row.direction), row.plan_name]),
+    rows.map((row) => [formatDisplayDate(row.business_date), formatDisplayDateTime(row.occurred_at, gym.timezone, true), row.member_code, row.member_name, attendanceLabel(row.direction), row.plan_name]),
   );
   return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="attendance-${view}-${today}.csv"`, "Cache-Control": "private, no-store" } });
 }

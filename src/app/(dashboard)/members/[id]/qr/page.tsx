@@ -50,7 +50,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
               <div className="qr-member-label"><strong>{member.name}</strong><br/><span className="muted">{member.member_code}</span></div>
             </div>
             <div className="qr-control-panel">
-              {qrPng && <QrShareActions defaultCountryCode={defaultCountryCode} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} passUrl={urls.passUrl} phone={member.phone} qrPngDataUrl={qrPng}/>}
+              {qrPng && <QrShareActions defaultCountryCode={defaultCountryCode} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} phone={member.phone} qrPngDataUrl={qrPng}/>}
               {sharedAt
                 ? <div className="qr-share-confirm is-shared"><span>{`Marked shared · ${sharedAt}`}</span></div>
                 : <QrSharedStatusForm action={markMemberQrShared} memberId={id}/>}

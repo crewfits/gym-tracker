@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Plan } from "@/lib/types";
-import { calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
+import { calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatDisplayDate } from "@/lib/domain";
 import { SubmitButton } from "@/components/submit-button";
 
 function planEndDate(plan: Plan | undefined, startDate: string) {
@@ -62,7 +62,7 @@ export function MembershipForm({ memberId, plans, action, today, renew = false, 
     {error && <div className="alert error">{error}</div>}
     <div className="form-grid">
       <div className="field"><label>Plan *</label><select name="plan_id" value={planId} onChange={(event) => selectPlan(event.target.value)} required>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · ₹{(plan.default_fee_paise / 100).toFixed(2)} · {plan.duration_value} {plan.duration_unit}</option>)}</select></div>
-      <div className="field"><label>{renew ? "Renewal date" : "Start date"} *</label><input type="date" name={renew ? "renewal_date" : "starts_on"} value={startDate} onChange={(event) => changeStartDate(event.target.value)} required/>{renew && currentExpiry && <small>Early renewals start after {currentExpiry}.</small>}</div>
+      <div className="field"><label>{renew ? "Renewal date" : "Start date"} *</label><input type="date" name={renew ? "renewal_date" : "starts_on"} value={startDate} onChange={(event) => changeStartDate(event.target.value)} required/>{renew && currentExpiry && <small>Early renewals start after {formatDisplayDate(currentExpiry)}.</small>}</div>
       <div className="field"><label>Plan end date *</label><input type="date" name="expires_on" value={endDate} onChange={(event) => setEndDate(event.target.value)} required/><small>Calculated from the selected plan; edit for exceptions.</small></div>
       <div className="field"><label>Plan price (₹) *</label><input type="number" name="subtotal" min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)} required/><small>Updated automatically when the selected plan changes.</small></div>
       <div className="field"><label>Discount (₹)</label><input type="number" name="discount" min="0" step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)}/></div>

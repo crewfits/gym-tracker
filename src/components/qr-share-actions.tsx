@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, LinkIcon, MessageCircle } from "lucide-react";
+import { Download, MessageCircle } from "lucide-react";
 import { whatsappClickToChatUrl } from "@/lib/reminders";
 
 type Props = {
@@ -9,7 +9,6 @@ type Props = {
   gymName: string;
   memberCode: string;
   memberName: string;
-  passUrl: string;
   phone: string;
   qrPngDataUrl: string;
 };
@@ -82,7 +81,7 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function QrShareActions({ defaultCountryCode, filename, gymName, memberCode, memberName, passUrl, phone, qrPngDataUrl }: Props) {
+export function QrShareActions({ defaultCountryCode, filename, gymName, memberCode, memberName, phone, qrPngDataUrl }: Props) {
   const message = `Hi ${memberName}, please save the QR pass image I am sending. Use it at the gym for Check-in and Check-out.`;
   let whatsappUrl: string | null = null;
   try {
@@ -115,20 +114,14 @@ export function QrShareActions({ defaultCountryCode, filename, gymName, memberCo
     downloadBlob(blob, filename);
   }
 
-  async function copyPassLink() {
-    await navigator.clipboard.writeText(passUrl);
-    window.alert("QR pass link copied. Use this only as a fallback; the QR image is better for daily use.");
-  }
-
   return <div className="qr-share-actions">
     {whatsappUrl ? <button className="button success qr-whatsapp-button" type="button" onClick={shareToWhatsApp}>
       <MessageCircle size={18}/>
       Share QR image to WhatsApp
     </button> : <button className="button secondary qr-whatsapp-button" type="button" onClick={downloadPassImage}><Download size={18}/> Download QR image</button>}
     <div className="qr-secondary-actions">
-      <button className="button secondary small" type="button" onClick={copyPassLink}><LinkIcon size={15}/> Share QR link</button>
       <button className="button secondary small" type="button" onClick={downloadPassImage}><Download size={15}/> Download QR image</button>
     </div>
-    <small className="muted">{whatsappUrl ? "Copies a ready QR pass image, then opens WhatsApp. Paste the image and send." : "Add a valid WhatsApp phone number to share directly."}</small>
+    {!whatsappUrl && <small className="muted">Add a valid WhatsApp phone number to share directly.</small>}
   </div>;
 }

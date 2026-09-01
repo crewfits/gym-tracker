@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireGym } from "@/lib/auth";
-import { formatInr } from "@/lib/domain";
+import { formatDisplayDate, formatInr } from "@/lib/domain";
 import { renderReminderTemplate, whatsappNumber } from "@/lib/reminders";
 import { processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
 
@@ -12,7 +12,9 @@ function fail(error: unknown): never {
   redirect(`/reminders?error=${encodeURIComponent(message)}`);
 }
 
-export async function openWhatsAppReminder(formData: FormData): Promise<{ url?: string; error?: string }> {
+type OpenReminderResult = { ok: true; url: string } | { ok: false; error: string };
+
+export async function openWhatsAppReminder(formData: FormData): Promise<OpenReminderResult> {
   try {
     const input = z.object({
       kind: z.enum(["payment", "renewal"]),
@@ -42,14 +44,14 @@ export async function openWhatsAppReminder(formData: FormData): Promise<{ url?: 
         gym_name: gym.name,
         plan_name: membership.plan_name,
         balance: formatInr(Number(charge.balance_paise)),
-        due_date: charge.due_on,
+        due_date: formatDisplayDate(charge.due_on),
       });
     } else {
       message = renderReminderTemplate(gym.renewal_reminder_template, {
         name: member.name,
         gym_name: gym.name,
         plan_name: membership.plan_name,
-        expiry_date: membership.expires_on,
+        expiry_date: formatDisplayDate(membership.expires_on),
       });
     }
 
@@ -66,9 +68,10 @@ export async function openWhatsAppReminder(formData: FormData): Promise<{ url?: 
       prepared_by: user.id,
     });
     if (historyError) throw historyError;
-    return { url: `https://wa.me/${number}?text=${encodeURIComponent(message)}` };
+    return { ok: true, url: `https://wa.me/${number}?text=${encodeURIComponent(message)}` };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, error: message };
   }
 }
 
