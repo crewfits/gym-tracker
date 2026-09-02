@@ -113,7 +113,8 @@ This command:
 
 1. builds the Next.js app;
 2. generates the OpenNext Cloudflare Worker bundle;
-3. deploys the Worker with existing Cloudflare secrets preserved.
+3. deploys the Worker with existing Cloudflare secrets preserved;
+4. creates or updates the daily `0 3 * * *` automatic-reminder Cron Trigger.
 
 ## After deployment
 

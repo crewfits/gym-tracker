@@ -85,6 +85,29 @@ export function selectEffectiveMembership<T extends { starts_on: string; expires
   })[0];
 }
 
+export type MemberOperationalStatus = MembershipStatus | "not_enrolled";
+
+export function memberOperationalView<T extends { starts_on: string; expires_on: string; created_at?: string }>(memberships: T[], today: string, expiringWindow = 7): { membership?: T; status: MemberOperationalStatus } {
+  const activeMemberships = memberships.filter((membership) => membership.starts_on <= today && membership.expires_on >= today);
+  const futureMemberships = memberships.filter((membership) => membership.starts_on > today);
+  const expiredMemberships = memberships.filter((membership) => membership.expires_on < today);
+  const newest = (left: T, right: T) => right.expires_on.localeCompare(left.expires_on) || (right.created_at ?? "").localeCompare(left.created_at ?? "");
+  const earliest = (left: T, right: T) => left.starts_on.localeCompare(right.starts_on) || (left.created_at ?? "").localeCompare(right.created_at ?? "");
+  const current = [...activeMemberships].sort(newest)[0];
+  const future = [...futureMemberships].sort(earliest)[0];
+  const expired = [...expiredMemberships].sort(newest)[0];
+
+  if (current) {
+    return {
+      membership: future ?? current,
+      status: future ? "active" : membershipStatus(current.starts_on, current.expires_on, today, expiringWindow),
+    };
+  }
+  if (future) return { membership: future, status: "upcoming" };
+  if (expired) return { membership: expired, status: "expired" };
+  return { status: "not_enrolled" };
+}
+
 export function formatInr(paise: number): string {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(paise / 100);
 }

@@ -131,7 +131,7 @@ V1 reminders combine owner-initiated WhatsApp click-to-chat with opt-in automate
 - The application prepares a message and opens WhatsApp.
 - The owner reviews and sends it from their own account.
 - Manual handoffs record `opened` or `prepared`, never `sent` or `delivered`.
-- A secured daily endpoint submits an approved Utility template only for outstanding charges whose follow-up date is the current gym-local date and whose member has opted in. A unique database key prevents duplicate charge/date/channel submission.
+- A Cloudflare Cron Trigger invokes a secured daily endpoint that submits an approved Utility template only for outstanding charges whose follow-up date is the current gym-local date and whose member has opted in. A unique database key prevents duplicate charge/date/channel submission.
 - Invalid numbers and missing consent are recorded as skipped. Provider failures are recorded as failed and may be retried on the same scheduled date. A successful Graph API response is recorded as submitted with the Meta message ID; delivered/read tracking requires a future webhook.
 - Archived members are excluded.
 - Renewal reminders use membership expiry; partial-payment and overdue reminders use the charge follow-up date.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attendanceLabel, businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatDisplayDate, formatDisplayDateTime, membershipStatus, nextAttendanceDirection, paymentStatus, planDurationDays, selectEffectiveMembership } from "./domain";
+import { attendanceLabel, businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatDisplayDate, formatDisplayDateTime, memberOperationalView, membershipStatus, nextAttendanceDirection, paymentStatus, planDurationDays, selectEffectiveMembership } from "./domain";
 
 describe("membership dates", () => {
   it("uses inclusive expiry dates", () => expect(calculateExpiry("2026-01-15", 1, "months")).toBe("2026-02-14"));
@@ -34,6 +34,13 @@ describe("status", () => {
     const renewal = { id: "renewal", starts_on: "2026-09-01", expires_on: "2026-09-30" };
     expect(selectEffectiveMembership([renewal, current], "2026-08-20")?.id).toBe("current");
     expect(selectEffectiveMembership([renewal, current], "2026-09-05")?.id).toBe("renewal");
+  });
+  it("keeps renewed members out of the expiring status", () => {
+    const current = { id: "current", starts_on: "2026-08-04", expires_on: "2026-09-03", created_at: "2026-08-04" };
+    const renewal = { id: "renewal", starts_on: "2026-09-04", expires_on: "2028-09-03", created_at: "2026-09-01" };
+    const view = memberOperationalView([current, renewal], "2026-09-02");
+    expect(view.status).toBe("active");
+    expect(view.membership?.id).toBe("renewal");
   });
 });
 

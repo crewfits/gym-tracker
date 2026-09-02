@@ -59,6 +59,7 @@ export async function markMemberQrShared(formData: FormData) {
     const { error } = await supabase.from("member_qr_credentials").update({ shared_at: new Date().toISOString(), shared_by: user.id, share_method: "manual_whatsapp", updated_at: new Date().toISOString() }).eq("member_id", memberId).eq("gym_id", gym.id).eq("enabled", true);
     if (error) throw error;
     revalidatePath("/members");
+    revalidatePath(`/members/${memberId}`);
     revalidatePath(`/members/${memberId}/qr`);
     go(`/members/${memberId}/qr`, "success", "QR marked as shared.");
   } catch (error) {

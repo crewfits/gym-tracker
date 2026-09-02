@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "fitkiro",
-  "main": ".open-next/worker.js",
+  "main": "custom-worker.ts",
   "compatibility_date": "2026-08-28",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -9,7 +9,12 @@
     "binding": "ASSETS"
   },
   "vars": {
-    "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com"
+    "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com",
+    "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91",
+    "WHATSAPP_GRAPH_API_VERSION": "v23.0"
+  },
+  "triggers": {
+    "crons": ["0 3 * * *"]
   },
   "routes": [
     {

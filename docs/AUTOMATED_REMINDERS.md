@@ -47,21 +47,20 @@ Do not add promotions, offers, or unrelated content; Meta may classify that as M
 
 ## Daily schedule
 
-Enable Supabase Cron (`pg_cron`) and `pg_net`, then create an HTTP job:
+Production uses a Cloudflare Cron Trigger declared in `wrangler.jsonc`:
 
-- Schedule: `0 3 * * *` (08:30 Asia/Kolkata)
-- Method: `POST`
-- URL: `https://musclefitness.fitkiro.com/api/cron/reminders`
-- Header: `Authorization: Bearer <the same CRON_SECRET>`
-- Header: `Content-Type: application/json`
-- Body: `{}`
+- Schedule: `0 3 * * *` (03:00 UTC / 08:30 Asia/Kolkata)
+- Worker entrypoint: `custom-worker.ts`
+- Target: the existing secured `/api/cron/reminders` route
+
+The scheduled handler invokes the Next.js route internally with `CRON_SECRET`. Deploying with Wrangler creates or updates the trigger; Cloudflare notes that trigger changes can take up to 15 minutes to propagate. Supabase `pg_cron` and `pg_net` are not required.
 
 The endpoint calculates each enabled gym's local date. It processes only outstanding charges whose follow-up date is that date. Historical overdue balances are not sent in bulk when automation is enabled.
 
 ## Enable and verify
 
 1. Apply the latest Supabase migration.
-2. Configure Meta billing, the approved template, and production secrets.
+2. Configure Meta billing, the approved template, and production secrets in Cloudflare.
 3. In FitKiro Settings, save the exact template name/language and enable automatic WhatsApp reminders.
 4. Record member consent on the member profile.
 5. Ensure the member has an outstanding charge due today.
@@ -69,3 +68,5 @@ The endpoint calculates each enabled gym's local date. It processes only outstan
 7. Review **Automatic WhatsApp reminders** for submitted, skipped, or failed attempts.
 
 The manual button and Cron use the same idempotent engine. Failed attempts may be retried on the scheduled date; submitted and skipped attempts are not duplicated. A submitted status means Meta accepted the API request. Delivered/read status requires webhook handling and is not claimed by this version.
+
+Check scheduled executions in **Cloudflare Dashboard → Workers & Pages → fitkiro → Observability → Events**. The reminder delivery table in FitKiro remains the business-level audit log.

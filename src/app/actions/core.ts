@@ -197,7 +197,7 @@ export async function renewMembership(formData: FormData) {
     const { supabase, gym } = await requireGym();
     const input = z.object({ plan_id: z.uuid(), renewal_date: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate, subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100), amount_paid: money, method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string() }).parse(Object.fromEntries(formData));
     const [{ data: latest }, { data: plan, error: planError }] = await Promise.all([
-      supabase.from("memberships").select("expires_on").eq("member_id", memberId).eq("gym_id", gym.id).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("memberships").select("expires_on").eq("member_id", memberId).eq("gym_id", gym.id).is("reverted_at", null).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("plans").select("*").eq("id", input.plan_id).eq("gym_id", gym.id).eq("is_active", true).single(),
     ]);
     if (planError || !plan) throw new Error("Active plan not found");
@@ -224,21 +224,31 @@ export async function removeMistakenRenewal(formData: FormData) {
   const membershipId = String(formData.get("membership_id"));
   const memberId = String(formData.get("member_id"));
   try {
-    const { supabase, gym } = await requireGym();
-    const { data: membership } = await supabase.from("memberships").select("id,created_at").eq("id", membershipId).eq("member_id", memberId).eq("gym_id", gym.id).single();
+    const { supabase, gym, user } = await requireGym();
+    const { data: membership, error: membershipLoadError } = await supabase.from("memberships").select("id,created_at,reverted_at").eq("id", membershipId).eq("member_id", memberId).eq("gym_id", gym.id).maybeSingle();
+    if (membershipLoadError) throw membershipLoadError;
     if (!membership) throw new Error("Renewal not found");
-    const { count: olderCount } = await supabase.from("memberships").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("gym_id", gym.id).lt("created_at", membership.created_at);
+    if (membership.reverted_at) done(`/members/${memberId}`, "Renewal was already reverted");
+    const { count: olderCount } = await supabase.from("memberships").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("gym_id", gym.id).is("reverted_at", null).lt("created_at", membership.created_at);
     if (!olderCount) throw new Error("The original enrollment cannot be removed here");
-    const { data: charge } = await supabase.from("charges").select("id").eq("membership_id", membershipId).eq("gym_id", gym.id).single();
+    const { data: charge, error: chargeLoadError } = await supabase.from("charges").select("id").eq("membership_id", membershipId).eq("gym_id", gym.id).maybeSingle();
+    if (chargeLoadError) throw chargeLoadError;
     if (!charge) throw new Error("Renewal charge not found");
-    const { count: paymentCount } = await supabase.from("payments").select("id", { count: "exact", head: true }).eq("charge_id", charge.id).eq("gym_id", gym.id);
-    if (paymentCount) throw new Error("This renewal has payment history and cannot be removed. Reverse the payment instead.");
+    const { count: attendanceCount } = await supabase.from("attendance_events").select("id", { count: "exact", head: true }).eq("membership_id", membershipId).eq("gym_id", gym.id);
+    if (attendanceCount) throw new Error("This membership has attendance history and cannot be reverted as a mistaken renewal");
+    const { data: payments } = await supabase.from("payments").select("id,amount_paise,voided_at,payment_reversals(amount_paise)").eq("charge_id", charge.id).eq("gym_id", gym.id);
+    for (const payment of payments ?? []) {
+      const reversed = (payment.payment_reversals ?? []).reduce((sum, item) => sum + Number(item.amount_paise), 0);
+      const remaining = payment.voided_at ? 0 : Number(payment.amount_paise) - reversed;
+      if (remaining > 0) {
+        const { error: reversalError } = await supabase.rpc("reverse_payment", { p_payment_id: payment.id, p_amount_paise: remaining, p_reason: "Mistaken renewal reverted" });
+        if (reversalError) throw reversalError;
+      }
+    }
     await supabase.from("reminder_deliveries").delete().eq("membership_id", membershipId).eq("gym_id", gym.id);
-    const { error: chargeDeleteError } = await supabase.from("charges").delete().eq("id", charge.id).eq("gym_id", gym.id);
-    if (chargeDeleteError) throw chargeDeleteError;
-    const { error: membershipDeleteError } = await supabase.from("memberships").delete().eq("id", membershipId).eq("gym_id", gym.id);
-    if (membershipDeleteError) throw membershipDeleteError;
-    done(`/members/${memberId}`, "Mistaken renewal removed");
+    const { error: membershipError } = await supabase.from("memberships").update({ reverted_at: new Date().toISOString(), reverted_reason: "Mistaken renewal reverted", reverted_by: user.id }).eq("id", membershipId).eq("member_id", memberId).eq("gym_id", gym.id).is("reverted_at", null);
+    if (membershipError) throw membershipError;
+    done(`/members/${memberId}`, "Mistaken renewal reverted. Any recorded payment was fully reversed.");
   } catch (e) { fail(`/members/${memberId}`, e); }
 }
 
@@ -275,9 +285,22 @@ export async function reversePayment(formData: FormData) {
 
 export async function updateSettings(formData: FormData) {
   try {
-    const input = z.object({ name: text, phone: z.string(), email: z.email().or(z.literal("")), address: z.string(), gstin: z.string(), timezone: text, receipt_prefix: z.string().trim().min(1).max(8), payment_reminder_template: text, renewal_reminder_template: text }).parse(Object.fromEntries(formData));
+    const input = z.object({
+      name: text,
+      phone: z.string(),
+      email: z.email().or(z.literal("")),
+      address: z.string(),
+      gstin: z.string(),
+      timezone: text,
+      receipt_prefix: z.string().trim().min(1).max(8),
+      payment_reminder_template: text,
+      renewal_reminder_template: text,
+      automatic_payment_whatsapp_enabled: z.string().optional(),
+      whatsapp_payment_template_name: z.string().trim().min(1).regex(/^[a-z0-9_]+$/),
+      whatsapp_template_language: z.string().trim().min(2),
+    }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
-    const { error } = await supabase.from("gyms").update({ ...input, email: input.email || null }).eq("id", gym.id); if (error) throw error;
+    const { error } = await supabase.from("gyms").update({ ...input, email: input.email || null, automatic_payment_whatsapp_enabled: input.automatic_payment_whatsapp_enabled === "on" }).eq("id", gym.id); if (error) throw error;
     done("/settings", "Settings saved");
   } catch (e) { fail("/settings", e); }
 }

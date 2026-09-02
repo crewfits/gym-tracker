@@ -136,7 +136,9 @@ export function AppShell({ gymName, children }: { gymName: string; children: Rea
   function handleQuerySubmit(event: FormEvent<HTMLDivElement>) {
     if (event.defaultPrevented || !(event.target instanceof HTMLFormElement)) return;
     const form = event.target;
-    if (form.method.toLowerCase() !== "get" || form.target) return;
+    if (form.querySelector('input[name^="$ACTION"]')) return;
+    const method = (form.getAttribute("method") ?? "get").toLowerCase();
+    if (method !== "get" || form.target) return;
     const url = new URL(form.action || window.location.href, window.location.href);
     if (url.origin !== window.location.origin || url.pathname.startsWith("/api/")) return;
     const query = new URLSearchParams();
