@@ -4,7 +4,7 @@ import { csvDocument } from "@/lib/csv";
 import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/domain";
 import type { AttendanceDirection } from "@/lib/types";
 
-type AttendanceExportRow = { member_code: string; member_name: string; direction: AttendanceDirection; plan_name: string | null; qr_version: number; occurred_at: string; business_date: string; total_count: number };
+type AttendanceExportRow = { member_code: string; member_name: string; direction: AttendanceDirection; plan_name: string | null; qr_version: number | null; source: "qr" | "manual"; occurred_at: string; business_date: string; total_count: number };
 const sorts = new Set(["occurred_at", "member_name"]);
 
 export async function GET(request: NextRequest) {
@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
   }
 
   const csv = csvDocument(
-    ["Business date", "Occurred at", "Member ID", "Member name", "Attendance", "Membership"],
-    rows.map((row) => [formatDisplayDate(row.business_date), formatDisplayDateTime(row.occurred_at, gym.timezone, true), row.member_code, row.member_name, attendanceLabel(row.direction), row.plan_name]),
+    ["Business date", "Occurred at", "Member ID", "Member name", "Attendance", "Source", "Membership"],
+    rows.map((row) => [formatDisplayDate(row.business_date), formatDisplayDateTime(row.occurred_at, gym.timezone, true), row.member_code, row.member_name, attendanceLabel(row.direction), row.source === "manual" ? "Manual correction" : "QR scan", row.plan_name]),
   );
   return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="attendance-${view}-${today}.csv"`, "Cache-Control": "private, no-store" } });
 }

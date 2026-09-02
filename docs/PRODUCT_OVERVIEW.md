@@ -28,10 +28,13 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 1. FitKiro generates a compact first-party QR URL using a short random code stored on the QR credential row. The QR image itself is not stored.
 2. The owner shares the pass link or PNG manually, including through WhatsApp.
-3. An authenticated operator scans the member's QR.
-4. FitKiro validates tenant ownership, QR version, member state, and active membership.
-5. The operator explicitly confirms Check-in or Check-out; opening the URL never records attendance.
-6. The first confirmed scan of a gym business day is a Check-in. Later movements alternate, with a manual override for missed scans.
+3. An authenticated operator uses the installed Android PWA camera scanner, which reads the QR without navigating to a new browser tab.
+4. FitKiro validates tenant ownership, QR version, member state, and active membership on the server.
+5. A valid camera scan automatically records Check-in or Check-out and shows a colour-coded result for 30 seconds with sound/vibration feedback. The operator can close it sooner after removing the QR from view. A database-enforced 30-second member cooldown prevents an early close, app refresh, or second device from immediately recording the opposite movement. Directly opening a scan URL remains a confirmation-based fallback and never records attendance on GET.
+6. The first scan of a gym business day is a Check-in. Later movements alternate. An immediate correction records the opposite movement as a new audited event rather than rewriting attendance history.
+7. After the 30-second result window, Attendance Logs can undo only that member's latest event from the current business day. The original direction and time remain stored with the correction reason, operator, and time. The owner may also create the next sequence-safe movement as a manual replacement.
+
+The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign out. Opening FitKiro as a normal website retains the complete owner dashboard and management navigation.
 
 ### Membership and payment operations
 
@@ -56,7 +59,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 - Every operational record must remain scoped to the provisioned gym.
 - Money is stored as integer paise; display formatting is not the source of truth.
 - Applied plans, prices, and membership terms are snapshotted for historical accuracy.
-- Attendance and financial activity are append-only or corrected through audited actions.
+- Attendance and financial activity are append-only or corrected through audited actions. An undone attendance event remains stored but is excluded from operational status, totals, and exports.
 - Manual WhatsApp handoffs are never represented as sent or delivered, and QR share tracking records only owner confirmation; automated Cloud API records are labelled submitted until webhook delivery tracking is added.
 - Public QR pages expose the minimum information required for the pass.
 - Frontend visibility is never the authorization boundary.

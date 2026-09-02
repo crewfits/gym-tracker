@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createQrToken, verifyQrToken } from "./qr-token";
+import { attendanceQrToken, createQrToken, verifyQrToken } from "./qr-token";
 
 const secret = "test-signing-secret-that-is-at-least-32-bytes-long";
 const payload = {
@@ -9,6 +9,13 @@ const payload = {
 };
 
 describe("QR tokens", () => {
+  it("extracts camera scanner tokens only from supported scan values", () => {
+    expect(attendanceQrToken("https://fitkiro.example/s/ABCDEFGHJKLM")).toBe("ABCDEFGHJKLM");
+    expect(attendanceQrToken("https://fitkiro.example/scan/legacy_token_value_that_is_long_enough_1234567890")).toBe("legacy_token_value_that_is_long_enough_1234567890");
+    expect(attendanceQrToken("ABCDEFGHJKLM")).toBe("ABCDEFGHJKLM");
+    expect(attendanceQrToken("https://example.com/not-a-scan/ABCDEFGHJKLM")).toBeNull();
+    expect(attendanceQrToken("hello world")).toBeNull();
+  });
   it("recreates the same token for the same member version", () => {
     expect(createQrToken(payload, secret)).toBe(createQrToken(payload, secret));
   });

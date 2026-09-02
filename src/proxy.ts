@@ -11,7 +11,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(callback);
   }
 
-  const publicPath = pathname === "/login" || pathname === "/api/health" || pathname.startsWith("/auth/callback") || pathname.startsWith("/pass/") || pathname.startsWith("/p/") || pathname.startsWith("/r/");
+  const publicPath = pathname === "/login"
+    || pathname === "/api/health"
+    || pathname === "/manifest.webmanifest"
+    || pathname === "/sw.js"
+    || pathname.startsWith("/icons/")
+    || pathname.startsWith("/auth/callback")
+    || pathname.startsWith("/pass/")
+    || pathname.startsWith("/p/")
+    || pathname.startsWith("/r/");
 
   if (pathname.startsWith("/p/") || pathname.startsWith("/s/")) {
     const longPath = pathname.startsWith("/p/") ? `/pass/${pathname.slice(3)}` : `/scan/${pathname.slice(3)}`;

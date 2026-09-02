@@ -4,19 +4,40 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireGym } from "@/lib/auth";
-import { attendanceLabel } from "@/lib/domain";
-import { isShortQrCode, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
+import { attendanceLabel, formatDisplayDateTime } from "@/lib/domain";
+import { signedMemberPhotoUrl } from "@/lib/member-photo";
+import { safeReturnPath } from "@/lib/return-path";
+import type { AttendanceDirection } from "@/lib/types";
+import { attendanceQrToken, isShortQrCode, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
 
 function isRedirect(error: unknown): boolean {
   return typeof error === "object" && error !== null && "digest" in error && String((error as { digest: unknown }).digest).startsWith("NEXT_REDIRECT");
 }
 
 function messageFrom(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") return error.message;
+  return typeof error === "string" ? error : "Unable to complete the attendance request";
+}
+
+function scannerDenialMessage(error: unknown): string {
+  const message = messageFrom(error);
+  if (/active membership/i.test(message)) return "Membership expired or inactive";
+  if (/disabled or replaced/i.test(message)) return "QR disabled or replaced";
+  if (/active member not found/i.test(message)) return "Member is archived or inactive";
+  return message;
 }
 
 function go(path: string, type: "success" | "error", message: string): never {
   redirect(`${path}?${type}=${encodeURIComponent(message)}`);
+}
+
+function goWithFeedback(path: string, type: "success" | "error", message: string): never {
+  const [pathname, query = ""] = path.split("?", 2);
+  const params = new URLSearchParams(query);
+  params.set(type, message);
+  params.delete(type === "success" ? "error" : "success");
+  redirect(`${pathname}?${params.toString()}`);
 }
 
 export async function issueMemberQr(formData: FormData) {
@@ -101,5 +122,113 @@ export async function recordAttendance(formData: FormData) {
   } catch (error) {
     if (isRedirect(error)) throw error;
     go(scanPath, "error", messageFrom(error));
+  }
+}
+
+export type ScannerAttendanceResult = {
+  status: "recorded" | "denied";
+  message: string;
+  token?: string;
+  direction?: AttendanceDirection;
+  memberName?: string;
+  memberCode?: string;
+  photoUrl?: string | null;
+  occurredAt?: string;
+};
+
+async function recordScannerMovement(rawValue: string, requestId: string, forcedDirection?: AttendanceDirection): Promise<ScannerAttendanceResult> {
+  const parsedValue = z.string().max(2000).safeParse(rawValue);
+  const parsedId = z.uuid().safeParse(requestId);
+  if (!parsedValue.success || !parsedId.success) return { status: "denied", message: "This is not a valid FitKiro attendance QR" };
+  const token = attendanceQrToken(parsedValue.data);
+  const parsedRequestId = parsedId.data;
+  if (!token) return { status: "denied", message: "This is not a valid FitKiro attendance QR" };
+
+  try {
+    const { supabase, gym } = await requireGym();
+    let payload: QrTokenPayload | null = null;
+    if (isShortQrCode(token)) {
+      const { data } = await supabase.from("member_qr_credentials").select("member_id,version").eq("public_code", token).eq("gym_id", gym.id).maybeSingle();
+      if (data) payload = { gymId: gym.id, memberId: data.member_id, version: data.version };
+    } else payload = verifyQrToken(token);
+    if (!payload || payload.gymId !== gym.id) return { status: "denied", message: "This QR is invalid or belongs to another gym" };
+
+    const { data: member } = await supabase.from("members").select("name,member_code,profile_photo_path").eq("id", payload.memberId).eq("gym_id", gym.id).maybeSingle();
+    if (!member) return { status: "denied", message: "Member not found" };
+
+    const movement = forcedDirection
+      ? await supabase.rpc("record_attendance", { p_member_id: payload.memberId, p_qr_version: payload.version, p_direction: forcedDirection, p_request_id: parsedRequestId })
+      : await supabase.rpc("record_scanner_attendance", { p_member_id: payload.memberId, p_qr_version: payload.version, p_request_id: parsedRequestId });
+    const { data: event, error } = movement;
+    if (error) return {
+      status: "denied",
+      message: scannerDenialMessage(error),
+      memberName: member.name,
+      memberCode: member.member_code,
+      photoUrl: await signedMemberPhotoUrl(supabase, member.profile_photo_path),
+    };
+    const direction = event?.direction ?? forcedDirection ?? "entry";
+    const occurredAt = event?.occurred_at ?? new Date().toISOString();
+    const duplicateSuppressed = event?.request_id !== parsedRequestId;
+    revalidatePath("/attendance");
+    return {
+      status: "recorded",
+      message: `${attendanceLabel(direction)} ${duplicateSuppressed ? "already recorded" : "recorded"}`,
+      token,
+      direction,
+      memberName: member.name,
+      memberCode: member.member_code,
+      photoUrl: await signedMemberPhotoUrl(supabase, member.profile_photo_path),
+      occurredAt: formatDisplayDateTime(occurredAt, gym.timezone),
+    };
+  } catch (error) {
+    return { status: "denied", message: scannerDenialMessage(error) };
+  }
+}
+
+export async function scanAndRecordAttendance(rawValue: string, requestId: string) {
+  return recordScannerMovement(rawValue, requestId);
+}
+
+export async function correctScannerAttendance(token: string, originalDirection: AttendanceDirection, requestId: string) {
+  const direction = z.enum(["entry", "exit"]).parse(originalDirection) === "entry" ? "exit" : "entry";
+  return recordScannerMovement(token, requestId, direction);
+}
+
+export async function correctAttendanceLog(formData: FormData) {
+  const requestedReturnPath = safeReturnPath(formData.get("return_path"));
+  const returnPath = requestedReturnPath === "/attendance" || requestedReturnPath.startsWith("/attendance?") ? requestedReturnPath : "/attendance";
+
+  try {
+    const input = z.object({
+      event_id: z.uuid(),
+      request_id: z.uuid(),
+      reason: z.string().trim().min(3).max(240),
+      replacement_direction: z.union([z.enum(["entry", "exit"]), z.literal("")]),
+    }).parse(Object.fromEntries(formData));
+    const { supabase, gym } = await requireGym();
+    const { data: event, error: eventError } = await supabase.from("attendance_events").select("member_id,direction").eq("id", input.event_id).eq("gym_id", gym.id).maybeSingle();
+    if (eventError) throw eventError;
+    if (!event) throw new Error("Attendance event not found");
+
+    const { error } = await supabase.rpc("correct_latest_attendance_event", {
+      p_event_id: input.event_id,
+      p_replacement_direction: input.replacement_direction || null,
+      p_request_id: input.request_id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+
+    revalidatePath("/");
+    revalidatePath("/attendance");
+    revalidatePath(`/members/${event.member_id}/qr`);
+    const original = attendanceLabel(event.direction as AttendanceDirection);
+    const message = input.replacement_direction
+      ? `${original} undone and a new ${attendanceLabel(input.replacement_direction)} recorded.`
+      : `${original} undone. The next scan will use the corrected attendance history.`;
+    goWithFeedback(returnPath, "success", message);
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    goWithFeedback(returnPath, "error", messageFrom(error));
   }
 }

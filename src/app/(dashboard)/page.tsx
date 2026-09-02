@@ -25,7 +25,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     supabase.rpc("get_dashboard_summary", { p_today: today }),
     selectedView === "current" ? supabase.from("members").select("id,member_code,name,is_archived,memberships(id,plan_name,starts_on,expires_on,created_at,reverted_at)").eq("gym_id", gym.id).eq("is_archived", false) : Promise.resolve({ data: [], error: null }),
     supabase.rpc("get_dashboard_monthly_trends", { p_today: today, p_months: selectedView === "trends" ? 6 : 2 }),
-    selectedView === "current" ? supabase.from("attendance_events").select("member_id,occurred_at").eq("gym_id", gym.id).eq("direction", "entry").gte("occurred_at", `${previousWeekStart}T00:00:00.000Z`).lte("occurred_at", `${addDays(today, 1)}T00:00:00.000Z`) : Promise.resolve({ data: [], error: null }),
+    selectedView === "current" ? supabase.from("attendance_events").select("member_id,occurred_at").eq("gym_id", gym.id).eq("direction", "entry").is("voided_at", null).gte("occurred_at", `${previousWeekStart}T00:00:00.000Z`).lte("occurred_at", `${addDays(today, 1)}T00:00:00.000Z`) : Promise.resolve({ data: [], error: null }),
   ]);
   if (summaryError) throw summaryError;
   if (statusMembersError) throw statusMembersError;

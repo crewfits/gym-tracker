@@ -13,6 +13,17 @@ export function isShortQrCode(value: string): boolean {
   return shortQrCodePattern.test(value);
 }
 
+export function attendanceQrToken(value: string): string | null {
+  const raw = value.trim();
+  if (raw.length < 12 || raw.length > 2000) return null;
+  try {
+    const match = new URL(raw).pathname.match(/^\/(?:s|scan)\/([^/]+)\/?$/);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return isShortQrCode(raw) || /^[A-Za-z0-9._-]{40,1000}$/.test(raw) ? raw : null;
+  }
+}
+
 function signingSecret(): string {
   const secret = process.env.QR_SIGNING_SECRET;
   if (!secret || Buffer.byteLength(secret) < 32) {

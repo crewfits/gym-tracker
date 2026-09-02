@@ -40,7 +40,7 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
   const [{ data: member }, { data: membership }, { data: lastEvent }] = await Promise.all([
     supabase.from("members").select("id,member_code,name,phone,email,profile_photo_path,is_archived").eq("id", payload.memberId).eq("gym_id", gym.id).maybeSingle(),
     supabase.from("memberships").select("id,plan_name,starts_on,expires_on").eq("member_id", payload.memberId).eq("gym_id", gym.id).lte("starts_on", today).gte("expires_on", today).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("attendance_events").select("direction,occurred_at").eq("member_id", payload.memberId).eq("gym_id", gym.id).order("occurred_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("attendance_events").select("direction,occurred_at").eq("member_id", payload.memberId).eq("gym_id", gym.id).is("voided_at", null).order("occurred_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!member) notFound();
   const photoUrl = await signedMemberPhotoUrl(supabase, member.profile_photo_path);

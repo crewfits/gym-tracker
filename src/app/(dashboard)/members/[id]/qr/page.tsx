@@ -21,7 +21,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
   const [{ data: member }, { data: credentialData }, { data: attendance }] = await Promise.all([
     supabase.from("members").select("id,member_code,name,phone,is_archived").eq("id", id).eq("gym_id", gym.id).maybeSingle(),
     supabase.from("member_qr_credentials").select("public_code,version,enabled,issued_at,rotated_at,shared_at").eq("member_id", id).eq("gym_id", gym.id).maybeSingle(),
-    supabase.from("attendance_events").select("id,direction,occurred_at").eq("member_id", id).eq("gym_id", gym.id).order("occurred_at", { ascending: false }).limit(10),
+    supabase.from("attendance_events").select("id,direction,occurred_at").eq("member_id", id).eq("gym_id", gym.id).is("voided_at", null).order("occurred_at", { ascending: false }).limit(10),
   ]);
   if (!member) notFound();
 

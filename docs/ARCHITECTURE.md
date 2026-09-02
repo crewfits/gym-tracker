@@ -61,6 +61,8 @@ Important modules:
 - `supabase/migrations/015_short_qr_public_codes.sql` adds first-party short QR codes for WhatsApp-friendly pass links.
 - `supabase/migrations/016_member_profile_photos.sql` adds private member profile-photo storage.
 - `supabase/migrations/017_qr_share_tracking.sql` adds manual QR share tracking and member-list QR share filters.
+- `supabase/migrations/20260902090000_atomic_scanner_attendance.sql` atomically selects scanner direction and suppresses any rapid member rescan for 30 seconds.
+- `supabase/migrations/20260902103000_attendance_event_corrections.sql` adds audited latest-event undo and sequence-safe manual replacement.
 - `supabase/migrations/20260829120000_dashboard_monthly_trends.sql` adds month-level dashboard aggregates and reminder delivery metadata.
 - `supabase/migrations/20260829112945_automated_whatsapp_reminders.sql` adds member opt-in and Meta WhatsApp automation settings.
 
@@ -150,14 +152,16 @@ Current QR links use a first-party short code instead of exposing member IDs or 
 
 Attendance rules:
 
-- Opening/scanning a URL never records attendance by itself.
-- An authenticated owner reviews the member and explicitly confirms the movement.
+- Opening a QR URL with GET never records attendance by itself. The authenticated `/scanner` PWA reads the code locally and invokes a server-side POST action that records the suggested movement without opening a new tab.
+- The scanner shows the member identity and recorded result after the write. The direct `/s/{code}` route retains explicit movement confirmation as a fallback.
 - The write transaction revalidates the gym, member, QR version, archive state, and active membership.
-- First confirmed movement in a business day is Check-in; the next is Check-out (`entry`/`exit` in storage).
+- First recorded movement in a business day is Check-in; the next is Check-out (`entry`/`exit` in storage).
 - A missed prior-day Check-out does not turn today's first movement into a Check-out.
-- Rapid duplicate submissions are idempotent/suppressed.
-- Manual entry/exit override remains available for missed same-day scans.
-- Attendance events remain an append-only ledger.
+- Automatic scanner direction selection and the 30-second rapid-rescan cooldown are enforced atomically in PostgreSQL; request UUIDs also make retries idempotent.
+- During the scanner's 30-second result, an immediate correction appends the opposite movement.
+- After that result window, only a member's latest non-undone event from the current business day can be undone. The database serializes correction and scan writes on the member row, records the reason/operator/time on the original event, and can atomically insert the next valid movement as a manual replacement.
+- A replacement must preserve the daily alternating sequence; for example, a Check-out following a Check-in cannot be replaced by another Check-in. Undo-only leaves the member at the prior valid state.
+- Undone events remain in the audit ledger but are excluded from scanner direction, occupancy, dashboard totals, operational attendance history, member history, and CSV exports.
 
 With 300 active members, even two scans per member every day would be about 219,000 events annually, which PostgreSQL handles comfortably with the existing indexes and paginated attendance view.
 

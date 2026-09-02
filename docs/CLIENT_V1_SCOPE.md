@@ -45,9 +45,9 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Generate, share, regenerate, and disable a member QR.
 - Let the owner mark the current QR as manually shared, then view/filter members by QR shared status.
 - Admit only non-archived members with an active membership and current QR version.
-- First confirmed scan in the business day records Check-in; the next records Check-out. The database continues to store the stable `entry`/`exit` enum values.
+- The installed Android PWA scanner records the first valid scan in the business day as Check-in and the next as Check-out, then shows the result and returns to scanning. Directly opening a scan URL retains explicit confirmation as a fallback. The database continues to store the stable `entry`/`exit` enum values.
 - Ignore an unfinished prior-day entry when suggesting today's first movement.
-- Prevent rapid accidental duplicates and keep a manual entry/exit override.
+- Prevent rapid accidental duplicates. During the 30-second scanner result, allow the owner to record the opposite movement. Afterward, allow only today's latest event for that member to be undone, with an optional sequence-safe replacement; preserve the original event and correction reason for audit.
 - Show today's movements and searchable attendance history.
 - Keep attendance without automatic deletion in V1. Any later purge requires a client-approved retention period, a verified backup/export, and an audited bounded deletion process.
 
@@ -57,7 +57,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Gym name, contact details, timezone, and reminder-message settings.
 - Dashboard counts for active/expiring/outstanding members and today's attendance.
 - CSV export and a documented backup process.
-- Mobile-friendly QR scanning and WhatsApp handoff.
+- Installable Android PWA with in-app QR camera scanning, sound/vibration feedback, and no new browser tab, plus mobile-friendly WhatsApp handoff.
 - Private member photos on owner-only operational screens when captured.
 - Clear validation, error, empty, and expired/denied states.
 
@@ -93,9 +93,10 @@ A reusable customer-facing import UI is not required for V1.
 2. Owner finds an existing member or creates a new one and assigns a package.
 3. Owner records a full or partial payment and sees the correct balance/history.
 4. Owner finds due/expiring members and opens a prefilled WhatsApp reminder.
-5. Owner generates and shares a QR, marks it shared after the manual handoff, then records entry and exit through confirmed scans.
+5. Owner generates and shares a QR, marks it shared after the manual handoff, then records entry and exit through automatic PWA scans or the confirmation-based URL fallback.
 6. Expired, archived, disabled, replaced, or invalid QR passes are denied.
 7. A missed prior-day exit does not make the next day's first scan an exit.
-8. Old members remain searchable in archived/all views without cluttering daily operations.
-9. Owner can export operational data and the documented backup can be restored.
-10. Reusing an archived member's phone opens that historical profile and offers reactivation instead of creating an accidental duplicate.
+8. The owner can undo a member's latest event from today after the scanner's 30-second result window and optionally record the next valid movement without creating consecutive Check-ins or Check-outs.
+9. Old members remain searchable in archived/all views without cluttering daily operations.
+10. Owner can export operational data and the documented backup can be restored.
+11. Reusing an archived member's phone opens that historical profile and offers reactivation instead of creating an accidental duplicate.

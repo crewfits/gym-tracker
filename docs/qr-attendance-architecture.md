@@ -2,7 +2,7 @@
 
 ## Goal
 
-FitKiro will issue an optional QR pass to each member. An authenticated gym operator scans the pass, reviews the member and membership status, and explicitly records an entry or exit event.
+FitKiro issues an optional QR pass to each member. An authenticated gym operator scans it with the Android PWA, which validates and records the next movement automatically before showing the member and result. Directly opening a scan URL retains explicit confirmation as a fallback.
 
 The QR image is never persisted. A PNG is regenerated on demand from a signed URL.
 
@@ -46,13 +46,15 @@ The QR is an identifier, not proof that the person holding it is the member. The
    - regenerate it, invalidating older copies;
    - disable it.
 6. The member opens the public pass link to display their QR. The public view contains no phone, email, payments, or membership details.
-7. An owner scans the QR using any QR scanner. It opens `/s/{token}`.
-8. If necessary, FitKiro requests login and returns to the original scan URL.
-9. The server validates the HMAC, gym, member, credential version, enabled state, archive state, and active membership.
-10. The operator explicitly records **Check-in** or **Check-out** through an authenticated POST action. Stored enum values remain `entry` and `exit` for compatibility.
-11. A transactional database function records the event and prevents duplicate submissions.
+7. The owner opens the installed **FitKiro Scanner** Android PWA. Its rear-camera view reads `/s/{token}` without navigating or opening another browser tab.
+8. The authenticated POST action validates the token, gym, member, credential version, enabled state, archive state, and active membership.
+9. A transactional database function atomically selects and records **Check-in** or **Check-out**. Stored enum values remain `entry` and `exit` for compatibility.
+10. The PWA shows a green Check-in, blue Check-out, or red denied result for 30 seconds and emits sound/vibration feedback. The operator can close the result sooner after removing the QR; a database-enforced 30-second member cooldown prevents an immediate accidental opposite movement across refreshes and devices.
+11. **Make a change** records the opposite movement as a new audited event. It does not mutate or delete the original event.
+12. After 30 seconds, Attendance Logs permits undo only for that member's latest event from the current business day. The owner supplies a reason and may either undo it alone or atomically replace it with the next movement allowed by the effective sequence.
+13. Opening `/s/{token}` directly remains a confirmation-based fallback, including sign-in return handling.
 
-A GET request never records attendance. This avoids false events caused by link previews, browser refreshes, crawlers, or accidental opens.
+A GET request never records attendance. Only an authenticated scanner POST or explicit fallback form POST can write an event. This avoids false events caused by link previews, browser refreshes, crawlers, or accidental opens.
 
 ## Data model
 
@@ -62,7 +64,7 @@ One current credential per member. No QR image or signed token is stored.
 
 ### `attendance_events`
 
-An append-only attendance ledger containing the gym, member, active membership, direction, QR version, scanner, request ID, and timestamp.
+An attendance audit ledger containing the gym, member, active membership, direction, optional QR version, source, scanner, request ID, and timestamp. A corrected event keeps its original direction and time and gains the undo time, owner, reason, idempotency key, and optional replacement-event link. Operational reads use only events without an undo time.
 
 Important indexes support recent gym activity and per-member history. At 1,500 members and two events per day, the expected volume is approximately 1.1 million rows per year, which PostgreSQL can handle comfortably with these indexes and paginated reads.
 
@@ -85,11 +87,11 @@ Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUB
 - Membership dates, not QR age, decide whether entry is allowed.
 - Attendance direction resets by the gym's configured timezone: the first confirmed scan of each calendar day is Check-in, then movements alternate Check-out/Check-in within that day.
 - A previous-day Check-in without a Check-out remains visible as a missing Check-out but never makes the next day's first scan a Check-out. FitKiro does not invent a Check-out time.
-- Operators retain a manual Check-in/Check-out override because a missed same-day scan cannot be inferred reliably.
+- During the scanner result, the owner can choose the opposite movement. Later correction is limited to undoing today's latest event for the member, with an optional replacement that must preserve the alternating sequence.
 - Archived members and disabled, replaced, malformed, or cross-gym QRs are denied.
 - Regeneration is a security action and requires explicit confirmation in the UI.
 - Attendance writes use a caller-generated request UUID and a short same-direction duplicate window.
-- Attendance history must be paginated before expanding beyond the initial recent-event views.
+- Attendance history must be paginated before expanding beyond the initial recent-event views. Undone rows remain in backups/audit data but do not affect operational history or exports.
 - `QR_SIGNING_SECRET` must be at least 32 random bytes and must not use a `NEXT_PUBLIC_` prefix.
 
 ## Implemented V1 foundation
