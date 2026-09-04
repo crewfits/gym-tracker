@@ -89,12 +89,12 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                     <span className="muted">{formatDisplayDate(membership.starts_on)} - {formatDisplayDate(membership.expires_on)}{membership.date_overridden ? " · custom expiry" : ""}</span>
                   </span>
                   <span className="membership-record-meta">
-                    <span className={`badge ${status}`}>{status}</span>
-                    <span className={`badge ${paidStatus}`}>{paidStatus}</span>
+                    <span className={`badge ${status}`}>{statusLabel(status)}</span>
+                    {status !== "expired" && <span className={`badge ${paidStatus}`}>{statusLabel(paidStatus)}</span>}
                     {membershipIndex < enriched.length - 1 && <RemoveRenewalButton membershipId={membership.id} memberId={id} action={removeMistakenRenewal}/>}
                   </span>
                 </summary>
-                <div className="membership-record-body">
+                <div className={`membership-record-body ${membership.balance > 0 ? "" : "compact"}`}>
                   {charge && <div className="charge-breakdown">
                     <span>Base price<strong>{formatInr(Number(charge.subtotal_paise))}</strong></span>
                     <span>Discount<strong>- {formatInr(Number(charge.discount_paise))}</strong></span>
@@ -144,7 +144,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
           <small className="muted">Across all membership periods</small>
         </div>}
         <form id="member-details" action={updateMember} className="card form">
-          <div className="section-head">
+          <div className="section-head member-edit-head">
             <div><h2>Edit details</h2><span className="muted">{member.member_code} · {member.phone}{member.email ? ` · ${member.email}` : ""}{member.is_archived ? " · archived" : ""}</span></div>
             {!member.is_archived && <Link className="button secondary small" href={`/members/${id}/qr`}><QrCode size={14}/> QR pass</Link>}
           </div>

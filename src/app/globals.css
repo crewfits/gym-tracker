@@ -46,6 +46,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .topbar-title { overflow: hidden; font-size: 18px; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-gym { flex: 0 0 auto; font-size: 14px; }
 .content { width: 100%; max-width: 1440px; margin: 0 auto; padding: 16px clamp(20px, 2.5vw, 36px) 56px; animation: page-in .3s ease both; }
+.content:has(.member-layout), .content:has(.members-table-card) { max-width: none; }
 .table-wrap.is-query-updating { opacity: .58; pointer-events: none; }
 .table-wrap.is-query-updating::after { content: ""; position: absolute; z-index: 3; width: 24px; height: 24px; top: 18px; right: 18px; border: 3px solid #d8e5f7; border-top-color: var(--brand); border-radius: 50%; animation: spin .7s linear infinite; }
 .loading-page { display: grid; gap: 18px; }
@@ -408,10 +409,15 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .dashboard-followup-grid tbody tr:nth-child(5) { animation-delay: .14s; }
 .dashboard-followup-grid tbody tr:nth-child(6) { animation-delay: .175s; }
 .dashboard-overview .overview-stack { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.member-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(340px, .72fr); gap: clamp(14px, 1.4vw, 22px); align-items: start; }
-.member-main-stack { display: grid; gap: 16px; min-width: 0; }
+.member-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(310px, 340px); gap: 16px; align-items: stretch; }
+.member-main-stack { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .member-action-bar { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
 .member-membership, .member-details, .member-payments { min-width: 0; }
+.member-payments { flex: 1 1 auto; display: flex; flex-direction: column; }
+.member-payments .table-wrap { flex: 1 1 auto; }
+.member-edit-head { flex-direction: row; align-items: flex-start; gap: 12px; }
+.member-edit-head > div { min-width: 0; }
+.member-edit-head .button { flex: 0 0 auto; white-space: nowrap; }
 .balance-card { overflow: hidden; border-color: #cfe0f7; background: linear-gradient(145deg, #f8fbff, #fff); }
 .balance-card.needs-attention { border-color: #f5d6a7; background: linear-gradient(145deg, #fffaf0, #fff); }
 .balance-card.settled { border-color: #cbead6; background: linear-gradient(145deg, #f0faf4, #fff); }
@@ -436,7 +442,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .membership-record-main .muted { font-size: 13px; }
 .membership-record-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }
 .membership-record-body { display: grid; grid-template-columns: minmax(280px, 520px) minmax(0, 1fr); align-items: start; gap: 14px; padding: 0 16px 16px; animation: rise-in .22s ease both; }
-.membership-record-body:has(> :only-child) { grid-template-columns: minmax(0, 560px); }
+.membership-record-body:has(> :only-child), .membership-record-body.compact { grid-template-columns: minmax(0, 1fr); }
 .mistaken-renewal-form { margin: 0; }
 .mistaken-renewal-form .button { min-height: 28px; padding: 4px 8px; font-size: 11px; border-radius: 999px; }
 
@@ -461,7 +467,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .settings-section-head { display: flex; align-items: flex-start; gap: 13px; padding-bottom: 16px; border-bottom: 1px solid #edf2f8; }
 .settings-section-head > span { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto; color: var(--brand); background: #edf5ff; border-radius: 12px; }
 .settings-section-head p { margin: 5px 0 0; max-width: 64ch; font-size: 13px; line-height: 1.5; }
-.settings-whatsapp-card { --settings-glow: rgba(34,197,94,.13); gap: 20px; border-color: #cfead9; background: radial-gradient(circle at 100% 0%, rgba(184,237,88,.16), transparent 30%), linear-gradient(180deg, #fff, #f8fbff); }
+.settings-whatsapp-card, .settings-automation-card { --settings-glow: rgba(34,197,94,.13); gap: 20px; border-color: #cfead9; background: radial-gradient(circle at 100% 0%, rgba(184,237,88,.16), transparent 30%), linear-gradient(180deg, #fff, #f8fbff); }
 .settings-whatsapp-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(310px, 380px); gap: 18px; align-items: start; }
 .settings-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .settings-message-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
@@ -475,7 +481,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .transaction-table-card .table th:first-child, .transaction-table-card .table td:first-child { padding-left: 18px; }
 .transaction-table-card .table th:last-child, .transaction-table-card .table td:last-child { padding-right: 18px; }
 .members-table-card { padding: 0; overflow: hidden; border-radius: 18px; }
-.members-table-card .table { min-width: 980px; }
+.members-table-card .table { min-width: 1080px; }
 .members-table-card .table th { background: #f7faff; }
 .members-table-card .table th, .members-table-card .table td { vertical-align: middle; }
 .members-table-card .table tbody tr { border-bottom: 1px solid #edf2f8; }
@@ -484,6 +490,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .members-table-card .table th:last-child, .members-table-card .table td:last-child { padding-right: 18px; }
 .member-row-actions { flex-wrap: nowrap; gap: 6px; }
 .member-row-actions form { margin: 0; }
+.member-row-actions .button { white-space: nowrap; }
 .plans-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); gap: 20px; align-items: start; }
 .plans-table-card { padding: 0; overflow: hidden; border-radius: 20px; }
 .plans-table-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px 22px 16px; border-bottom: 1px solid #e4ecf7; background: linear-gradient(180deg, #fff, #f8fbff); }

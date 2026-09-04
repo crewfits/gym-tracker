@@ -1,6 +1,6 @@
 import "server-only";
 
-import { businessDate, formatDisplayDate, formatInr } from "@/lib/domain";
+import { businessDate, formatDisplayDate, formatInr, memberOperationalView } from "@/lib/domain";
 import { renderReminderTemplate, whatsappNumber } from "@/lib/reminders";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -8,6 +8,8 @@ type Gym = { id: string; name: string; timezone: string; payment_reminder_templa
 type Balance = { id: string; membership_id: string; balance_paise: number; due_on: string };
 type Member = { id: string; name: string; phone: string; is_archived: boolean; whatsapp_reminders_enabled: boolean };
 type Membership = { id: string; plan_name: string; members: Member | Member[] };
+type RenewalMembership = { id: string; plan_name: string; starts_on: string; expires_on: string; created_at: string; reverted_at: string | null };
+type RenewalMember = { id: string; name: string; phone: string; is_archived: boolean; whatsapp_reminders_enabled: boolean; memberships: RenewalMembership[] | null };
 type MetaResponse = { messages?: Array<{ id: string }>; error?: { message?: string; error_user_msg?: string } };
 export type ReminderRunResult = { sent: number; skipped: number; failed: number };
 
@@ -79,6 +81,70 @@ export async function processAutomaticPaymentReminders(gymId?: string): Promise<
         await db.from("reminder_deliveries").update({ status: "sent", provider_id: providerId, error: null }).eq("id", deliveryId);
         totals.sent += 1;
       }
+    }
+  }
+  return totals;
+}
+
+export async function processAutomaticMembershipReminders(gymId?: string): Promise<ReminderRunResult> {
+  const accessToken = requiredEnv("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = requiredEnv("WHATSAPP_PHONE_NUMBER_ID");
+  const graphVersion = requiredEnv("WHATSAPP_GRAPH_API_VERSION");
+  const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91";
+  const db = createAdminClient();
+  let gymQuery = db.from("gyms").select("id,name,timezone,renewal_reminder_template,whatsapp_payment_template_name,whatsapp_template_language");
+  gymQuery = gymId ? gymQuery.eq("id", gymId) : gymQuery.eq("automatic_payment_whatsapp_enabled", true);
+  const { data: gyms, error: gymsError } = await gymQuery;
+  if (gymsError) throw gymsError;
+
+  const totals = { sent: 0, skipped: 0, failed: 0 };
+  for (const gym of (gyms ?? []) as Array<Gym & { renewal_reminder_template: string }>) {
+    const today = businessDate(gym.timezone);
+    const { data: members, error: membersError } = await db.from("members").select("id,name,phone,is_archived,whatsapp_reminders_enabled,memberships(id,plan_name,starts_on,expires_on,created_at,reverted_at)").eq("gym_id", gym.id).eq("is_archived", false);
+    if (membersError) { totals.failed += 1; continue; }
+
+    for (const member of (members ?? []) as RenewalMember[]) {
+      const operational = memberOperationalView((member.memberships ?? []).filter((membership) => !membership.reverted_at), today);
+      if (!operational.membership || (operational.status !== "expiring" && operational.status !== "expired")) continue;
+      const membership = operational.membership;
+      const { data: prior } = await db.from("manual_reminder_events").select("id,status").eq("membership_id", membership.id).eq("kind", "renewal").gte("created_at", `${today}T00:00:00.000Z`).maybeSingle();
+      if (prior) continue;
+
+      const expiryDate = formatDisplayDate(membership.expires_on);
+      const message = renderReminderTemplate(gym.renewal_reminder_template, { name: member.name, gym_name: gym.name, plan_name: membership.plan_name, expiry_date: expiryDate });
+      let recipient: string | null = null;
+      let skipReason: string | null = null;
+      if (!member.whatsapp_reminders_enabled) skipReason = "Member has not opted in to automated WhatsApp reminders";
+      else {
+        try { recipient = whatsappNumber(member.phone, defaultCountryCode); }
+        catch (error) { skipReason = error instanceof Error ? error.message : "Invalid WhatsApp number"; }
+      }
+
+      if (skipReason || !recipient) { totals.skipped += 1; continue; }
+
+      const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: recipient, type: "template", template: { name: gym.whatsapp_payment_template_name, language: { code: gym.whatsapp_template_language }, components: [{ type: "body", parameters: [member.name, gym.name, membership.plan_name, expiryDate].map((text) => ({ type: "text", text })) }] } }),
+      });
+      const payload = await response.json() as MetaResponse;
+      if (!response.ok || !payload.messages?.[0]?.id) {
+        totals.failed += 1;
+        continue;
+      }
+
+      const { error: historyError } = await db.from("manual_reminder_events").insert({
+        gym_id: gym.id,
+        member_id: member.id,
+        membership_id: membership.id,
+        charge_id: null,
+        kind: "renewal",
+        status: "opened",
+        phone_snapshot: recipient,
+        message_snapshot: message,
+      });
+      if (historyError) { totals.failed += 1; continue; }
+      totals.sent += 1;
     }
   }
   return totals;

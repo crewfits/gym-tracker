@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireGym } from "@/lib/auth";
 import { formatDisplayDate, formatInr } from "@/lib/domain";
 import { renderReminderTemplate, whatsappNumber } from "@/lib/reminders";
-import { processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
+import { processAutomaticMembershipReminders, processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
 
 function fail(error: unknown): never {
   const message = error instanceof Error ? error.message : String(error);
@@ -80,6 +80,18 @@ export async function runAutomaticPaymentReminders() {
   try {
     const { gym } = await requireGym();
     const result = await processAutomaticPaymentReminders(gym.id);
+    message = `WhatsApp run complete: ${result.sent} submitted, ${result.skipped} skipped, ${result.failed} failed.`;
+  } catch (error) {
+    fail(error);
+  }
+  redirect(`/reminders?success=${encodeURIComponent(message)}`);
+}
+
+export async function runAutomaticMembershipReminders() {
+  let message = "";
+  try {
+    const { gym } = await requireGym();
+    const result = await processAutomaticMembershipReminders(gym.id);
     message = `WhatsApp run complete: ${result.sent} submitted, ${result.skipped} skipped, ${result.failed} failed.`;
   } catch (error) {
     fail(error);

@@ -90,7 +90,7 @@ function CurrentDashboard({ summary, expiring, expired, trends, engagementEvents
       <section className="gym-pulse-card">
         <div className="gym-pulse-top"><span className="live-label"><i/> Live floor</span><div className="live-floor-actions"><DashboardLiveRefresh/><Link href="/attendance">View attendance <ArrowRight size={15}/></Link></div></div>
         <div className="gym-pulse-main">
-          <div className="gym-pulse-copy"><span className="dashboard-kicker">{gymName} · today</span><h2><strong>{summary.attendance_inside_now}</strong> members are inside now</h2><p>The live floor is ready. Every QR movement appears here as it happens.</p></div>
+          <div className="gym-pulse-copy"><span className="dashboard-kicker">{gymName} · today</span><h2>{insideNowHeadline(Number(summary.attendance_inside_now))}</h2><p>The live floor is ready. Every QR movement appears here as it happens.</p></div>
           <div className="pulse-visual" aria-hidden="true"><span className="pulse-ring pulse-ring-one"/><span className="pulse-ring pulse-ring-two"/><span className="pulse-core"><Activity size={28}/></span></div>
         </div>
         <div className="gym-pulse-stats">
@@ -104,7 +104,7 @@ function CurrentDashboard({ summary, expiring, expired, trends, engagementEvents
         <div className="priority-head"><div><span className="dashboard-kicker">Priority queue</span><h2>{priorityAreaCount ? `${priorityAreaCount} items need you!` : "You're all caught up"}</h2></div><span className={`priority-count ${priorityAreaCount ? "has-items" : "is-clear"}`}>{priorityAreaCount || <CheckCircle2 size={20}/>}</span></div>
         <div className="priority-list">
           <Priority href="/reminders?filter=expiring" icon={<Clock3/>} tone="amber" label="Memberships expiring" value={String(summary.expiring_members)} detail="within the next 7 days"/>
-          <Priority href="/reminders?filter=overdue" icon={<CalendarClock/>} tone="red" label="Overdue to recover" value={formatInr(Number(summary.overdue_paise))} detail="past the payment follow-up date"/>
+          <Priority href="/members?status=outstanding" icon={<CalendarClock/>} tone="red" label="Overdue to recover" value={formatInr(Number(summary.overdue_paise))} detail="past the payment follow-up date"/>
           <Priority href="/members?status=outstanding" icon={<WalletCards/>} tone="violet" label="Pending accounts" value={String(summary.pending_accounts)} detail={`${formatInr(Number(summary.outstanding_paise))} open balance total`}/>
         </div>
         <Link className="priority-footer" href="/reminders">Open follow-up centre <ArrowRight size={16}/></Link>
@@ -141,10 +141,6 @@ function CurrentDashboard({ summary, expiring, expired, trends, engagementEvents
     </div>
 
     <div className="dashboard-overview">
-      <div className="dashboard-followup-grid">
-      <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Member follow-up</span><h2>Expiring in 7 days</h2><span className="muted">Open an individual reminder before the membership ends.</span></div><Link className="text-link" href="/reminders?filter=expiring">Open reminders <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Plan end</th><th>Status</th></tr></thead><tbody>{expiring.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className={`badge ${item.membership_status}`}>{statusLabel(item.membership_status)}</span></td></tr>)}</tbody></table>{!expiring.length && <div className="empty">No memberships expire in the next 7 days.</div>}</div></section>
-      <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Recovery watch</span><h2>Already expired</h2><span className="muted">Members whose access has already ended.</span></div><Link className="text-link" href="/members?status=expired">View expired <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Ended on</th><th>Status</th></tr></thead><tbody>{expired.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className="badge expired">Expired</span></td></tr>)}</tbody></table>{!expired.length && <div className="empty">No expired memberships right now.</div>}</div></section>
-      </div>
       <section className="card engagement-health-card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Member engagement</span><h2>Engagement health</h2><span className="muted">How much of the active roster showed up this week.</span></div><Link className="text-link" href="/attendance?view=history">View attendance <ArrowRight size={15}/></Link></div>
         <div className="engagement-board">
           <EngagementRow tone="green" label="Visited this week" value={`${currentWeekVisitors}/${summary.active_members}`} detail={`${engagementRate}% of active roster`}/>
@@ -153,6 +149,10 @@ function CurrentDashboard({ summary, expiring, expired, trends, engagementEvents
           <EngagementRow tone="violet" label="Trend" value={engagementDeltaValue(engagementRate, previousEngagementRate)} detail="Compared with last week"/>
         </div>
       </section>
+      <div className="dashboard-followup-grid">
+      <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Member follow-up</span><h2>Expiring in 7 days</h2><span className="muted">Open an individual reminder before the membership ends.</span></div><Link className="text-link" href="/reminders?filter=expiring">Open reminders <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Plan end</th><th>Status</th></tr></thead><tbody>{expiring.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className={`badge ${item.membership_status}`}>{statusLabel(item.membership_status)}</span></td></tr>)}</tbody></table>{!expiring.length && <div className="empty">No memberships expire in the next 7 days.</div>}</div></section>
+      <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Recovery watch</span><h2>Already expired</h2><span className="muted">Members whose access has already ended.</span></div><Link className="text-link" href="/reminders?filter=expired">Open reminders <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Ended on</th><th>Status</th></tr></thead><tbody>{expired.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className="badge expired">Expired</span></td></tr>)}</tbody></table>{!expired.length && <div className="empty">No expired memberships right now.</div>}</div></section>
+      </div>
     </div>
   </div>;
 }
@@ -212,6 +212,10 @@ function engagementDeltaValue(current: number, previous: number) {
   const delta = current - previous;
   if (!delta) return "Steady";
   return `${delta > 0 ? "+" : "-"}${Math.abs(delta)}%`;
+}
+function insideNowHeadline(count: number) {
+  if (count === 0) return <>No members inside now</>;
+  return <><strong>{count}</strong> {count === 1 ? "member" : "members"} inside now</>;
 }
 function uniqueVisitors(events: EngagementEvent[], from: string, to: string | undefined, timezone: string) {
   return new Set(events.filter((event) => {
