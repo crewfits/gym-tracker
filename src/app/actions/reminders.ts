@@ -30,7 +30,7 @@ export async function openWhatsAppReminder(formData: FormData): Promise<OpenRemi
     if (memberError) throw memberError;
     if (!member || member.is_archived) throw new Error("Active member not found");
 
-    const { data: membership, error: membershipError } = await supabase.from("memberships").select("id,plan_name,expires_on").eq("id", input.membership_id).eq("member_id", member.id).eq("gym_id", gym.id).maybeSingle();
+    const { data: membership, error: membershipError } = await supabase.from("memberships").select("id,plan_name,expires_on").eq("id", input.membership_id).eq("member_id", member.id).eq("gym_id", gym.id).is("reverted_at", null).maybeSingle();
     if (membershipError) throw membershipError;
     if (!membership) throw new Error("Membership not found");
 
@@ -73,7 +73,7 @@ export async function openWhatsAppReminder(formData: FormData): Promise<OpenRemi
     if (historyError) throw historyError;
     return { ok: true, url: `https://wa.me/${number}?text=${encodeURIComponent(message)}` };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : "Could not prepare the reminder. Please try again.";
     return { ok: false, error: message };
   }
 }

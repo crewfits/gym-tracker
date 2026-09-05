@@ -4,20 +4,21 @@ import Link from "next/link";
 import { Feedback } from "@/components/feedback";
 import { OpenWhatsAppReminderButton } from "@/components/open-whatsapp-reminder-button";
 import { RefreshButton } from "@/components/refresh-button";
+import { PaymentFollowUps } from "@/components/payment-follow-ups";
 // import { SubmitButton } from "@/components/submit-button";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
 import { requireGym } from "@/lib/auth";
 import { businessDate, formatDisplayDate, memberOperationalView } from "@/lib/domain";
 
 const pageSize = 50;
-const filters = new Set(["expired", "expiring"]);
+const filters = new Set(["expired", "expiring", "payments"]);
 const reminderSorts = new Set(["candidate_date", "member_name"]);
 
 type ReminderMembershipRow = { id: string; plan_name: string; starts_on: string; expires_on: string; created_at: string; reverted_at: string | null };
 type ReminderMemberRow = { id: string; member_code: string; name: string; phone: string; is_archived: boolean; memberships: ReminderMembershipRow[] | null };
 type Candidate = { candidate_kind: "expired" | "expiring"; member_id: string; member_code: string; member_name: string; phone: string; membership_id: string; plan_name: string; candidate_date: string };
 
-export default async function RemindersPage({ searchParams }: { searchParams: Promise<{ filter?: string; page?: string; error?: string; success?: string; sort?: string; order?: string }> }) {
+export default async function RemindersPage({ searchParams }: { searchParams: Promise<{ filter?: string; timing?: string; page?: string; error?: string; success?: string; sort?: string; order?: string }> }) {
   const params = await searchParams;
   const { supabase, gym } = await requireGym();
   const selectedFilter = typeof params.filter === "string" && filters.has(params.filter) ? params.filter : "";
@@ -68,13 +69,15 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
 
   return <>
     <div className="page-head reminder-page-head">
-      <div><p className="eyebrow">Owner follow-up</p><h1>Reminders</h1><p className="muted">Send WhatsApp renewal nudges for members expiring soon or already expired.</p></div>
+      <div><p className="eyebrow">Owner follow-up</p><h1>Reminders</h1><p className="muted">Membership renewals and outstanding payment follow-ups.</p></div>
       <div className="reminder-actions">{/* Automation paused: <form action={runAutomaticMembershipReminders}><SubmitButton className="button small" pendingLabel="Sending reminders..."><Send size={15}/> Send due WhatsApp reminders</SubmitButton></form> */}<RefreshButton/></div>
     </div>
     <Feedback success={params.success} error={params.error}/>
-    <nav className="filter-tabs" aria-label="Reminder queues"><ReminderTab href={filterHref("")} active={!selectedFilter} label="All" count={expiredCount + expiringCount}/><ReminderTab href={filterHref("expiring")} active={selectedFilter === "expiring"} label="Expiring" count={expiringCount}/><ReminderTab href={filterHref("expired")} active={selectedFilter === "expired"} label="Expired" count={expiredCount}/></nav>
+    <nav className="filter-tabs" aria-label="Reminder queues"><ReminderTab href={filterHref("")} active={!selectedFilter} label="All renewals" count={expiredCount + expiringCount}/><ReminderTab href={filterHref("expiring")} active={selectedFilter === "expiring"} label="Expiring" count={expiringCount}/><ReminderTab href={filterHref("expired")} active={selectedFilter === "expired"} label="Expired" count={expiredCount}/><ReminderTab href="/reminders?filter=payments" active={selectedFilter === "payments"} label="Payment follow-ups"/></nav>
+    {selectedFilter === "payments" ? <PaymentFollowUps page={page} upcoming={params.timing === "upcoming"} descending={order === "desc"}/> : <>
     <section className="card table-wrap"><table className="table"><thead><tr><SortableTableHeader label="Member" href={hrefForSort("member_name", "asc")} active={sort === "member_name"} order={order}/><th>Reason</th><SortableTableHeader label="Plan date" href={hrefForSort("candidate_date", "asc")} active={sort === "candidate_date"} order={order}/><th>Action</th></tr></thead><tbody>{candidates.map((candidate) => <tr key={`${candidate.candidate_kind}-${candidate.membership_id}`}><td><Link href={`/members/${candidate.member_id}`}><strong>{candidate.member_name}</strong><br/><small className="muted">{candidate.member_code} · {candidate.phone}</small></Link></td><td><strong>{reminderLabel(candidate.candidate_kind)}</strong><br/><small className="muted">{candidate.plan_name}</small></td><td><strong>{formatDisplayDate(candidate.candidate_date)}</strong><br/><small className="muted">{dateLabel(candidate.candidate_kind)}</small></td><td><OpenWhatsAppReminderButton kind="renewal" memberId={candidate.member_id} membershipId={candidate.membership_id} chargeId={null}/></td></tr>)}</tbody></table>{!candidates.length && <div className="empty"><strong>{emptyTitle(selectedFilter)}</strong><br/><span>{emptyDetail(selectedFilter)}</span></div>}</section>
     <div className="pagination"><span className="muted">{total ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}` : "0 reminders"}</span><div>{page > 1 && <Link className="button secondary small" href={pageHref(page - 1)}>Previous</Link>}{page < pages && <Link className="button secondary small" href={pageHref(page + 1)}>Next</Link>}</div></div>
+    </>}
   </>;
 }
 
@@ -87,6 +90,6 @@ function sortCandidates(candidates: Candidate[], sort: string, order: SortOrder)
 }
 function reminderLabel(kind: string) { return kind === "expired" ? "Membership already expired" : "Membership ending soon"; }
 function dateLabel(kind: string) { return kind === "expired" ? "Ended on" : "Plan end date"; }
-function ReminderTab({ href, active, label, count }: { href: string; active: boolean; label: string; count: number }) { return <Link href={href} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>{label}<span>{count}</span></Link>; }
+function ReminderTab({ href, active, label, count }: { href: string; active: boolean; label: string; count?: number }) { return <Link href={href} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>{label}{count !== undefined && <span>{count}</span>}</Link>; }
 function emptyTitle(filter: string) { return filter === "expired" ? "No expired memberships" : filter === "expiring" ? "No memberships end in the next 7 days" : "No renewal reminders need action"; }
 function emptyDetail(filter: string) { return filter ? "Choose another queue to review other membership reminder types." : "Expiring and expired memberships will appear here automatically."; }

@@ -1,2 +1,8 @@
-import Link from "next/link";import { requireGym } from "@/lib/auth";import { renewMembership } from "@/app/actions/core";import { MembershipForm } from "@/components/membership-form";import { businessDate } from "@/lib/domain";
-export default async function Renew({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{error?:string}>}){const [{id},p]=await Promise.all([params,searchParams]);const {supabase,gym}=await requireGym();const [{data:plans},{data:latest}]=await Promise.all([supabase.from("plans").select("*").eq("gym_id",gym.id).eq("is_active",true).order("name"),supabase.from("memberships").select("expires_on").eq("member_id",id).is("reverted_at",null).order("expires_on",{ascending:false}).limit(1).maybeSingle()]);return <><div className="page-head"><div><p className="eyebrow">Preserve paid time</p><h1>Renew membership</h1><p className="muted">Early renewals begin after the current expiry; late renewals begin on the renewal date.</p></div><Link className="button secondary" href={`/members/${id}`}>Cancel</Link></div><MembershipForm memberId={id} plans={plans??[]} action={renewMembership} today={businessDate(gym.timezone)} renew currentExpiry={latest?.expires_on} error={p.error}/></>}
+import { redirect } from "next/navigation";
+
+export default async function Renew({ params, searchParams }: PageProps<"/members/[id]/renew">) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const next = new URLSearchParams({ view: "membership" });
+  if (typeof query.error === "string") next.set("error", query.error);
+  redirect(`/members/${id}?${next}`);
+}
