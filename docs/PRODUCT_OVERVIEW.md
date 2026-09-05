@@ -1,5 +1,7 @@
 # FitKiro product overview
 
+> Current operating mode (2026-09-05): WhatsApp reminders are owner-triggered only. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
+
 Last reviewed: 2026-08-23
 
 This document defines the intended product boundary. Update it whenever a major user flow, product decision, or scope boundary changes.
@@ -20,14 +22,14 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 ### Member onboarding
 
 1. An owner signs in and creates a member with contact details.
-2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and initial payment.
+2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and initial payment. New-member validation appears under the relevant field, and activation is disabled until required inputs are valid. Failed enrollment keeps the entered data and selected photo. Intentional shared phones require confirmation and allow up to three member records; archived duplicates offer reactivation.
 3. The database creates the member, membership, charge, and optional payment transactionally.
-4. QR issuance is optional. It may happen immediately or later from the member list.
+4. QR issuance is optional. It may happen immediately or later from the member list. When a payment receipt exists, the QR pass screen is the owner handoff point for sharing both the pass and latest receipt.
 
 ### QR access and attendance
 
 1. FitKiro generates a compact first-party QR URL using a short random code stored on the QR credential row. The QR image itself is not stored.
-2. The owner shares the pass link or PNG manually, including through WhatsApp.
+2. The owner shares the pass PNG manually, including through WhatsApp; one primary action includes the latest payment receipt link with the pass handoff. Receipt history is collapsed below the pass, with pagination and individual sharing for older payments, including clearly labelled reversed receipts. Membership expiry blocks scans without replacing the QR; an enabled pass works again when a renewed membership becomes active and can be reshared with the renewal receipt.
 3. An authenticated operator uses the installed Android PWA camera scanner, which reads the QR without navigating to a new browser tab.
 4. FitKiro validates tenant ownership, QR version, member state, and active membership on the server.
 5. A valid camera scan automatically records Check-in or Check-out and shows a colour-coded result for 30 seconds with sound/vibration feedback. The operator can close it sooner after removing the QR from view. A database-enforced 30-second member cooldown prevents an early close, app refresh, or second device from immediately recording the opposite movement. Directly opening a scan URL remains a confirmation-based fallback and never records attendance on GET.
@@ -38,13 +40,14 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 
 ### Membership and payment operations
 
-- Create and renew memberships.
+- Manage member details and memberships in separate views of the same member page. Profile editing is the default; the Membership view contains renewal and membership history. The shared summary provides direct renewal and collection actions. Unpaid periods appear above the views with their own remaining balances and collection buttons, oldest first. Collection shows the member, membership period, total, paid amount, and remaining balance after the entered payment; it records another payment against that period and opens receipt sharing. Renewal payments apply only to the new period, leaving previous balances separately collectible.
 - Record manual payments and outstanding balances.
 - Automatically place unpaid membership balances into the partial-payment reminder window seven days after the membership start or renewal start date.
 - Produce immutable receipt numbers and signed, member-readable receipt links for individual WhatsApp sharing.
-- Void incorrect payments with a reason instead of deleting them.
+- Reverse incorrect payments with a reason from the authenticated receipt page instead of deleting them. If renewal creation succeeds but its payment step fails, direct the owner back to the existing membership balance and receipts, with an explicit warning not to renew again.
 - Open owner-reviewed WhatsApp payment/renewal reminders and record only that the handoff was opened.
-- Optionally submit one idempotent WhatsApp Utility template on the charge follow-up date for members who have opted in, recording submitted, skipped, or failed attempts.
+- Reminders separates All renewals, Expiring, Expired, and Payment follow-ups. Payment follow-ups defaults to positive balances with a follow-up date today or earlier; Upcoming shows the next seven days. Each unpaid period remains eligible even after renewal, with direct WhatsApp, collection, and follow-up rescheduling actions. Settled balances, archived members, and reverted periods are excluded. Payment filtering and pagination run in PostgreSQL using the existing charge balance view; no new migration is required.
+- Optionally submit an idempotent WhatsApp Utility template 7 days before membership expiry and on expiry day for opted-in members without a future renewal, recording submitted, skipped, or failed attempts.
 
 ### Daily operations and reporting
 

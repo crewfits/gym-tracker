@@ -7,7 +7,7 @@ import { requireGym } from "@/lib/auth";
 import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
 import { memberPhotoBucket, memberPhotoPath } from "@/lib/member-photo";
 import { createReceiptToken } from "@/lib/receipt-token";
-import { duplicatePhoneOutcome } from "@/lib/member-rules";
+import { newMemberSchema, memberValidationErrors, type CreateMemberResult } from "@/lib/new-member-validation";
 import { Resend } from "resend";
 
 const text = z.string().trim().min(1);
@@ -15,10 +15,22 @@ const money = z.coerce.number().min(0).transform(v => Math.round(v * 100));
 const optionalDate = z.union([z.iso.date(), z.literal("")]).optional();
 const allowedPhotoMimeTypes = new Set(["image/webp", "image/jpeg", "image/png"]);
 const maxPhotoBytes = 512 * 1024;
-function done(path: string, message: string): never { revalidatePath("/", "layout"); redirect(`${path}?success=${encodeURIComponent(message)}`); }
-function fail(path: string, error: unknown): never {
+function feedbackPath(path: string, key: "success" | "error", message: string) {
+  const url = new URL(path, "http://localhost");
+  url.searchParams.set(key, message);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+function done(path: string, message: string): never { revalidatePath("/", "layout"); redirect(feedbackPath(path, "success", message)); }
+function actionErrorMessage(error: unknown): string {
   if (typeof error === "object" && error && "digest" in error && String((error as { digest: unknown }).digest).startsWith("NEXT_REDIRECT")) throw error;
-  const message = error instanceof Error ? error.message : String(error); redirect(`${path}?error=${encodeURIComponent(message)}`);
+  if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Please check the form and try again.";
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) return String((error as { message: unknown }).message);
+  if (typeof error === "string") return error;
+  return "Something went wrong. Please try again.";
+}
+function fail(path: string, error: unknown): never {
+  redirect(feedbackPath(path, "error", actionErrorMessage(error)));
 }
 
 function photoInput(formData: FormData) {
@@ -55,24 +67,29 @@ async function removeMemberPhoto(supabase: Awaited<ReturnType<typeof requireGym>
   await supabase.storage.from(memberPhotoBucket).remove([existingPath]);
 }
 
-export async function createMember(formData: FormData) {
+export async function createMember(formData: FormData): Promise<CreateMemberResult> {
+  let createdMemberId: string | undefined;
+  function complete(path: string, message: string): CreateMemberResult {
+    revalidatePath("/", "layout");
+    return { ok: true, location: `${path}?success=${encodeURIComponent(message)}` };
+  }
   try {
-    const input = z.object({
-      name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), generate_qr: z.string().optional(), whatsapp_reminders_enabled: z.string().optional(),
-      plan_id: z.uuid(), starts_on: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate,
-      subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100), amount_paid: money,
-      method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string(), paid_on: z.iso.date(),
-    }).parse(Object.fromEntries(formData));
+    const values = Object.fromEntries(formData);
+    const parsed = newMemberSchema.safeParse(values);
+    if (!parsed.success) return { ok: false, fieldErrors: memberValidationErrors(values) };
+    const input = parsed.data;
     const { supabase, gym } = await requireGym();
     const selectedPhoto = photoInput(formData);
-    const { data: duplicate } = await supabase.from("members").select("id,member_code,name,is_archived").eq("gym_id", gym.id).eq("phone", input.phone).order("is_archived", { ascending: true }).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    const duplicateOutcome = duplicatePhoneOutcome(duplicate);
-    if (duplicate && duplicateOutcome !== "allow") {
-      if (duplicateOutcome === "reactivate") redirect(`/members/${duplicate.id}?reactivate=1`);
-      throw new Error(`${duplicate.name} (${duplicate.member_code}) already uses this phone. Select the shared-phone confirmation to continue.`);
-    }
+    try { decodePhotoDataUrl(selectedPhoto.dataUrl); }
+    catch (error) { return { ok: false, fieldErrors: { profile_photo_data_url: error instanceof Error ? error.message : "Choose a valid photo." } }; }
+    const { data: duplicates, error: duplicateError } = await supabase.from("members").select("id,member_code,name,is_archived").eq("gym_id", gym.id).eq("phone", input.phone).order("is_archived", { ascending: true }).order("created_at", { ascending: false });
+    if (duplicateError) throw duplicateError;
+    const duplicate = duplicates?.[0];
+    if (duplicate?.is_archived) return { ok: false, fieldErrors: { phone: `${duplicate.name} (${duplicate.member_code}) is archived. Reactivate that profile instead.` }, reactivateUrl: `/members/${duplicate.id}?reactivate=1` };
+    if ((duplicates?.length ?? 0) >= 3) return { ok: false, fieldErrors: { phone: "This phone number is already shared by 3 members. Enter a different number." } };
+    if (duplicate && input.shared_phone !== "on") return { ok: false, fieldErrors: { shared_phone: `${duplicate.name} (${duplicate.member_code}) already uses this phone. Select the shared-phone confirmation to continue.` } };
     const { data: plan, error: planError } = await supabase.from("plans").select("*").eq("id", input.plan_id).eq("gym_id", gym.id).eq("is_active", true).single();
-    if (planError || !plan) throw new Error("Active plan not found");
+    if (planError || !plan) return { ok: false, fieldErrors: { plan_id: "This plan is no longer available. Select an active plan." } };
     const computedExpiry = calculateExpiry(input.starts_on, plan.duration_value, plan.duration_unit);
     const expiry = input.expires_on || computedExpiry;
     const dueOn = input.due_on || calculatePaymentFollowUpDate(input.starts_on);
@@ -90,6 +107,7 @@ export async function createMember(formData: FormData) {
     if (error) throw error;
     const result = data as { member_id?: string; payment_id?: string } | null;
     if (!result?.member_id) throw new Error("Member was created but the result could not be loaded");
+    createdMemberId = result.member_id;
     let photoWarning = "";
     if (selectedPhoto.dataUrl) {
       try {
@@ -104,12 +122,17 @@ export async function createMember(formData: FormData) {
     if (reminderPreferenceError) throw reminderPreferenceError;
     if (input.generate_qr === "on") {
       const { error: qrError } = await supabase.rpc("issue_member_qr", { p_member_id: result.member_id });
-      if (qrError) redirect(`/members/${result.member_id}?error=${encodeURIComponent(`Member created, but QR generation failed: ${qrError.message}`)}`);
-      done(`/members/${result.member_id}/qr`, `${input.amount_paid > 0 ? "Member enrolled, payment recorded and QR generated" : "Member enrolled and QR generated"}${photoWarning}`);
+      if (qrError) return { ok: true, location: `/members/${result.member_id}?error=${encodeURIComponent(`Member created, but QR generation failed: ${qrError.message}`)}` };
+      return complete(`/members/${result.member_id}/qr`, `${input.amount_paid > 0 ? "Member enrolled, payment recorded and QR generated" : "Member enrolled and QR generated"}${photoWarning}`);
     }
-    if (input.amount_paid > 0 && result.payment_id) done(`/receipts/${result.payment_id}`, "Payment recorded. Send or share the receipt below.");
-    done(`/members/${result.member_id}`, `Member enrolled${photoWarning}`);
-  } catch (e) { fail("/members/new", e); }
+    if (input.amount_paid > 0 && result.payment_id) return complete(`/receipts/${result.payment_id}`, "Payment recorded. Send or share the receipt below.");
+    return complete(`/members/${result.member_id}`, `Member enrolled${photoWarning}`);
+  } catch (e) {
+    const message = actionErrorMessage(e);
+    // Enrollment has committed: navigate to the created member rather than invite a duplicate retry.
+    if (createdMemberId) return { ok: true, location: `/members/${createdMemberId}?error=${encodeURIComponent(`Member created, but setup needs attention: ${message}`)}` };
+    return { ok: false, fieldErrors: {}, error: message };
+  }
 }
 
 export async function updateMember(formData: FormData) {
@@ -192,14 +215,16 @@ export async function createMembership(formData: FormData) {
 
 export async function renewMembership(formData: FormData) {
   const memberId = String(formData.get("member_id"));
-  const returnPath = formData.get("return_path") === `/members/${memberId}` ? `/members/${memberId}` : `/members/${memberId}/renew`;
+  const returnPath = formData.get("return_path") === `/members/${memberId}?view=membership` ? `/members/${memberId}?view=membership` : formData.get("return_path") === `/members/${memberId}` ? `/members/${memberId}` : `/members/${memberId}/renew`;
+  let renewalCreated = false;
   try {
     const { supabase, gym } = await requireGym();
     const input = z.object({ plan_id: z.uuid(), renewal_date: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate, subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100), amount_paid: money, method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string() }).parse(Object.fromEntries(formData));
-    const [{ data: latest }, { data: plan, error: planError }] = await Promise.all([
+    const [{ data: latest, error: latestError }, { data: plan, error: planError }] = await Promise.all([
       supabase.from("memberships").select("expires_on").eq("member_id", memberId).eq("gym_id", gym.id).is("reverted_at", null).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("plans").select("*").eq("id", input.plan_id).eq("gym_id", gym.id).eq("is_active", true).single(),
     ]);
+    if (latestError) throw latestError;
     if (planError || !plan) throw new Error("Active plan not found");
     const startsOn = calculateRenewalStart(latest?.expires_on ?? null, input.renewal_date);
     const computedExpiry = calculateExpiry(startsOn, plan.duration_value, plan.duration_unit);
@@ -209,15 +234,20 @@ export async function renewMembership(formData: FormData) {
     if (input.amount_paid > charge.totalPaise) throw new Error("Payment cannot exceed the renewal total");
     const { data: membershipId, error: membershipError } = await supabase.rpc("create_membership_charge", { p_member_id: memberId, p_plan_id: input.plan_id, p_starts_on: startsOn, p_expires_on: expiry, p_date_overridden: expiry !== computedExpiry, p_subtotal_paise: charge.subtotalPaise, p_discount_paise: charge.discountPaise, p_gst_rate_basis_points: charge.gstRateBasisPoints, p_tax_paise: charge.taxPaise, p_total_paise: charge.totalPaise, p_due_on: dueOn });
     if (membershipError) throw membershipError;
-    if (input.amount_paid <= 0) done(`/members/${memberId}`, "Renewal created with payment pending");
+    renewalCreated = true;
+    if (input.amount_paid <= 0) done(`/members/${memberId}?view=membership`, "Renewal created with payment pending");
     const { data: createdCharge, error: chargeError } = await supabase.from("charges").select("id").eq("membership_id", membershipId).eq("gym_id", gym.id).single();
     if (chargeError || !createdCharge) throw new Error("Renewal was created but its charge could not be loaded");
     const { data: payment, error: paymentError } = await supabase.rpc("record_payment", { p_charge_id: createdCharge.id, p_amount_paise: input.amount_paid, p_method: input.method, p_reference: input.reference, p_paid_on: input.renewal_date, p_notes: "Renewal payment" });
     if (paymentError) throw paymentError;
     const result = payment as { id?: string } | null;
     if (!result?.id) throw new Error("Payment was recorded but the receipt could not be loaded");
-    done(`/receipts/${result.id}`, "Renewal and payment recorded. Send or share the receipt below.");
-  } catch (e) { fail(returnPath, e); }
+    done(`/members/${memberId}/qr`, "Renewal and payment recorded. Share the QR pass and receipt below.");
+  } catch (e) {
+    const message = actionErrorMessage(e);
+    if (renewalCreated) fail(`/members/${memberId}?view=membership`, `Renewal already created. Review its balance and receipts before collecting any remaining payment; do not renew again. ${message}`);
+    fail(returnPath, message);
+  }
 }
 
 export async function removeMistakenRenewal(formData: FormData) {
@@ -261,20 +291,26 @@ export async function recordPayment(formData: FormData) {
     if (error) throw error;
     const payment = data as { id?: string } | null;
     if (!payment?.id) throw new Error("Payment was recorded but the receipt could not be loaded");
-    done(`/receipts/${payment.id}`, "Payment recorded. Send or share the receipt below.");
+    done(`/members/${memberId}/qr`, "Payment recorded. Share the QR pass and receipt below.");
   } catch (e) { fail(`/members/${memberId}/pay?charge=${chargeId}`, e); }
 }
 
 export async function updateChargeDueDate(formData: FormData) {
   const memberId = String(formData.get("member_id"));
+  const returnPath = formData.get("return_path") === "/reminders?filter=payments" ? "/reminders?filter=payments" : `/members/${memberId}`;
   try {
     const input = z.object({ charge_id: z.uuid(), due_on: z.iso.date() }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
+    const { data: charge, error: chargeError } = await supabase.from("charges")
+      .select("id,memberships!inner(member_id,reverted_at)").eq("id", input.charge_id).eq("gym_id", gym.id)
+      .eq("memberships.member_id", memberId).is("memberships.reverted_at", null).maybeSingle();
+    if (chargeError) throw chargeError;
+    if (!charge) throw new Error("Membership charge not found");
     const { error } = await supabase.from("charges").update({ due_on: input.due_on }).eq("id", input.charge_id).eq("gym_id", gym.id);
     if (error) throw error;
-    done(`/members/${memberId}`, "Payment follow-up date updated");
+    done(returnPath, "Payment follow-up date updated");
   } catch (error) {
-    fail(`/members/${memberId}`, error);
+    fail(returnPath, error);
   }
 }
 
@@ -293,14 +329,17 @@ export async function updateSettings(formData: FormData) {
       gstin: z.string(),
       timezone: text,
       receipt_prefix: z.string().trim().min(1).max(8),
+      // Reminder settings are preserved in Supabase; the UI cannot change them.
+/*
       payment_reminder_template: text,
       renewal_reminder_template: text,
       automatic_payment_whatsapp_enabled: z.string().optional(),
       whatsapp_payment_template_name: z.string().trim().min(1).regex(/^[a-z0-9_]+$/),
       whatsapp_template_language: z.string().trim().min(2),
+*/
     }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
-    const { error } = await supabase.from("gyms").update({ ...input, email: input.email || null, automatic_payment_whatsapp_enabled: input.automatic_payment_whatsapp_enabled === "on" }).eq("id", gym.id); if (error) throw error;
+    const { error } = await supabase.from("gyms").update({ ...input, email: input.email || null }).eq("id", gym.id); if (error) throw error;
     done("/settings", "Settings saved");
   } catch (e) { fail("/settings", e); }
 }

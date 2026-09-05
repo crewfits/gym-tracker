@@ -1,3 +1,9 @@
+// Scheduled WhatsApp sending is paused. Keep the implementation below for re-enabling.
+export async function POST() {
+  return Response.json({ message: "Scheduled WhatsApp reminders are disabled. Use the owner-triggered reminder actions." }, { status: 503 });
+}
+
+/*
 import { processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
 
 export async function POST(request: Request) {
@@ -13,3 +19,5 @@ export async function POST(request: Request) {
     return Response.json({ error: message }, { status: message.includes("is not configured") ? 503 : 500 });
   }
 }
+
+*/

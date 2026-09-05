@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Feedback } from "@/components/feedback";
+import { reversePayment } from "@/app/actions/core";
+import { ReversePaymentForm } from "@/components/reverse-payment-form";
 import { PrintButton, ShareReceiptButton, WhatsAppReceiptButton } from "@/components/print-button";
 import { requestAppOrigin } from "@/lib/app-origin";
 import { requireGym } from "@/lib/auth";
 import { formatDisplayDate, formatInr, formatPaymentMethod } from "@/lib/domain";
 import { createReceiptToken } from "@/lib/receipt-token";
-import { whatsappNumber } from "@/lib/reminders";
+import { whatsappClickToChatUrl } from "@/lib/reminders";
 
 export default async function ReceiptPage({ params, searchParams }: PageProps<"/receipts/[id]">) {
   const [{ id }, query, origin] = await Promise.all([params, searchParams, requestAppOrigin()]);
@@ -17,12 +19,18 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
   const membership = charge.memberships;
   const member = membership.members;
   const reversedPaise = payment.payment_reversals.reduce((sum: number, reversal: { amount_paise: number }) => sum + Number(reversal.amount_paise), 0);
+  const remainingPaise = payment.voided_at ? 0 : Math.max(0, Number(payment.amount_paise) - reversedPaise);
   const success = typeof query.success === "string" ? query.success : undefined;
   const error = typeof query.error === "string" ? query.error : undefined;
   const publicUrl = `${origin}/r/${createReceiptToken(payment.id)}`;
   const paidOn = formatDisplayDate(payment.paid_on);
-  const receiptMessage = `Hi ${member.name}, payment receipt ${payment.receipt_number} for ${formatInr(Number(payment.amount_paise))}, paid on ${paidOn} to ${gym.name}: ${publicUrl}`;
-  const whatsappUrl = `https://wa.me/${whatsappNumber(member.phone, process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91")}?text=${encodeURIComponent(receiptMessage)}`;
+  const receiptMessage = `Hi ${member.name}, payment receipt ${payment.receipt_number} for ${formatInr(remainingPaise)}${payment.voided_at || reversedPaise > 0 ? " (net after reversal)" : ""}, paid on ${paidOn} to ${gym.name}: ${publicUrl}`;
+  let whatsappUrl: string | null = null;
+  try {
+    whatsappUrl = whatsappClickToChatUrl(member.phone, process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91", receiptMessage);
+  } catch {
+    // Keep receipts accessible for imported members without a routable phone.
+  }
 
   return <div className="receipt">
     <Feedback success={success} error={error}/>
@@ -32,6 +40,7 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
     <div className="form-grid"><div><span className="metric-label">Received from</span><h2 style={{ marginTop: 6 }}>{member.name}</h2><p className="muted">{member.member_code} · {member.phone}</p></div><div><span className="metric-label">For</span><h2 style={{ marginTop: 6 }}>{membership.plan_name} membership</h2><p className="muted">{formatDisplayDate(membership.starts_on)} — {formatDisplayDate(membership.expires_on)}</p></div></div>
     <table className="table receipt-table"><tbody><tr><td>Plan price</td><td>{formatInr(Number(charge.subtotal_paise))}</td></tr><tr><td>Discount</td><td>− {formatInr(Number(charge.discount_paise))}</td></tr>{Number(charge.gst_rate_basis_points) > 0 && <tr><td>GST ({Number(charge.gst_rate_basis_points) / 100}%)</td><td>{formatInr(Number(charge.tax_paise))}</td></tr>}<tr><td><strong>Total amount</strong></td><td><strong>{formatInr(Number(charge.total_paise))}</strong></td></tr><tr><td><strong>Payment received via {formatPaymentMethod(payment.method)}</strong></td><td><strong>{formatInr(Number(payment.amount_paise))}</strong></td></tr>{reversedPaise > 0 && <><tr><td>Amount reversed</td><td>− {formatInr(reversedPaise)}</td></tr><tr><td><strong>Net payment</strong></td><td><strong>{formatInr(payment.voided_at ? 0 : Number(payment.amount_paise) - reversedPaise)}</strong></td></tr></>}</tbody></table>
     {payment.reference && <p><strong>Reference:</strong> {payment.reference}</p>}
-    <div className="receipt-actions no-print"><PrintButton/><WhatsAppReceiptButton url={whatsappUrl}/><ShareReceiptButton receiptNumber={payment.receipt_number} url={publicUrl}/><Link className="button success" href={`/members/${member.id}`}>Done, back to member</Link></div>
+    <div className="receipt-actions no-print"><PrintButton/>{whatsappUrl && <WhatsAppReceiptButton url={whatsappUrl}/>}<ShareReceiptButton receiptNumber={payment.receipt_number} url={publicUrl}/><Link className="button success" href={`/members/${member.id}`}>Done, back to member</Link></div>
+    {remainingPaise > 0 && <div className="no-print"><ReversePaymentForm paymentId={payment.id} memberId={member.id} remainingPaise={remainingPaise} action={reversePayment}/></div>}
   </div>;
 }

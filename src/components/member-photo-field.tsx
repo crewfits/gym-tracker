@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from "react";
 type Props = {
   existingUrl?: string | null;
   memberName?: string;
+  onPhotoChange?: () => void;
+  submissionPending?: boolean;
 };
 
 const maxSide = 512;
@@ -69,7 +71,7 @@ function cameraSupported() {
   return Boolean(navigator.mediaDevices?.getUserMedia);
 }
 
-export function MemberPhotoField({ existingUrl, memberName }: Props) {
+export function MemberPhotoField({ existingUrl, memberName, onPhotoChange, submissionPending }: Props) {
   const fallbackCaptureInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -84,6 +86,10 @@ export function MemberPhotoField({ existingUrl, memberName }: Props) {
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const initials = (memberName ?? "Member").trim().slice(0, 1).toUpperCase() || "M";
   const hasPendingPhotoChange = Boolean(dataUrl || removed);
+
+  useEffect(() => {
+    if (submissionPending !== undefined) submittingRef.current = submissionPending;
+  }, [submissionPending]);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -201,6 +207,7 @@ export function MemberPhotoField({ existingUrl, memberName }: Props) {
       const compressed = await compressCanvas(canvas);
       setPreview(compressed.dataUrl);
       setDataUrl(compressed.dataUrl);
+      onPhotoChange?.();
       setRemoved(false);
       setStatus(`Captured photo ready · ${Math.max(1, Math.round(compressed.size / 1024))} KB. Click Save profile to upload.`);
       stopCamera();
@@ -216,6 +223,7 @@ export function MemberPhotoField({ existingUrl, memberName }: Props) {
       const compressed = await compressPhoto(file);
       setPreview(compressed.dataUrl);
       setDataUrl(compressed.dataUrl);
+      onPhotoChange?.();
       setRemoved(false);
       setStatus(`Photo ready · ${Math.max(1, Math.round(compressed.size / 1024))} KB. Click Save profile to upload.`);
     } catch (error) {
@@ -231,6 +239,7 @@ export function MemberPhotoField({ existingUrl, memberName }: Props) {
     stopCamera();
     setPreview("");
     setDataUrl("");
+    onPhotoChange?.();
     setRemoved(true);
     setStatus("Photo will be removed after saving.");
   }

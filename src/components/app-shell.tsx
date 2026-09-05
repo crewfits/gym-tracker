@@ -33,11 +33,11 @@ function routeTitle(pathname: string): string {
   if (pathname === "/") return "Dashboard";
   if (pathname === "/members") return "Members";
   if (pathname === "/members/new") return "Add member";
-  if (/^\/members\/[^/]+\/qr$/.test(pathname)) return "Member QR pass";
-  if (/^\/members\/[^/]+\/pay$/.test(pathname)) return "Record payment";
+  if (/^\/members\/[^/]+\/qr$/.test(pathname)) return "QR pass & receipts";
+  if (/^\/members\/[^/]+\/pay$/.test(pathname)) return "Collect payment";
   if (/^\/members\/[^/]+\/renew$/.test(pathname)) return "Renew membership";
   if (/^\/members\/[^/]+\/enroll$/.test(pathname)) return "Enroll member";
-  if (/^\/members\/[^/]+$/.test(pathname)) return "Member profile";
+  if (/^\/members\/[^/]+$/.test(pathname)) return "Manage member";
   if (pathname === "/reminders") return "Reminders";
   if (pathname === "/attendance") return "Attendance";
   if (pathname === "/scanner") return "QR scanner";

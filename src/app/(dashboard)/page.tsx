@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Activity, ArrowRight, IndianRupee, LogIn, RefreshCw, ScanLine, Sparkles, TrendingUp, UserPlus, WalletCards } from "lucide-react";
 import { DashboardViewSelector } from "@/components/dashboard-view-selector";
 import { DashboardLiveRefresh } from "@/components/dashboard-live-refresh";
+import { Pagination } from "@/components/pagination";
 import { requireGym } from "@/lib/auth";
 import { businessDate, formatDisplayDate, formatInr, memberOperationalView } from "@/lib/domain";
 
@@ -13,8 +14,10 @@ type DashboardMemberRow = { id: string; member_code: string; name: string; is_ar
 type MonthlyTrend = { month_start: string; new_members: number; collected_paise: number; payment_count: number; renewals: number };
 type EngagementEvent = { member_id: string; occurred_at: string };
 
-export default async function Dashboard({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
-  const { view } = await searchParams;
+const followupPageSize = 5;
+
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ view?: string; expiringPage?: string; expiredPage?: string }> }) {
+  const { view, expiringPage: expiringPageParam, expiredPage: expiredPageParam } = await searchParams;
   const selectedView = view === "trends" ? "trends" : "current";
   const { supabase, gym } = await requireGym();
   const today = businessDate(gym.timezone);
@@ -50,8 +53,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     expired_members: statusViews.filter((member) => member.membership_status === "expired").length,
     total_members: statusViews.length,
   } : (summaryData as DashboardSummary);
-  const expiring = statusViews.filter((member) => member.membership_status === "expiring").sort(byExpiry).slice(0, 6);
-  const expired = statusViews.filter((member) => member.membership_status === "expired").sort(byExpiry).slice(0, 6);
+  const allExpiring = statusViews.filter((member) => member.membership_status === "expiring").sort(byExpiry);
+  const allExpired = statusViews.filter((member) => member.membership_status === "expired").sort(byExpiry);
+  const expiringPages = Math.max(1, Math.ceil(allExpiring.length / followupPageSize));
+  const expiredPages = Math.max(1, Math.ceil(allExpired.length / followupPageSize));
+  const expiringPage = Math.min(positivePage(expiringPageParam), expiringPages);
+  const expiredPage = Math.min(positivePage(expiredPageParam), expiredPages);
+  const expiring = allExpiring.slice((expiringPage - 1) * followupPageSize, expiringPage * followupPageSize);
+  const expired = allExpired.slice((expiredPage - 1) * followupPageSize, expiredPage * followupPageSize);
   const trends = (trendsData ?? []) as MonthlyTrend[];
   const engagementEvents = (engagementData ?? []) as EngagementEvent[];
 
@@ -64,11 +73,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
       <div className="dashboard-hero-actions"><DashboardViewSelector value={selectedView}/><Link className="button" href="/members/new"><UserPlus size={16}/> Add member</Link></div>
     </div>
-    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} statusViews={statusViews} expiring={expiring} expired={expired} trends={trends} engagementEvents={engagementEvents} weekStart={weekStart} previousWeekStart={previousWeekStart} previousWeekEnd={previousWeekEnd} gymName={gym.name} timezone={gym.timezone}/>}
+    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} statusViews={statusViews} expiring={expiring} expired={expired} expiringTotal={allExpiring.length} expiredTotal={allExpired.length} expiringPage={expiringPage} expiredPage={expiredPage} expiringPages={expiringPages} expiredPages={expiredPages} trends={trends} engagementEvents={engagementEvents} weekStart={weekStart} previousWeekStart={previousWeekStart} previousWeekEnd={previousWeekEnd} gymName={gym.name} timezone={gym.timezone}/>}
   </>;
 }
 
-function CurrentDashboard({ summary, statusViews, expiring, expired, trends, engagementEvents, weekStart, previousWeekStart, previousWeekEnd, gymName, timezone }: { summary: DashboardSummary; statusViews: ExpiringMember[]; expiring: ExpiringMember[]; expired: ExpiringMember[]; trends: MonthlyTrend[]; engagementEvents: EngagementEvent[]; weekStart: string; previousWeekStart: string; previousWeekEnd: string; gymName: string; timezone: string }) {
+function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTotal, expiredTotal, expiringPage, expiredPage, expiringPages, expiredPages, trends, engagementEvents, weekStart, previousWeekStart, previousWeekEnd, gymName, timezone }: { summary: DashboardSummary; statusViews: ExpiringMember[]; expiring: ExpiringMember[]; expired: ExpiringMember[]; expiringTotal: number; expiredTotal: number; expiringPage: number; expiredPage: number; expiringPages: number; expiredPages: number; trends: MonthlyTrend[]; engagementEvents: EngagementEvent[]; weekStart: string; previousWeekStart: string; previousWeekEnd: string; gymName: string; timezone: string }) {
   const healthTotal = Math.max(1, Number(summary.active_members) + Number(summary.expiring_members) + Number(summary.expired_members));
   const activeAngle = (Number(summary.active_members) / healthTotal) * 360;
   const expiringAngle = activeAngle + (Number(summary.expiring_members) / healthTotal) * 360;
@@ -84,6 +93,14 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, trends, eng
   const previousEngagementRate = Math.min(100, Math.round((previousWeekVisitors / activeRoster) * 100));
   const slippingMembers = Math.max(0, Number(summary.active_members) - currentWeekVisitors);
   const priorityAreaCount = [Number(summary.expiring_members), Number(summary.expired_members), Number(summary.pending_accounts)].filter(Boolean).length;
+  const followupHref = (kind: "expiring" | "expired", targetPage: number) => {
+    const query = new URLSearchParams();
+    const nextExpiringPage = kind === "expiring" ? targetPage : expiringPage;
+    const nextExpiredPage = kind === "expired" ? targetPage : expiredPage;
+    if (nextExpiringPage > 1) query.set("expiringPage", String(nextExpiringPage));
+    if (nextExpiredPage > 1) query.set("expiredPage", String(nextExpiredPage));
+    return `/?${query.toString()}`.replace(/\?$/, "");
+  };
 
   return <div className="dashboard-sections">
     <div className="dashboard-command-grid">
@@ -112,23 +129,24 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, trends, eng
 
     <div className="dashboard-insight-grid">
       <section className="insight-card membership-health-card">
-        <div className="insight-head"><div><span className="dashboard-kicker">Priority queue</span><h2>{priorityAreaCount ? `${priorityAreaCount} items need you!` : "Access is clear"}</h2></div><Link href="/reminders">Open follow-up <ArrowRight size={14}/></Link></div>
+        <div className="insight-head"><div><span className="dashboard-kicker">Priority queue</span><h2>{priorityAreaCount ? `${priorityAreaCount} items need you` : "Access is clear"}</h2></div><Link href="/reminders">Open follow-up <ArrowRight size={14}/></Link></div>
         <div className="health-content">
           <div className="health-ring" style={{ background: `conic-gradient(#18a66a 0deg ${activeAngle}deg, #f5a524 ${activeAngle}deg ${expiringAngle}deg, #e45858 ${expiringAngle}deg 360deg)` }}><div><strong>{summary.total_members}</strong><span>Total</span></div></div>
           <div className="health-legend">
             <HealthItem href="/members?status=active" tone="green" label="Active" value={summary.active_members}/>
             <HealthItem href="/reminders?filter=expiring" tone="amber" label="Expiring soon" value={summary.expiring_members}/>
             <HealthItem href="/reminders?filter=expired" tone="red" label="Already expired" value={summary.expired_members}/>
-            <HealthItem href="/members?status=outstanding" tone="violet" label="Pending accounts" value={summary.pending_accounts}/>
+            <div className="health-divider"><span>Accounts</span></div>
+            <HealthItem href="/members?status=outstanding" tone="blue" label="Pending accounts with open balance" value={summary.pending_accounts}/>
           </div>
         </div>
       </section>
 
-      <section className="card engagement-health-card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Weekly Member Engagement</span><h2>Engagement health</h2><span className="muted">How much of the active roster showed up this week.</span></div><Link className="text-link" href="/attendance?view=history">View attendance <ArrowRight size={15}/></Link></div>
+      <section className="card engagement-health-card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Weekly member engagement</span><h2>Engagement health</h2><span className="muted">Active and expiring members counted together.</span></div><Link className="text-link" href="/attendance?view=history">View attendance <ArrowRight size={15}/></Link></div>
         <div className="engagement-board">
-          <EngagementRow href="/members?status=visited_this_week" tone="green" label="Visited this week" value={`${currentWeekVisitors}/${summary.active_members}`} detail={`${engagementRate}% of active roster`}/>
-          <EngagementRow href="/members?status=slipping" tone="amber" label="Slipping" value={`${slippingMembers}`} detail="Active members with no visit"/>
-          <EngagementRow href="/members?status=visited_last_week" tone="blue" label="Last week" value={`${previousWeekVisitors}/${summary.active_members}`} detail={`${previousEngagementRate}% visited`}/>
+          <EngagementRow href="/members?status=visited_this_week" tone="green" label="Visited this week" value={`${currentWeekVisitors}/${summary.active_members}`} detail={`${engagementRate}% of active/expiring roster`}/>
+          <EngagementRow href="/members?status=slipping" tone="amber" label="Slipping" value={`${slippingMembers}`} detail="No visit recorded this week"/>
+          <EngagementRow href="/members?status=visited_last_week" tone="blue" label="Last week" value={`${previousWeekVisitors}/${summary.active_members}`} detail={`${previousEngagementRate}% visited last week`}/>
           <EngagementRow href="/members?status=visited_this_week" tone="violet" label="Trend" value={engagementDeltaValue(engagementRate, previousEngagementRate)} detail="Compared with last week"/>
         </div>
       </section>
@@ -136,8 +154,29 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, trends, eng
 
     <div className="dashboard-overview">
       <div className="dashboard-followup-grid">
-      <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Member follow-up</span><h2>Expiring in 7 days</h2><span className="muted">Open an individual reminder before the membership ends.</span></div><Link className="text-link" href="/reminders?filter=expiring">Open reminders <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Plan end</th><th>Status</th></tr></thead><tbody>{expiring.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className={`badge ${item.membership_status}`}>{statusLabel(item.membership_status)}</span></td></tr>)}</tbody></table>{!expiring.length && <div className="empty">No memberships expire in the next 7 days.</div>}</div></section>
-      <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Recovery watch</span><h2>Already expired</h2><span className="muted">Members whose access has already ended.</span></div><Link className="text-link" href="/reminders?filter=expired">Open reminders <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Ended on</th><th>Status</th></tr></thead><tbody>{expired.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className="badge expired">Expired</span></td></tr>)}</tbody></table>{!expired.length && <div className="empty">No expired memberships right now.</div>}</div></section>
+        <section className="card">
+          <div className="section-head">
+            <div className="section-head-copy"><span className="eyebrow">Member follow-up</span><h2>Expiring in 7 days</h2><span className="muted">Open an individual reminder before the membership ends.</span></div>
+            <Link className="text-link" href="/reminders?filter=expiring">Open reminders <ArrowRight size={15}/></Link>
+          </div>
+          <div className="table-wrap">
+            <table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Plan end</th><th>Status</th></tr></thead><tbody>{expiring.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className={`badge ${item.membership_status}`}>{statusLabel(item.membership_status)}</span></td></tr>)}</tbody></table>
+            {!expiring.length && <div className="empty">No memberships expire in the next 7 days.</div>}
+          </div>
+          <Pagination page={expiringPage} pages={expiringPages} total={expiringTotal} label="expiring memberships" pageSize={followupPageSize} hrefForPage={(targetPage) => followupHref("expiring", targetPage)}/>
+        </section>
+
+        <section className="card">
+          <div className="section-head">
+            <div className="section-head-copy"><span className="eyebrow">Recovery watch</span><h2>Already expired</h2><span className="muted">Members whose access has already ended.</span></div>
+            <Link className="text-link" href="/reminders?filter=expired">Open reminders <ArrowRight size={15}/></Link>
+          </div>
+          <div className="table-wrap">
+            <table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Ended on</th><th>Status</th></tr></thead><tbody>{expired.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className="badge expired">Expired</span></td></tr>)}</tbody></table>
+            {!expired.length && <div className="empty">No expired memberships right now.</div>}
+          </div>
+          <Pagination page={expiredPage} pages={expiredPages} total={expiredTotal} label="expired memberships" pageSize={followupPageSize} hrefForPage={(targetPage) => followupHref("expired", targetPage)}/>
+        </section>
       </div>
     </div>
   </div>;
@@ -168,7 +207,6 @@ function TrendDashboard({ trends }: { trends: MonthlyTrend[] }) {
       <TrendChart title="New member growth" detail="Profiles added each month." trends={trends} max={memberMax} value={(item) => Number(item.new_members)} format={String} tone="blue"/>
       <TrendChart title="Renewal rhythm" detail="Renewals completed by month." trends={trends} max={renewalMax} value={(item) => Number(item.renewals)} format={String} tone="violet"/>
     </div>
-    <section className="card table-wrap trend-table-card"><div className="section-head"><div><h2>Six-month comparison</h2><span className="muted">A clear month-by-month operating record.</span></div></div><table className="table"><thead><tr><th>Month</th><th>New members</th><th>Renewals</th><th>Payments</th><th>Collected</th></tr></thead><tbody>{trends.map((item) => <tr key={item.month_start}><td><strong>{monthLabel(item.month_start)}</strong></td><td>{item.new_members}</td><td>{item.renewals}</td><td>{item.payment_count}</td><td><strong>{formatInr(Number(item.collected_paise))}</strong></td></tr>)}</tbody></table></section>
   </div>;
 }
 
@@ -200,7 +238,7 @@ function engagementDeltaValue(current: number, previous: number) {
 }
 function insideNowHeadline(count: number) {
   if (count === 0) return <>No members inside now</>;
-  return <><strong>{count}</strong> {count === 1 ? "member" : "members"} inside now</>;
+  return <><strong>{count}</strong> {count === 1 ? "member is" : "members are"} inside now</>;
 }
 function visitorSet(events: EngagementEvent[], from: string, to: string | undefined, timezone: string, allowedMemberIds: Set<string>) {
   return new Set(events.filter((event) => {
@@ -219,4 +257,8 @@ function addDays(date: string, days: number) {
   const parsed = new Date(`${date}T00:00:00Z`);
   parsed.setUTCDate(parsed.getUTCDate() + days);
   return parsed.toISOString().slice(0, 10);
+}
+function positivePage(value: string | undefined) {
+  const page = Number(value ?? "1");
+  return Number.isInteger(page) && page > 0 ? page : 1;
 }

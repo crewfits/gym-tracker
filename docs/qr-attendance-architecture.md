@@ -39,13 +39,13 @@ The QR is an identifier, not proof that the person holding it is the member. The
 3. If selected, FitKiro issues QR version 1 and opens the QR management screen.
 4. FitKiro renders the QR from the short scan URL.
 5. The owner can:
-   - open WhatsApp with an individual pre-filled message containing the public pass link;
+   - copy the QR pass PNG (or download it when clipboard access is unavailable) and open WhatsApp with an individual pre-filled message containing the latest receipt link, when available;
    - download the QR PNG;
    - mark the current QR as shared after manual handoff;
    - re-share the current QR without changing it;
    - regenerate it, invalidating older copies;
    - disable it.
-6. The member opens the public pass link to display their QR. The public view contains no phone, email, payments, or membership details.
+6. The member saves the shared pass image. The public pass URL remains available as an alternative; its view contains no phone, email, payments, or membership details.
 7. The owner opens the installed **FitKiro Scanner** Android PWA. Its rear-camera view reads `/s/{token}` without navigating or opening another browser tab.
 8. The authenticated POST action validates the token, gym, member, credential version, enabled state, archive state, and active membership.
 9. A transactional database function atomically selects and records **Check-in** or **Check-out**. Stored enum values remain `entry` and `exit` for compatibility.
@@ -76,7 +76,7 @@ V1 uses the provisioned owner authentication and RLS boundary. Every Server Acti
 
 No WhatsApp API is used. Individual sharing opens a `wa.me` click-to-chat link for the member with pre-filled text. The message is sent from the WhatsApp account currently signed into the owner's app or browser, and the owner must press Send.
 
-Click-to-chat cannot attach a generated image reliably in every browser. FitKiro therefore opens the WhatsApp app directly on mobile, or one reusable WhatsApp Web tab on desktop, with a pre-filled message containing the public pass link exactly once. This works without saving the member as a contact; the owner still reviews the chat and presses Send. The WhatsApp action never downloads a file; PNG download remains a separate, explicitly selected fallback because WhatsApp does not expose file attachment through click-to-chat URLs.
+Click-to-chat cannot attach a generated image. FitKiro reserves a WhatsApp window during the owner's click, prepares the pass PNG, and copies it to the clipboard. If clipboard support or permission is unavailable, it downloads the PNG instead. The owner pastes or attaches the image manually, reviews the pre-filled message (including the latest receipt link when available), and presses Send. A separate PNG download action is also available. Blocked pop-ups and image preparation failures are reported without claiming a successful share. Older receipts remain individually shareable from collapsed, paginated receipt history.
 
 Because there is no WhatsApp provider callback, FitKiro does not know whether the owner actually pressed Send or whether the member received the message. The `shared_at` status is an owner-maintained operational flag, not delivery proof.
 
@@ -84,7 +84,7 @@ Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUB
 
 ## Operational rules
 
-- Membership dates, not QR age, decide whether entry is allowed.
+- Membership dates, not QR age, decide whether entry is allowed. Expiry does not rotate the credential. The same enabled QR works again when a renewal becomes active; the owner can reshare it with the new payment receipt. Explicit regeneration still invalidates every previous copy.
 - Attendance direction resets by the gym's configured timezone: the first confirmed scan of each calendar day is Check-in, then movements alternate Check-out/Check-in within that day.
 - A previous-day Check-in without a Check-out remains visible as a missing Check-out but never makes the next day's first scan a Check-out. FitKiro does not invent a Check-out time.
 - During the scanner result, the owner can choose the opposite movement. Later correction is limited to undoing today's latest event for the member, with an optional replacement that must preserve the alternating sequence.
@@ -102,5 +102,5 @@ Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUB
 - Authenticated scan confirmation.
 - Entry/exit attendance ledger.
 - Today, current-occupancy, missed-exit, filtered history, pagination, and CSV export.
-- Individual WhatsApp click-to-chat using the public pass link and a direct QR PNG download.
+- Individual WhatsApp click-to-chat with a manual QR PNG attachment and the latest receipt link, plus older receipt sharing.
 - Manual QR shared/not-shared tracking with member-list filters.

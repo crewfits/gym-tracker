@@ -69,17 +69,17 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <form className="form auth-signin">
           <input type="hidden" name="next" value={next}/>
           <div className="field">
-            <label>Email</label>
+            <label htmlFor="login-email">Email</label>
             <div className="auth-input-wrap">
               <Mail size={18}/>
-              <input name="email" type="email" autoComplete="email" placeholder="Enter your email" required/>
+              <input id="login-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="Enter your email" required/>
             </div>
           </div>
           <div className="field">
-            <label>Password</label>
+            <label htmlFor="login-password">Password</label>
             <div className="auth-input-wrap">
               <LockKeyhole size={18}/>
-              <input name="password" type="password" autoComplete="current-password" minLength={8} placeholder="Enter your password" required/>
+              <input id="login-password" name="password" type="password" autoComplete="current-password" minLength={8} placeholder="Enter your password" required/>
               <Eye size={18}/>
             </div>
           </div>
@@ -98,8 +98,8 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <form className="form">
             <input type="hidden" name="next" value={next}/>
             <div className="field">
-              <label>Owner email</label>
-              <input name="email" type="email" autoComplete="email" required/>
+              <label htmlFor="reset-email">Owner email</label>
+              <input id="reset-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required/>
             </div>
             <SubmitButton className="button" formAction={requestPasswordReset} pendingLabel="Sending reset link...">Send reset link</SubmitButton>
           </form>

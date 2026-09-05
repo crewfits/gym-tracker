@@ -1,22 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, CreditCard, Plus, QrCode, RefreshCw } from "lucide-react";
-import { reactivateMember, removeMistakenRenewal, renewMembership, reversePayment, updateMember } from "@/app/actions/core";
+import { CreditCard, Plus, RefreshCw, Share2 } from "lucide-react";
+import { reactivateMember, removeMistakenRenewal, renewMembership, updateChargeDueDate, updateMember } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
 import { MemberPhotoField } from "@/components/member-photo-field";
 import { MembershipForm } from "@/components/membership-form";
+import { MemberWorkspace } from "@/components/member-workspace";
 import { RemoveRenewalButton } from "@/components/remove-renewal-button";
-import { ReversePaymentForm } from "@/components/reverse-payment-form";
 import { SubmitButton } from "@/components/submit-button";
 import { requireGym } from "@/lib/auth";
-import { businessDate, formatDisplayDate, formatInr, formatPaymentMethod, memberOperationalView, membershipStatus, paymentStatus } from "@/lib/domain";
+import { businessDate, formatDisplayDate, formatInr, memberOperationalView, membershipStatus, paymentStatus } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import type { Plan } from "@/lib/types";
 
 type PaymentReversalRow = { id: string; amount_paise: number; reason: string; created_at: string };
 type PaymentRow = { id: string; charge_id: string; amount_paise: number; method: string; paid_on: string; receipt_number: string; voided_at: string | null; void_reason: string | null; created_at: string; payment_reversals: PaymentReversalRow[] };
 type ChargeRow = { id: string; subtotal_paise: number; discount_paise: number; gst_rate_basis_points: number; tax_paise: number; total_paise: number; due_on: string; payments: PaymentRow[] };
-type MembershipRow = { id: string; plan_name: string; starts_on: string; expires_on: string; date_overridden: boolean; reverted_at: string | null; charges: ChargeRow | null };
+type MembershipRow = { id: string; plan_id: string | null; plan_name: string; starts_on: string; expires_on: string; date_overridden: boolean; reverted_at: string | null; charges: ChargeRow | null };
 
 export default async function MemberDetail({ params, searchParams }: PageProps<"/members/[id]">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
@@ -43,6 +43,11 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
   const latest = enriched[0];
   const effective = memberOperationalView(enriched, today);
   const totalOutstanding = enriched.reduce((sum, membership) => sum + membership.balance, 0);
+  const unpaidMemberships = enriched.filter((membership) => membership.charge && membership.balance > 0)
+    .sort((left, right) => left.starts_on.localeCompare(right.starts_on));
+  const collectHref = unpaidMemberships.length === 1
+    ? `/members/${id}/pay?charge=${unpaidMemberships[0].charge!.id}`
+    : "#outstanding-payments";
   const success = typeof query.success === "string" ? query.success : undefined;
   const error = typeof query.error === "string" ? query.error : undefined;
   const showReactivation = member.is_archived && query.reactivate === "1";
@@ -57,32 +62,40 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
       </form>
     </div>}
 
-    <div className="member-layout">
-      <div className="member-main-stack">
-        <section className="card member-membership">
-          <div className="section-head">
-            <div className="section-head-copy">
-              <h2>Memberships</h2>
-              {effective.membership && <span className={`badge ${effective.status}`}>{statusLabel(effective.status)}</span>}
-            </div>
-            <div className="inline-actions">
-              {!member.is_archived && latest && <details className="renewal-disclosure">
-                <summary className="button"><RefreshCw size={16}/> Renew membership</summary>
-                <div className="renewal-inline">
-                  <div className="section-head"><div><h2>Create renewal</h2><span className="muted">Renew and record payment without leaving this member.</span></div></div>
-                  <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} action={renewMembership} today={today} renew currentExpiry={latest.expires_on} error={error} returnPath={`/members/${id}`}/>
-                </div>
-              </details>}
-              {!member.is_archived && !latest && <Link className="button" href={`/members/${id}/enroll`}><Plus size={16}/> Start plan</Link>}
-            </div>
-          </div>
-
+    <div className="member-manage-page">
+      <header className="member-manage-head">
+        <div><h1>{member.name}</h1><span className="muted">{member.member_code}</span> <span className={`badge ${member.is_archived ? "expired" : effective.status}`}>{member.is_archived ? "Archived" : statusLabel(effective.status)}</span></div>
+        {!member.is_archived && <Link className="button secondary" href={`/members/${id}/qr`}><Share2 size={16}/> QR pass & receipts</Link>}
+      </header>
+      <dl className="member-summary-strip">
+        <div><dt>Current plan</dt><dd>{effective.membership?.plan_name ?? "No active plan"}</dd></div>
+        <div><dt>Latest expiry</dt><dd>{latest ? formatDisplayDate(latest.expires_on) : "-"}</dd>{!member.is_archived && <dd className="member-summary-action"><Link className="button secondary small" href={latest ? `/members/${id}/renew` : `/members/${id}/enroll`}>{latest ? <RefreshCw size={14}/> : <Plus size={14}/>}{latest ? "Renew membership" : "Start membership"}</Link></dd>}</div>
+        <div><dt>Outstanding balance</dt><dd className={totalOutstanding > 0 ? "member-balance-due" : "member-balance-settled"}>{formatInr(totalOutstanding)}</dd>{unpaidMemberships.length > 0 && <dd className="member-summary-action"><Link className="button small" href={collectHref}><CreditCard size={14}/>{unpaidMemberships.length === 1 ? "Collect payment" : "View unpaid plans"}</Link></dd>}</div>
+      </dl>
+      {unpaidMemberships.length > 0 && <section className="member-outstanding-section" id="outstanding-payments" aria-labelledby="outstanding-heading">
+        <h2 id="outstanding-heading">Outstanding payments</h2>
+        <div className="member-outstanding-list">{unpaidMemberships.map((membership) => <div className="member-outstanding-row" key={membership.id}>
+          <div className="member-outstanding-plan"><strong>{membership.plan_name}</strong><span className="muted">{formatDisplayDate(membership.starts_on)} - {formatDisplayDate(membership.expires_on)}</span><small className="muted">Paid {formatInr(membership.paid)} of {formatInr(Number(membership.charge!.total_paise))}</small></div>
+          <div className="member-outstanding-amount"><span className="muted">Remaining</span><strong>{formatInr(membership.balance)}</strong></div>
+          <Link className="button secondary small" href={`/members/${id}/pay?charge=${membership.charge!.id}`} aria-label={`Collect ${formatInr(membership.balance)} for ${membership.plan_name}, ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}`}><CreditCard size={14}/> Collect payment</Link>
+        </div>)}</div>
+      </section>}
+      <MemberWorkspace key={query.view === "membership" ? "membership" : "profile"} initialView={query.view === "membership" ? "membership" : "profile"} membership={<>
+        <section className="member-renewal-section">
+          <h2>{latest ? "Renew membership" : "Start membership"}</h2>
+          {unpaidMemberships.length > 0 && !member.is_archived && <p className="member-renewal-balance-note">Previous balance: {formatInr(totalOutstanding)}. Renewal payments apply to the new membership period.</p>}
+          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} action={renewMembership} today={today} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} returnPath={`/members/${id}?view=membership`}/>}
+          {!member.is_archived && !latest && <Link className="button" href={`/members/${id}/enroll`}><Plus size={16}/> Start plan</Link>}
+          {member.is_archived && <p className="muted">Reactivate this member before renewing their membership.</p>}
+        </section>
+        <section className="member-history-section">
+          <h2>Membership history <span className="muted">({enriched.length})</span></h2>
           <div className="membership-list">
             {enriched.map((membership, membershipIndex) => {
               const status = membershipStatus(membership.starts_on, membership.expires_on, today);
               const paidStatus = paymentStatus(Number(membership.charge?.total_paise ?? 0), membership.paid);
               const charge = membership.charge;
-              return <details className="membership-record" key={membership.id} open={membershipIndex === 0}>
+              return <details className="membership-record" key={membership.id}>
                 <summary>
                   <span className="membership-record-main">
                     <strong>{membership.plan_name}</strong>
@@ -102,6 +115,12 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                     <span className="charge-total">Total price<strong>{formatInr(Number(charge.total_paise))}</strong></span>
                     <span>Collected<strong>{formatInr(membership.paid)}</strong></span>
                     <span>Balance<strong>{formatInr(membership.balance)}</strong></span>
+                    <form action={updateChargeDueDate} className="inline-date-form">
+                      <input type="hidden" name="member_id" value={id}/>
+                      <input type="hidden" name="charge_id" value={charge.id}/>
+                      <label>Follow-up date <input type="date" name="due_on" defaultValue={charge.due_on} required/></label>
+                      <SubmitButton className="button secondary small" pendingLabel="Updating...">Update</SubmitButton>
+                    </form>
                   </div>}
                   {charge && membership.balance > 0 && <div className="membership-actions">
                     <Link className="button small collect-button" href={`/members/${id}/pay?charge=${charge.id}`}><CreditCard size={14}/> Collect {formatInr(membership.balance)}</Link>
@@ -112,47 +131,22 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
             {!enriched.length && <div className="empty">No training plan has been activated yet.</div>}
           </div>
         </section>
-
-        <section className="card member-payments">
-          <div className="section-head"><div className="section-head-copy"><h2>Payments</h2><span className="muted">Reversals preserve the original receipt for audit history.</span></div><Link className="text-link" href="/transactions">All transactions <ArrowRight size={15}/></Link></div>
-          <div className="table-wrap">
-            <table className="table">
-              <thead><tr><th>Receipt</th><th>Date</th><th>Method</th><th>Amount</th><th>Correction</th></tr></thead>
-              <tbody>{payments.map((payment) => <tr key={payment.id} style={{ opacity: payment.voided_at ? .62 : 1 }}>
-                <td><Link href={`/receipts/${payment.id}`}><strong>{payment.receipt_number}</strong></Link>{payment.voided_at && <><br/><small className="muted">Reversed: {payment.void_reason}</small></>}</td>
-                <td>{formatDisplayDate(payment.paid_on)}</td>
-                <td>{formatPaymentMethod(payment.method)}</td>
-                <td><strong>{formatInr(netFor(payment))}</strong>{reversedFor(payment) > 0 && <><br/><small className="muted">{formatInr(reversedFor(payment))} reversed</small></>}</td>
-                <td>{!payment.voided_at ? <ReversePaymentForm paymentId={payment.id} memberId={id} remainingPaise={Number(payment.amount_paise) - reversedFor(payment)} action={reversePayment}/> : <span className="badge expired">Reversed</span>}</td>
-              </tr>)}</tbody>
-            </table>
-            {!payments.length && <div className="empty">No collection activity yet.</div>}
-          </div>
-        </section>
-      </div>
-
-      <aside className="member-details stack">
-        {latest && <div className={`card balance-card ${totalOutstanding > 0 ? "needs-attention" : "settled"}`}>
-          <span className="metric-label">Balance to recover</span>
-          <div className="metric">{formatInr(totalOutstanding)}</div>
-          <small className="muted">Across all membership periods</small>
-        </div>}
-        <form id="member-details" action={updateMember} className="card form">
-          <div className="section-head member-edit-head">
-            <div><h2>Edit details</h2><span className="muted">{member.member_code} · {member.phone}{member.email ? ` · ${member.email}` : ""}{member.is_archived ? " · archived" : ""}</span></div>
-            {!member.is_archived && <Link className="button secondary small" href={`/members/${id}/qr`}><QrCode size={14}/> QR pass</Link>}
-          </div>
+      </>} profile={<form id="member-details" action={updateMember} className="form member-profile-form">
+          <h2>Member details</h2>
           <input type="hidden" name="id" value={id}/>
           <MemberPhotoField existingUrl={photoUrl} memberName={member.name}/>
-          <div className="field"><label>Name</label><input name="name" defaultValue={member.name} required/></div>
-          <div className="field"><label>Phone</label><input name="phone" defaultValue={member.phone} required/></div>
-          <div className="field"><label>Email</label><input type="email" name="email" defaultValue={member.email ?? ""}/></div>
-          <div className="field"><label>Coach notes</label><textarea name="notes" rows={4} defaultValue={member.notes ?? ""}/></div>
-          <label><input type="checkbox" name="whatsapp_reminders_enabled" defaultChecked={Boolean(member.whatsapp_reminders_enabled)}/> Member agreed to automated WhatsApp payment reminders</label>
-          <label><input type="checkbox" name="is_archived" defaultChecked={member.is_archived}/> Move member out of active roster</label>
-          <SubmitButton className="button" pendingLabel="Saving profile...">Save profile</SubmitButton>
-        </form>
-      </aside>
+          <div className="form-grid">
+            <div className="field"><label htmlFor="member-name">Full name</label><input id="member-name" name="name" defaultValue={member.name} required/></div>
+            <div className="field"><label htmlFor="member-phone">Phone number</label><input id="member-phone" name="phone" type="tel" defaultValue={member.phone} required/></div>
+            <div className="field member-field-wide"><label htmlFor="member-email">Email address</label><input id="member-email" type="email" name="email" defaultValue={member.email ?? ""}/></div>
+            <div className="field member-field-wide"><label htmlFor="member-notes">Coach notes</label><textarea id="member-notes" name="notes" rows={3} defaultValue={member.notes ?? ""}/></div>
+          </div>
+          <div className="member-preferences">
+            <label><input type="checkbox" name="whatsapp_reminders_enabled" defaultChecked={Boolean(member.whatsapp_reminders_enabled)}/> WhatsApp payment reminder consent</label>
+            <label><input type="checkbox" name="is_archived" defaultChecked={member.is_archived}/> Archive member</label>
+          </div>
+          <div><SubmitButton className="button" pendingLabel="Saving details...">Save member details</SubmitButton></div>
+        </form>}/>
     </div>
   </>;
 }

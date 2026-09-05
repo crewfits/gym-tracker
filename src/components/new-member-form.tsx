@@ -1,18 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { memberValidationErrors, type CreateMemberResult, type MemberFieldErrors } from "@/lib/new-member-validation";
 import { BadgeIndianRupee, Dumbbell, UserRound } from "lucide-react";
 import type { Plan } from "@/lib/types";
 import { calculateExpiry, calculatePaymentFollowUpDate, formatDisplayDate, formatInr } from "@/lib/domain";
 import { MemberPhotoField } from "@/components/member-photo-field";
-import { SubmitButton } from "@/components/submit-button";
 
-type Props = { plans: Plan[]; today: string; error?: string; action: (formData: FormData) => Promise<void> };
+
+type Props = { plans: Plan[]; today: string; error?: string; action: (formData: FormData) => Promise<CreateMemberResult> };
 function toPaise(value: string) { return Math.max(0, Math.round((Number(value) || 0) * 100)); }
 function moneyFromPaise(value: number) { return (value / 100).toFixed(2); }
 function planEndDate(plan: Plan | undefined, startDate: string) { return plan && startDate ? calculateExpiry(startDate, plan.duration_value, plan.duration_unit) : ""; }
 
 export function NewMemberForm({ plans, today, error, action }: Props) {
+  const router = useRouter();
+  const submitting = useRef(false);
+  const [pending, setPending] = useState(false);
+  const [values, setValues] = useState<Record<string, unknown>>({ name: "", phone: "", email: "", notes: "", reference: "", paid_on: today, method: "cash" });
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [serverErrors, setServerErrors] = useState<MemberFieldErrors>({});
+  const [formError, setFormError] = useState(error);
+  const [reactivateUrl, setReactivateUrl] = useState<string>();
   const [planId, setPlanId] = useState(plans[0]?.id ?? "");
   const initialFee = plans[0] ? (plans[0].default_fee_paise / 100).toFixed(2) : "0.00";
   const [subtotal, setSubtotal] = useState(initialFee);
@@ -36,8 +47,7 @@ export function NewMemberForm({ plans, today, error, action }: Props) {
   }, [subtotal, discount, gstRate, amountPaid]);
 
   useEffect(() => {
-    const paid = toPaise(amountPaid);
-    if (paidInFull.current || paid > totals.total) setAmountPaid(moneyFromPaise(totals.total));
+    if (paidInFull.current) setAmountPaid(moneyFromPaise(totals.total));
   }, [amountPaid, totals.total]);
 
   function selectPlan(id: string) {
@@ -60,23 +70,82 @@ export function NewMemberForm({ plans, today, error, action }: Props) {
   }
 
   function changeAmountPaid(value: string) {
-    const enteredPaise = toPaise(value);
-    const nextPaid = Math.min(enteredPaise, totals.total);
-    paidInFull.current = nextPaid >= totals.total;
-    setAmountPaid(enteredPaise > totals.total ? moneyFromPaise(totals.total) : value);
+    paidInFull.current = value !== "" && toPaise(value) === totals.total;
+    setAmountPaid(value);
   }
 
-  return <form action={action} className="enrollment-grid">
+  const validationErrors = memberValidationErrors({ ...values, plan_id: planId, starts_on: startDate, expires_on: endDate, subtotal, discount, gst_rate: gstRate, amount_paid: amountPaid });
+  const visibleErrors = { ...Object.fromEntries(Object.entries(validationErrors).filter(([key]) => touched[key])), ...serverErrors };
+  function fieldProps(name: string) {
+    return { id: `member-${name}`, "aria-invalid": Boolean(visibleErrors[name]), "aria-describedby": visibleErrors[name] ? `member-${name}-error` : undefined };
+  }
+  function fieldError(name: string) {
+    return visibleErrors[name] ? <small className="field-error" id={`member-${name}-error`} aria-live="polite">{visibleErrors[name]}</small> : null;
+  }
+  function handleChange(event: FormEvent<HTMLFormElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+    setValues(Object.fromEntries(new FormData(event.currentTarget)));
+    setTouched(previous => ({ ...previous, [target.name]: true }));
+    setServerErrors(previous => {
+      const next = { ...previous };
+      delete next[target.name];
+      if (target.name === "phone") delete next.shared_phone;
+      return next;
+    });
+    if (target.name === "phone") setReactivateUrl(undefined);
+    setFormError(undefined);
+  }
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting.current) return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const errors = memberValidationErrors(Object.fromEntries(data));
+    setTouched(Object.fromEntries(Object.keys(errors).map(key => [key, true])));
+    if (Object.keys(errors).length) return;
+    submitting.current = true;
+    setPending(true);
+    setFormError(undefined);
+    try {
+      const result = await action(data);
+      if (result.ok) {
+        router.push(result.location);
+        return;
+      }
+      setServerErrors(result.fieldErrors);
+      setFormError(result.error);
+      setReactivateUrl(result.reactivateUrl);
+      const firstField = Object.keys(result.fieldErrors)[0];
+      if (firstField) (form.elements.namedItem(firstField) as HTMLElement | null)?.focus?.();
+    } catch {
+      setFormError("Could not activate membership. Your details and photo are still here. Please try again.");
+    }
+    submitting.current = false;
+    setPending(false);
+  }
+
+  return <form onSubmit={submit} onChange={handleChange} onBlur={event => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) setTouched(previous => ({ ...previous, [target.name]: true }));
+  }} noValidate className="enrollment-grid" aria-busy={pending}>
     <input type="hidden" name="due_on" value={followUpDate}/>
     <div className="enrollment-main">
-      {error && <div className="alert error">{error}</div>}
-      <section className="form-section"><div className="form-section-head"><span className="form-step"><UserRound size={17}/></span><div><p className="eyebrow">Member profile</p><h2>Personal details</h2></div></div><MemberPhotoField/><div className="form-grid"><div className="field"><label>Full name *</label><input name="name" required autoFocus placeholder="Member name"/></div><div className="field"><label>Phone *</label><input name="phone" required minLength={7} placeholder="Contact number with country code when outside India"/></div><div className="field"><label>Email</label><input name="email" type="email" placeholder="Optional, for receipts"/></div><div className="field"><label>Coach notes</label><input name="notes" placeholder="Goals, preferences, or notes"/></div></div><div className="form-options"><label className="form-option"><input type="checkbox" name="generate_qr" defaultChecked/><span><strong>Generate QR pass</strong><small>Open the new member QR after activation.</small></span></label><label className="form-option"><input type="checkbox" name="whatsapp_reminders_enabled"/><span><strong>WhatsApp reminder consent</strong><small>Enable only after the member agrees to receive automated payment reminders.</small></span></label></div></section>
+      {formError && <div className="alert error" role="alert">{formError}</div>}
+      <nav className="enrollment-steps" aria-label="New member sections">
+        <a href="#member-profile"><span>1</span><strong>Profile</strong><small>Name, contact and photo</small></a>
+        <a href="#member-plan"><span>2</span><strong>Membership</strong><small>Plan, dates and total</small></a>
+        <a href="#member-payment"><span>3</span><strong>Payment</strong><small>Collection and method</small></a>
+      </nav>
+      <section className="form-section enrollment-panel" id="member-profile"><div className="form-section-head"><span className="form-step"><UserRound size={17}/></span><div><p className="eyebrow">Member profile</p><h2>Personal details</h2></div></div><MemberPhotoField submissionPending={pending} onPhotoChange={() => setServerErrors(previous => {
+        const next = { ...previous }; delete next.profile_photo_data_url; return next;
+      })}/>{fieldError("profile_photo_data_url")}<div className="form-grid"><div className="field"><label htmlFor="member-name">Full name <span className="required-marker" aria-hidden="true">*</span></label><input name="name" {...fieldProps("name")} required autoFocus placeholder="Member name"/>{fieldError("name")}</div><div className="field"><label htmlFor="member-phone">Phone <span className="required-marker" aria-hidden="true">*</span></label><input name="phone" {...fieldProps("phone")} type="tel" autoComplete="tel" required placeholder="Contact number with country code when outside India"/>{fieldError("phone")}</div><div className="field"><label htmlFor="member-email">Email</label><input name="email" {...fieldProps("email")} type="email" placeholder="Optional, for receipts"/>{fieldError("email")}</div><div className="field"><label htmlFor="member-notes">Coach notes</label><input name="notes" {...fieldProps("notes")} placeholder="Goals, preferences, or notes"/>{fieldError("notes")}</div></div><div className="form-options enrollment-options"><label className="form-option"><input type="checkbox" name="generate_qr" defaultChecked/><span><strong>Generate QR pass</strong><small>Open the new member QR after activation.</small></span></label><label className="form-option"><input type="checkbox" name="whatsapp_reminders_enabled"/><span><strong>WhatsApp reminder consent</strong><small>Enable only after the member agrees to receive automated payment reminders.</small></span></label><div><label className="form-option"><input type="checkbox" name="shared_phone" {...fieldProps("shared_phone")}/><span><strong>Shared phone number</strong><small>Confirm this number is shared by up to 3 members.</small></span></label>{fieldError("shared_phone")}</div></div>{reactivateUrl && <Link href={reactivateUrl} className="button secondary small">Open archived member to reactivate</Link>}</section>
 
-      <section className="form-section"><div className="form-section-head"><span className="form-step"><Dumbbell size={17}/></span><div><p className="eyebrow">Membership</p><h2>Plan and membership period</h2></div></div><div className="form-grid"><div className="field"><label>Membership plan *</label><select name="plan_id" value={planId} onChange={(event) => selectPlan(event.target.value)} required>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {plan.duration_value} {plan.duration_unit}</option>)}</select></div><div className="field"><label>Start date *</label><input type="date" name="starts_on" value={startDate} onChange={(event) => changeStartDate(event.target.value)} required/></div><div className="field"><label>Plan end date *</label><input type="date" name="expires_on" value={endDate} onChange={(event) => setEndDate(event.target.value)} required/><small>Calculated from the selected plan; edit for exceptions.</small></div><div className="field"><label>Base plan price (₹) *</label><input type="number" name="subtotal" min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)} required/></div><div className="field"><label>Member discount (₹)</label><input type="number" name="discount" min="0" max={subtotal} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)}/></div><div className="field"><label>GST rate (%)</label><input type="number" name="gst_rate" min="0" max="100" step="0.01" value={gstRate} onChange={(event) => setGstRate(event.target.value)}/><small>Tax is calculated after the discount.</small></div></div></section>
+      <section className="form-section enrollment-panel" id="member-plan"><div className="form-section-head"><span className="form-step"><Dumbbell size={17}/></span><div><p className="eyebrow">Membership</p><h2>Plan and membership period</h2></div></div><div className="form-grid"><div className="field"><label htmlFor="member-plan_id">Membership plan <span className="required-marker" aria-hidden="true">*</span></label><select name="plan_id" {...fieldProps("plan_id")} value={planId} onChange={(event) => selectPlan(event.target.value)} required>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {plan.duration_value} {plan.duration_unit}</option>)}</select>{fieldError("plan_id")} </div><div className="field"><label htmlFor="member-starts_on">Start date <span className="required-marker" aria-hidden="true">*</span></label><input type="date" name="starts_on" {...fieldProps("starts_on")} value={startDate} onChange={(event) => changeStartDate(event.target.value)} required/>{fieldError("starts_on")}</div><div className="field"><label htmlFor="member-expires_on">Plan end date <span className="required-marker" aria-hidden="true">*</span></label><input type="date" name="expires_on" {...fieldProps("expires_on")} value={endDate} onChange={(event) => setEndDate(event.target.value)} required/>{fieldError("expires_on")}<small>Calculated from the selected plan; edit for exceptions.</small></div><div className="field"><label htmlFor="member-subtotal">Base plan price (₹) <span className="required-marker" aria-hidden="true">*</span></label><input type="number" name="subtotal" {...fieldProps("subtotal")} min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)} required/>{fieldError("subtotal")}</div><div className="field"><label htmlFor="member-discount">Member discount (₹)</label><input type="number" name="discount" {...fieldProps("discount")} min="0" max={subtotal} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)}/>{fieldError("discount")}</div><div className="field"><label htmlFor="member-gst_rate">GST rate (%)</label><input type="number" name="gst_rate" {...fieldProps("gst_rate")} min="0" max="100" step="0.01" value={gstRate} onChange={(event) => setGstRate(event.target.value)}/>{fieldError("gst_rate")}<small>Tax is calculated after the discount.</small></div></div></section>
 
-      <section className="form-section"><div className="form-section-head"><span className="form-step"><BadgeIndianRupee size={17}/></span><div><p className="eyebrow">Opening collection</p><h2>Initial payment</h2></div></div><div className="form-grid"><div className="field"><label>Amount paid now (₹)</label><input type="number" name="amount_paid" min="0" max={moneyFromPaise(totals.total)} step="0.01" value={amountPaid} onChange={(event) => changeAmountPaid(event.target.value)} required/><small>Defaults to the full total. Enter a lower amount for partial payment.</small></div><div className="field"><label>Payment date *</label><input type="date" name="paid_on" defaultValue={today} required/></div><div className="field"><label>Payment method *</label><select name="method"><option value="cash">Cash</option><option value="upi">UPI</option><option value="card">Card</option><option value="bank_transfer">Bank Transfer</option></select></div><div className="field"><label>Transaction/reference</label><input name="reference" placeholder="Optional reference number"/></div></div></section>
+      <section className="form-section enrollment-panel" id="member-payment"><div className="form-section-head"><span className="form-step"><BadgeIndianRupee size={17}/></span><div><p className="eyebrow">Opening collection</p><h2>Initial payment</h2></div></div><div className="form-grid"><div className="field"><label htmlFor="member-amount_paid">Amount paid now (₹) <span className="required-marker" aria-hidden="true">*</span></label><input type="number" name="amount_paid" {...fieldProps("amount_paid")} min="0" max={moneyFromPaise(totals.total)} step="0.01" value={amountPaid} onChange={(event) => changeAmountPaid(event.target.value)} required/>{fieldError("amount_paid")}<small>Defaults to the full total. Enter a lower amount for partial payment.</small></div><div className="field"><label htmlFor="member-paid_on">Payment date <span className="required-marker" aria-hidden="true">*</span></label><input type="date" name="paid_on" {...fieldProps("paid_on")} defaultValue={today} required/>{fieldError("paid_on")}</div><div className="field"><label htmlFor="member-method">Payment method <span className="required-marker" aria-hidden="true">*</span></label><select name="method" {...fieldProps("method")}><option value="cash">Cash</option><option value="upi">UPI</option><option value="card">Card</option><option value="bank_transfer">Bank Transfer</option></select>{fieldError("method")} </div><div className="field"><label htmlFor="member-reference">Transaction/reference</label><input name="reference" {...fieldProps("reference")} placeholder="Optional reference number"/>{fieldError("reference")}</div></div></section>
     </div>
 
-    <aside className="card enrollment-summary"><div className="summary-hero"><p className="eyebrow">Membership total</p><div className="summary-total">{formatInr(totals.total)}</div><span>{selectedPlan?.name ?? "Choose a plan"}{selectedPlan ? ` · ${selectedPlan.duration_value} ${selectedPlan.duration_unit}` : ""}</span></div><div className="summary-lines"><div className="summary-line"><span>Start date</span><strong>{formatDisplayDate(startDate)}</strong></div><div className="summary-line"><span>Plan end date</span><strong>{formatDisplayDate(endDate)}</strong></div><div className="summary-line"><span>Base price</span><strong>{formatInr(totals.price)}</strong></div><div className="summary-line"><span>Discount</span><strong>− {formatInr(totals.discount)}</strong></div><div className="summary-line"><span>GST ({Number(gstRate) || 0}%)</span><strong>{formatInr(totals.tax)}</strong></div><div className="summary-line"><span>Total price</span><strong>{formatInr(totals.total)}</strong></div><div className="summary-line"><span>Paid today</span><strong>{formatInr(totals.paid)}</strong></div><div className="summary-line outstanding"><span>Balance to recover</span><strong>{formatInr(totals.outstanding)}</strong></div></div><div className="summary-actions"><SubmitButton className="button" disabled={!plans.length} pendingLabel="Activating membership…">Activate membership</SubmitButton>{!plans.length && <p className="alert error" style={{ marginTop: 12, marginBottom: 0 }}>Create an active plan first.</p>}</div></aside>
+    <aside className="card enrollment-summary"><div className="summary-hero"><p className="eyebrow">Membership total</p><div className="summary-total">{formatInr(totals.total)}</div><span>{selectedPlan?.name ?? "Choose a plan"}{selectedPlan ? ` · ${selectedPlan.duration_value} ${selectedPlan.duration_unit}` : ""}</span></div><div className="summary-lines"><div className="summary-line"><span>Start date</span><strong>{formatDisplayDate(startDate)}</strong></div><div className="summary-line"><span>Plan end date</span><strong>{formatDisplayDate(endDate)}</strong></div><div className="summary-line"><span>Base price</span><strong>{formatInr(totals.price)}</strong></div><div className="summary-line"><span>Discount</span><strong>− {formatInr(totals.discount)}</strong></div><div className="summary-line"><span>GST ({Number(gstRate) || 0}%)</span><strong>{formatInr(totals.tax)}</strong></div><div className="summary-line"><span>Total price</span><strong>{formatInr(totals.total)}</strong></div><div className="summary-line"><span>Paid today</span><strong>{formatInr(totals.paid)}</strong></div><div className="summary-line outstanding"><span>Balance to recover</span><strong>{formatInr(totals.outstanding)}</strong></div></div><div className="summary-actions"><button type="submit" className="button" disabled={pending || !plans.length || Object.keys(validationErrors).length > 0 || Object.keys(serverErrors).length > 0}>{pending ? "Activating membership…" : "Activate membership"}</button>{!plans.length && <p className="alert error" style={{ marginTop: 12, marginBottom: 0 }}>Create an active plan first.</p>}</div></aside>
   </form>;
 }
