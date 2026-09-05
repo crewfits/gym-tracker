@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, CreditCard, Plus, QrCode, RefreshCw } from "lucide-react";
-import { reactivateMember, removeMistakenRenewal, renewMembership, reversePayment, updateChargeDueDate, updateMember } from "@/app/actions/core";
+import { reactivateMember, removeMistakenRenewal, renewMembership, reversePayment, updateMember } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
 import { MemberPhotoField } from "@/components/member-photo-field";
 import { MembershipForm } from "@/components/membership-form";
@@ -102,12 +102,6 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                     <span className="charge-total">Total price<strong>{formatInr(Number(charge.total_paise))}</strong></span>
                     <span>Collected<strong>{formatInr(membership.paid)}</strong></span>
                     <span>Balance<strong>{formatInr(membership.balance)}</strong></span>
-                    <form action={updateChargeDueDate} className="inline-date-form">
-                      <input type="hidden" name="member_id" value={id}/>
-                      <input type="hidden" name="charge_id" value={charge.id}/>
-                      <label>Follow-up date <input type="date" name="due_on" defaultValue={charge.due_on} required/></label>
-                      <SubmitButton className="button secondary small" pendingLabel="Updating...">Update</SubmitButton>
-                    </form>
                   </div>}
                   {charge && membership.balance > 0 && <div className="membership-actions">
                     <Link className="button small collect-button" href={`/members/${id}/pay?charge=${charge.id}`}><CreditCard size={14}/> Collect {formatInr(membership.balance)}</Link>

@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Activity, ArrowRight, CalendarClock, CheckCircle2, Clock3, IndianRupee, LogIn, RefreshCw, ScanLine, Sparkles, TrendingUp, UserPlus, WalletCards } from "lucide-react";
+import { Activity, ArrowRight, IndianRupee, LogIn, RefreshCw, ScanLine, Sparkles, TrendingUp, UserPlus, WalletCards } from "lucide-react";
 import { DashboardViewSelector } from "@/components/dashboard-view-selector";
 import { DashboardLiveRefresh } from "@/components/dashboard-live-refresh";
 import { requireGym } from "@/lib/auth";
-import { businessDate, formatDisplayDate, formatInr, formatPaymentMethod, memberOperationalView } from "@/lib/domain";
+import { businessDate, formatDisplayDate, formatInr, memberOperationalView } from "@/lib/domain";
 
 type DashboardSummary = { active_members: number; expiring_members: number; expired_members: number; total_members: number; new_members_month: number; outstanding_paise: number; overdue_paise: number; pending_accounts: number; today_collected_paise: number; today_payment_count: number; month_collected_paise: number; month_payment_count: number; renewals_month: number; attendance_entries_today: number; attendance_exits_today: number; attendance_inside_now: number; method_cash_paise: number; method_upi_paise: number; method_card_paise: number; method_bank_transfer_paise: number };
 type ExpiringMember = { id: string; member_code: string; name: string; plan_name: string | null; expires_on: string | null; membership_status: string };
@@ -25,7 +25,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     supabase.rpc("get_dashboard_summary", { p_today: today }),
     selectedView === "current" ? supabase.from("members").select("id,member_code,name,is_archived,memberships(id,plan_name,starts_on,expires_on,created_at,reverted_at)").eq("gym_id", gym.id).eq("is_archived", false) : Promise.resolve({ data: [], error: null }),
     supabase.rpc("get_dashboard_monthly_trends", { p_today: today, p_months: selectedView === "trends" ? 6 : 2 }),
-    selectedView === "current" ? supabase.from("attendance_events").select("member_id,occurred_at").eq("gym_id", gym.id).eq("direction", "entry").is("voided_at", null).gte("occurred_at", `${previousWeekStart}T00:00:00.000Z`).lte("occurred_at", `${addDays(today, 1)}T00:00:00.000Z`) : Promise.resolve({ data: [], error: null }),
+    selectedView === "current" ? supabase.from("attendance_events").select("member_id,occurred_at").eq("gym_id", gym.id).eq("direction", "entry").is("voided_at", null).gte("occurred_at", `${addDays(previousWeekStart, -1)}T00:00:00.000Z`).lte("occurred_at", `${addDays(today, 2)}T00:00:00.000Z`) : Promise.resolve({ data: [], error: null }),
   ]);
   if (summaryError) throw summaryError;
   if (statusMembersError) throw statusMembersError;
@@ -64,26 +64,26 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
       <div className="dashboard-hero-actions"><DashboardViewSelector value={selectedView}/><Link className="button" href="/members/new"><UserPlus size={16}/> Add member</Link></div>
     </div>
-    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} expiring={expiring} expired={expired} trends={trends} engagementEvents={engagementEvents} weekStart={weekStart} previousWeekStart={previousWeekStart} previousWeekEnd={previousWeekEnd} gymName={gym.name} timezone={gym.timezone}/>}
+    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} statusViews={statusViews} expiring={expiring} expired={expired} trends={trends} engagementEvents={engagementEvents} weekStart={weekStart} previousWeekStart={previousWeekStart} previousWeekEnd={previousWeekEnd} gymName={gym.name} timezone={gym.timezone}/>}
   </>;
 }
 
-function CurrentDashboard({ summary, expiring, expired, trends, engagementEvents, weekStart, previousWeekStart, previousWeekEnd, gymName, timezone }: { summary: DashboardSummary; expiring: ExpiringMember[]; expired: ExpiringMember[]; trends: MonthlyTrend[]; engagementEvents: EngagementEvent[]; weekStart: string; previousWeekStart: string; previousWeekEnd: string; gymName: string; timezone: string }) {
-  const averagePayment = Number(summary.month_payment_count) ? Math.round(Number(summary.month_collected_paise) / Number(summary.month_payment_count)) : 0;
-  const paymentMethods = [["cash", Number(summary.method_cash_paise)], ["upi", Number(summary.method_upi_paise)], ["card", Number(summary.method_card_paise)], ["bank_transfer", Number(summary.method_bank_transfer_paise)]] as const;
-  const methodMax = Math.max(1, ...paymentMethods.map(([, amount]) => amount));
+function CurrentDashboard({ summary, statusViews, expiring, expired, trends, engagementEvents, weekStart, previousWeekStart, previousWeekEnd, gymName, timezone }: { summary: DashboardSummary; statusViews: ExpiringMember[]; expiring: ExpiringMember[]; expired: ExpiringMember[]; trends: MonthlyTrend[]; engagementEvents: EngagementEvent[]; weekStart: string; previousWeekStart: string; previousWeekEnd: string; gymName: string; timezone: string }) {
   const healthTotal = Math.max(1, Number(summary.active_members) + Number(summary.expiring_members) + Number(summary.expired_members));
   const activeAngle = (Number(summary.active_members) / healthTotal) * 360;
   const expiringAngle = activeAngle + (Number(summary.expiring_members) / healthTotal) * 360;
   const activeRoster = Math.max(1, Number(summary.active_members));
   const currentTrend = trends.at(-1) ?? { month_start: "", new_members: 0, collected_paise: 0, payment_count: 0, renewals: 0 };
   const previousTrend = trends.at(-2) ?? currentTrend;
-  const currentWeekVisitors = uniqueVisitors(engagementEvents, weekStart, undefined, timezone);
-  const previousWeekVisitors = uniqueVisitors(engagementEvents, previousWeekStart, previousWeekEnd, timezone);
+  const engagementRosterIds = new Set(statusViews.filter((member) => member.membership_status === "active" || member.membership_status === "expiring").map((member) => member.id));
+  const currentWeekVisitorIds = visitorSet(engagementEvents, weekStart, undefined, timezone, engagementRosterIds);
+  const previousWeekVisitorIds = visitorSet(engagementEvents, previousWeekStart, previousWeekEnd, timezone, engagementRosterIds);
+  const currentWeekVisitors = currentWeekVisitorIds.size;
+  const previousWeekVisitors = previousWeekVisitorIds.size;
   const engagementRate = Math.min(100, Math.round((currentWeekVisitors / activeRoster) * 100));
   const previousEngagementRate = Math.min(100, Math.round((previousWeekVisitors / activeRoster) * 100));
   const slippingMembers = Math.max(0, Number(summary.active_members) - currentWeekVisitors);
-  const priorityAreaCount = [Number(summary.expiring_members), Number(summary.overdue_paise), Number(summary.pending_accounts)].filter(Boolean).length;
+  const priorityAreaCount = [Number(summary.expiring_members), Number(summary.expired_members), Number(summary.pending_accounts)].filter(Boolean).length;
 
   return <div className="dashboard-sections">
     <div className="dashboard-command-grid">
@@ -96,59 +96,45 @@ function CurrentDashboard({ summary, expiring, expired, trends, engagementEvents
         <div className="gym-pulse-stats">
           <Link href="/attendance"><span className="pulse-stat-icon entry"><LogIn size={18}/></span><span><strong>{summary.attendance_entries_today}</strong><small>Check-ins</small></span></Link>
           <Link href="/attendance?direction=exit"><span className="pulse-stat-icon exit"><ScanLine size={18}/></span><span><strong>{summary.attendance_exits_today}</strong><small>Check-outs</small></span></Link>
-          <Link href="/transactions"><span className="pulse-stat-icon cash"><IndianRupee size={18}/></span><span><strong>{formatInr(Number(summary.today_collected_paise))}</strong><small>Collected today</small></span></Link>
+          <Link href="/transactions?range=today"><span className="pulse-stat-icon cash"><IndianRupee size={18}/></span><span><strong>{formatInr(Number(summary.today_collected_paise))}</strong><small>Collected today</small></span></Link>
         </div>
-      </section>
-
-      <aside className="priority-card">
-        <div className="priority-head"><div><span className="dashboard-kicker">Priority queue</span><h2>{priorityAreaCount ? `${priorityAreaCount} items need you!` : "You're all caught up"}</h2></div><span className={`priority-count ${priorityAreaCount ? "has-items" : "is-clear"}`}>{priorityAreaCount || <CheckCircle2 size={20}/>}</span></div>
-        <div className="priority-list">
-          <Priority href="/reminders?filter=expiring" icon={<Clock3/>} tone="amber" label="Memberships expiring" value={String(summary.expiring_members)} detail="within the next 7 days"/>
-          <Priority href="/members?status=outstanding" icon={<CalendarClock/>} tone="red" label="Overdue to recover" value={formatInr(Number(summary.overdue_paise))} detail="past the payment follow-up date"/>
-          <Priority href="/members?status=outstanding" icon={<WalletCards/>} tone="violet" label="Pending accounts" value={String(summary.pending_accounts)} detail={`${formatInr(Number(summary.outstanding_paise))} open balance total`}/>
-        </div>
-        <Link className="priority-footer" href="/reminders">Open follow-up centre <ArrowRight size={16}/></Link>
-      </aside>
-    </div>
-
-    <div className="dashboard-insight-grid">
-      <section className="insight-card membership-health-card">
-        <div className="insight-head"><div><span className="dashboard-kicker">Membership health</span><h2>Access status</h2></div><Link href="/members">View roster <ArrowRight size={14}/></Link></div>
-        <div className="health-content">
-          <div className="health-ring" style={{ background: `conic-gradient(#18a66a 0deg ${activeAngle}deg, #f5a524 ${activeAngle}deg ${expiringAngle}deg, #e45858 ${expiringAngle}deg 360deg)` }}><div><strong>{summary.total_members}</strong><span>Total</span></div></div>
-          <div className="health-legend">
-            <HealthItem href="/members?status=active" tone="green" label="Active" value={summary.active_members}/>
-            <HealthItem href="/members?status=expiring" tone="amber" label="Expiring" value={summary.expiring_members}/>
-            <HealthItem href="/members?status=expired" tone="red" label="Expired" value={summary.expired_members}/>
-          </div>
-        </div>
-      </section>
-
-      <section className="insight-card revenue-card">
-        <div className="insight-head"><div><span className="dashboard-kicker">Collections</span><h2>This month</h2></div><Link href="/transactions">Open ledger <ArrowRight size={14}/></Link></div>
-        <div className="revenue-total"><strong>{formatInr(Number(summary.month_collected_paise))}</strong><span>{summary.month_payment_count} payments · {formatInr(averagePayment)} average</span></div>
-        <div className="revenue-methods">{paymentMethods.map(([method, amount]) => <div className="revenue-method" key={method}><div><span>{formatPaymentMethod(method)}</span><strong>{formatInr(amount)}</strong></div><div className="mix-track"><span style={{ width: `${(amount / methodMax) * 100}%` }}/></div></div>)}</div>
       </section>
 
       <section className="insight-card momentum-card">
         <div className="insight-head"><div><span className="dashboard-kicker">Momentum</span><h2>This month</h2></div><span className="spark-icon"><Sparkles size={18}/></span></div>
         <div className="momentum-list">
           <Momentum icon={<UserPlus/>} label="New members" value={signedNumber(Number(summary.new_members_month))} detail={percentChangeLabel(Number(currentTrend.new_members), Number(previousTrend.new_members))} href="/members"/>
-          <Momentum icon={<RefreshCw/>} label="Renewals" value={String(summary.renewals_month)} detail={countChangeLabel(Number(currentTrend.renewals), Number(previousTrend.renewals))} href="/transactions"/>
-          <Momentum icon={<TrendingUp/>} label="Collections" value={formatInr(Number(summary.month_collected_paise))} detail={percentChangeLabel(Number(currentTrend.collected_paise), Number(previousTrend.collected_paise))} href="/transactions"/>
+          <Momentum icon={<RefreshCw/>} label="Renewals" value={String(summary.renewals_month)} detail={countChangeLabel(Number(currentTrend.renewals), Number(previousTrend.renewals))} href="/transactions?range=month"/>
+          <Momentum icon={<TrendingUp/>} label="Collections" value={formatInr(Number(summary.month_collected_paise))} detail={percentChangeLabel(Number(currentTrend.collected_paise), Number(previousTrend.collected_paise))} href="/transactions?range=month"/>
+        </div>
+      </section>
+    </div>
+
+    <div className="dashboard-insight-grid">
+      <section className="insight-card membership-health-card">
+        <div className="insight-head"><div><span className="dashboard-kicker">Priority queue</span><h2>{priorityAreaCount ? `${priorityAreaCount} items need you!` : "Access is clear"}</h2></div><Link href="/reminders">Open follow-up <ArrowRight size={14}/></Link></div>
+        <div className="health-content">
+          <div className="health-ring" style={{ background: `conic-gradient(#18a66a 0deg ${activeAngle}deg, #f5a524 ${activeAngle}deg ${expiringAngle}deg, #e45858 ${expiringAngle}deg 360deg)` }}><div><strong>{summary.total_members}</strong><span>Total</span></div></div>
+          <div className="health-legend">
+            <HealthItem href="/members?status=active" tone="green" label="Active" value={summary.active_members}/>
+            <HealthItem href="/reminders?filter=expiring" tone="amber" label="Expiring soon" value={summary.expiring_members}/>
+            <HealthItem href="/reminders?filter=expired" tone="red" label="Already expired" value={summary.expired_members}/>
+            <HealthItem href="/members?status=outstanding" tone="violet" label="Pending accounts" value={summary.pending_accounts}/>
+          </div>
+        </div>
+      </section>
+
+      <section className="card engagement-health-card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Weekly Member Engagement</span><h2>Engagement health</h2><span className="muted">How much of the active roster showed up this week.</span></div><Link className="text-link" href="/attendance?view=history">View attendance <ArrowRight size={15}/></Link></div>
+        <div className="engagement-board">
+          <EngagementRow href="/members?status=visited_this_week" tone="green" label="Visited this week" value={`${currentWeekVisitors}/${summary.active_members}`} detail={`${engagementRate}% of active roster`}/>
+          <EngagementRow href="/members?status=slipping" tone="amber" label="Slipping" value={`${slippingMembers}`} detail="Active members with no visit"/>
+          <EngagementRow href="/members?status=visited_last_week" tone="blue" label="Last week" value={`${previousWeekVisitors}/${summary.active_members}`} detail={`${previousEngagementRate}% visited`}/>
+          <EngagementRow href="/members?status=visited_this_week" tone="violet" label="Trend" value={engagementDeltaValue(engagementRate, previousEngagementRate)} detail="Compared with last week"/>
         </div>
       </section>
     </div>
 
     <div className="dashboard-overview">
-      <section className="card engagement-health-card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Member engagement</span><h2>Engagement health</h2><span className="muted">How much of the active roster showed up this week.</span></div><Link className="text-link" href="/attendance?view=history">View attendance <ArrowRight size={15}/></Link></div>
-        <div className="engagement-board">
-          <EngagementRow tone="green" label="Visited this week" value={`${currentWeekVisitors}/${summary.active_members}`} detail={`${engagementRate}% of active roster`}/>
-          <EngagementRow tone="amber" label="Slipping" value={`${slippingMembers}`} detail="Active members with no visit"/>
-          <EngagementRow tone="blue" label="Last week" value={`${previousWeekVisitors}/${summary.active_members}`} detail={`${previousEngagementRate}% visited`}/>
-          <EngagementRow tone="violet" label="Trend" value={engagementDeltaValue(engagementRate, previousEngagementRate)} detail="Compared with last week"/>
-        </div>
-      </section>
       <div className="dashboard-followup-grid">
       <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Member follow-up</span><h2>Expiring in 7 days</h2><span className="muted">Open an individual reminder before the membership ends.</span></div><Link className="text-link" href="/reminders?filter=expiring">Open reminders <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Plan end</th><th>Status</th></tr></thead><tbody>{expiring.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className={`badge ${item.membership_status}`}>{statusLabel(item.membership_status)}</span></td></tr>)}</tbody></table>{!expiring.length && <div className="empty">No memberships expire in the next 7 days.</div>}</div></section>
       <section className="card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Recovery watch</span><h2>Already expired</h2><span className="muted">Members whose access has already ended.</span></div><Link className="text-link" href="/reminders?filter=expired">Open reminders <ArrowRight size={15}/></Link></div><div className="table-wrap"><table className="table"><thead><tr><th>Member</th><th>Plan</th><th>Ended on</th><th>Status</th></tr></thead><tbody>{expired.map((item) => <tr key={item.id}><td><Link href={`/members/${item.id}`}><strong>{item.name}</strong><br/><small className="muted">{item.member_code}</small></Link></td><td>{item.plan_name ?? "—"}</td><td>{formatDisplayDate(item.expires_on)}</td><td><span className="badge expired">Expired</span></td></tr>)}</tbody></table>{!expired.length && <div className="empty">No expired memberships right now.</div>}</div></section>
@@ -186,8 +172,7 @@ function TrendDashboard({ trends }: { trends: MonthlyTrend[] }) {
   </div>;
 }
 
-function Priority({ href, icon, tone, label, value, detail }: { href: string; icon: ReactNode; tone: string; label: string; value: string; detail: string }) { return <Link href={href} className="priority-item"><span className={`priority-icon ${tone}`}>{icon}</span><span className="priority-copy"><strong>{label}</strong><small>{detail}</small></span><span className="priority-value">{value}</span><ArrowRight className="priority-arrow" size={15}/></Link>; }
-function EngagementRow({ tone, label, value, detail }: { tone: string; label: string; value: string; detail: string }) { return <div className={`engagement-row ${tone}`}><span><strong>{label}</strong><small>{detail}</small></span><b>{value}</b></div>; }
+function EngagementRow({ href, tone, label, value, detail }: { href: string; tone: string; label: string; value: string; detail: string }) { return <Link href={href} className={`engagement-row ${tone}`}><span><strong>{label}</strong><small>{detail}</small></span><b>{value}</b></Link>; }
 function HealthItem({ href, tone, label, value }: { href: string; tone: string; label: string; value: number }) { return <Link href={href} className="health-item"><i className={tone}/><span>{label}</span><strong>{value}</strong></Link>; }
 function Momentum({ href, icon, label, value, detail }: { href: string; icon: ReactNode; label: string; value: string; detail: string }) { return <Link href={href} className="momentum-item"><span>{icon}</span><div><small>{label}</small><strong>{value}</strong><em>{detail}</em></div><ArrowRight size={15}/></Link>; }
 function Comparison({ icon, label, value, change: delta }: { icon: ReactNode; label: string; value: string; change: number | null }) { return <div className="comparison-card"><span className="comparison-icon">{icon}</span><span className="metric-label">{label}</span><div className="metric">{value}</div><span className={`trend-change ${delta !== null && delta < 0 ? "down" : "up"}`}>{delta === null ? "New baseline" : `${delta >= 0 ? "+" : ""}${delta}% vs last month`}</span></div>; }
@@ -217,11 +202,12 @@ function insideNowHeadline(count: number) {
   if (count === 0) return <>No members inside now</>;
   return <><strong>{count}</strong> {count === 1 ? "member" : "members"} inside now</>;
 }
-function uniqueVisitors(events: EngagementEvent[], from: string, to: string | undefined, timezone: string) {
+function visitorSet(events: EngagementEvent[], from: string, to: string | undefined, timezone: string, allowedMemberIds: Set<string>) {
   return new Set(events.filter((event) => {
+    if (!allowedMemberIds.has(event.member_id)) return false;
     const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date(event.occurred_at));
     return localDate >= from && (!to || localDate <= to);
-  }).map((event) => event.member_id)).size;
+  }).map((event) => event.member_id));
 }
 function startOfWeek(date: string) {
   const parsed = new Date(`${date}T00:00:00Z`);

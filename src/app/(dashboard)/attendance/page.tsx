@@ -4,12 +4,13 @@ import { ArrowDownToLine, LogIn, LogOut, RefreshCw, UserRoundCheck } from "lucid
 import { correctAttendanceLog } from "@/app/actions/attendance";
 import { AttendanceCorrectionForm } from "@/components/attendance-correction-form";
 import { Feedback } from "@/components/feedback";
+import { Pagination } from "@/components/pagination";
 import { requireGym } from "@/lib/auth";
 import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/domain";
 import type { AttendanceDirection } from "@/lib/types";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
 
-const pageSize = 50;
+const pageSize = 10;
 const allowedViews = new Set(["today", "inside", "missed", "history"]);
 const attendanceSorts = new Set(["occurred_at", "member_name"]);
 
@@ -80,7 +81,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     <div className="cards dashboard-kpis"><Metric href="/attendance" icon={<LogIn/>} label="Check-ins today" value={countOf(entries.data)}/><Metric href="/attendance?direction=exit" icon={<LogOut/>} label="Check-outs today" value={countOf(exits.data)}/><Metric href="/attendance?view=inside" icon={<UserRoundCheck/>} label="Currently inside" value={countOf(inside.data)}/><Metric href="/attendance?view=missed" icon={<LogOut/>} label="Missing yesterday's check-out" value={countOf(missed.data)}/></div>
     <form className="attendance-filters card">{sort !== "occurred_at" && <input type="hidden" name="sort" value={sort}/>} {(sort !== "occurred_at" || order !== "desc") && <input type="hidden" name="order" value={order}/>}<div className="toolbar"><input className="search" name="q" defaultValue={q} maxLength={100} placeholder="Search member, ID or phone"/><select className="search" name="view" defaultValue={view}><option value="today">Today</option><option value="inside">Currently inside</option><option value="history">History</option>{view === "missed" && <option value="missed">Missing yesterday&apos;s check-out</option>}</select><button className="button">Apply</button><Link className="button secondary" href="/attendance">Clear</Link></div><details open={view === "history" || Boolean(direction || from || to)}><summary>More filters</summary><div className="form-grid attendance-more"><div className="field"><label>Attendance type</label><select name="direction" defaultValue={direction ?? ""}><option value="">Check-in and Check-out</option><option value="entry">Check-in</option><option value="exit">Check-out</option></select></div><div className="field"><label>From</label><input type="date" name="from" defaultValue={from ?? ""}/></div><div className="field"><label>To</label><input type="date" name="to" defaultValue={to ?? ""}/></div></div></details></form>
     <div className="card table-wrap"><table className="table"><thead><tr><SortableTableHeader label="Time" href={hrefForSort("occurred_at", "desc")} active={sort === "occurred_at"} order={order}/><SortableTableHeader label="Member" href={hrefForSort("member_name", "asc")} active={sort === "member_name"} order={order}/><th>Attendance</th><th>Membership</th><th>Actions</th></tr></thead><tbody>{events.map((event) => <tr key={event.id}><td>{formatDisplayDateTime(event.occurred_at, gym.timezone)}</td><td><Link href={`/members/${event.member_id}`}><strong>{event.member_name}</strong><br/><small className="muted">{event.member_code}</small></Link></td><td><span className={`badge ${event.direction === "entry" ? "active" : "upcoming"}`}>{attendanceLabel(event.direction)}</span>{event.source === "manual" && <><br/><small className="muted">Manual correction</small></>}</td><td>{event.plan_name ?? "—"}</td><td>{event.can_undo ? <AttendanceCorrectionForm action={correctAttendanceLog} eventId={event.id} requestId={randomUUID()} returnPath={refreshHref} direction={event.direction} replacementDirection={event.replacement_direction}/> : <span className="muted">—</span>}</td></tr>)}</tbody></table>{!events.length && <div className="empty">No attendance records match this view.</div>}</div>
-    <div className="pagination"><span className="muted">{total ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}` : "0 events"}</span><div>{page > 1 && <Link className="button secondary small" href={`/attendance?${queryFor({ targetPage: page - 1 }).toString()}`}>Previous</Link>}{page < pages && <Link className="button secondary small" href={`/attendance?${queryFor({ targetPage: page + 1 }).toString()}`}>Next</Link>}</div></div>
+    <Pagination page={page} pages={pages} total={total} label="events" pageSize={pageSize} hrefForPage={(targetPage) => `/attendance?${queryFor({ targetPage }).toString()}`.replace(/\?$/, "")}/>
   </>;
 }
 

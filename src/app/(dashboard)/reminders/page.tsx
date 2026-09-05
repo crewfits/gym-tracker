@@ -3,6 +3,7 @@ import { Send } from "lucide-react";
 import { runAutomaticMembershipReminders } from "@/app/actions/reminders";
 import { Feedback } from "@/components/feedback";
 import { OpenWhatsAppReminderButton } from "@/components/open-whatsapp-reminder-button";
+import { Pagination } from "@/components/pagination";
 import { RefreshButton } from "@/components/refresh-button";
 import { SubmitButton } from "@/components/submit-button";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
@@ -74,7 +75,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
     <Feedback success={params.success} error={params.error}/>
     <nav className="filter-tabs" aria-label="Reminder queues"><ReminderTab href={filterHref("")} active={!selectedFilter} label="All" count={expiredCount + expiringCount}/><ReminderTab href={filterHref("expiring")} active={selectedFilter === "expiring"} label="Expiring" count={expiringCount}/><ReminderTab href={filterHref("expired")} active={selectedFilter === "expired"} label="Expired" count={expiredCount}/></nav>
     <section className="card table-wrap"><table className="table"><thead><tr><SortableTableHeader label="Member" href={hrefForSort("member_name", "asc")} active={sort === "member_name"} order={order}/><th>Reason</th><SortableTableHeader label="Plan date" href={hrefForSort("candidate_date", "asc")} active={sort === "candidate_date"} order={order}/><th>Action</th></tr></thead><tbody>{candidates.map((candidate) => <tr key={`${candidate.candidate_kind}-${candidate.membership_id}`}><td><Link href={`/members/${candidate.member_id}`}><strong>{candidate.member_name}</strong><br/><small className="muted">{candidate.member_code} · {candidate.phone}</small></Link></td><td><strong>{reminderLabel(candidate.candidate_kind)}</strong><br/><small className="muted">{candidate.plan_name}</small></td><td><strong>{formatDisplayDate(candidate.candidate_date)}</strong><br/><small className="muted">{dateLabel(candidate.candidate_kind)}</small></td><td><OpenWhatsAppReminderButton kind="renewal" memberId={candidate.member_id} membershipId={candidate.membership_id} chargeId={null}/></td></tr>)}</tbody></table>{!candidates.length && <div className="empty"><strong>{emptyTitle(selectedFilter)}</strong><br/><span>{emptyDetail(selectedFilter)}</span></div>}</section>
-    <div className="pagination"><span className="muted">{total ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}` : "0 reminders"}</span><div>{page > 1 && <Link className="button secondary small" href={pageHref(page - 1)}>Previous</Link>}{page < pages && <Link className="button secondary small" href={pageHref(page + 1)}>Next</Link>}</div></div>
+    <Pagination page={page} pages={pages} total={total} label="reminders" pageSize={pageSize} hrefForPage={pageHref}/>
   </>;
 }
 
