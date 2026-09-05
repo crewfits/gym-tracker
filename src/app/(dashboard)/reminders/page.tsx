@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Send } from "lucide-react";
-import { runAutomaticMembershipReminders } from "@/app/actions/reminders";
+// import { Send } from "lucide-react";
+// import { runAutomaticMembershipReminders } from "@/app/actions/reminders";
 import { Feedback } from "@/components/feedback";
 import { OpenWhatsAppReminderButton } from "@/components/open-whatsapp-reminder-button";
 import { RefreshButton } from "@/components/refresh-button";
-import { SubmitButton } from "@/components/submit-button";
+// import { SubmitButton } from "@/components/submit-button";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
 import { requireGym } from "@/lib/auth";
 import { businessDate, formatDisplayDate, memberOperationalView } from "@/lib/domain";
@@ -69,7 +69,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
   return <>
     <div className="page-head reminder-page-head">
       <div><p className="eyebrow">Owner follow-up</p><h1>Reminders</h1><p className="muted">Send WhatsApp renewal nudges for members expiring soon or already expired.</p></div>
-      <div className="reminder-actions"><form action={runAutomaticMembershipReminders}><SubmitButton className="button small" pendingLabel="Sending reminders..."><Send size={15}/> Send due WhatsApp reminders</SubmitButton></form><RefreshButton/></div>
+      <div className="reminder-actions">{/* Automation paused: <form action={runAutomaticMembershipReminders}><SubmitButton className="button small" pendingLabel="Sending reminders..."><Send size={15}/> Send due WhatsApp reminders</SubmitButton></form> */}<RefreshButton/></div>
     </div>
     <Feedback success={params.success} error={params.error}/>
     <nav className="filter-tabs" aria-label="Reminder queues"><ReminderTab href={filterHref("")} active={!selectedFilter} label="All" count={expiredCount + expiringCount}/><ReminderTab href={filterHref("expiring")} active={selectedFilter === "expiring"} label="Expiring" count={expiringCount}/><ReminderTab href={filterHref("expired")} active={selectedFilter === "expired"} label="Expired" count={expiredCount}/></nav>

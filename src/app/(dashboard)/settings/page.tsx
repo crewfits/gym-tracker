@@ -1,4 +1,4 @@
-import { BellRing, Building2, ReceiptText } from "lucide-react";
+import { Building2, ReceiptText } from "lucide-react";
 import { updateSettings } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
 import { SubmitButton } from "@/components/submit-button";
@@ -15,7 +15,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       <div>
         <p className="eyebrow">Configuration</p>
         <h1>Gym settings</h1>
-        <p className="muted">Keep business details, receipts, timezone, and automation aligned.</p>
+        <p className="muted">Keep business details, receipts, and timezone aligned.</p>
       </div>
     </div>
     <Feedback success={success} error={error}/>
@@ -46,6 +46,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         </section>
       </div>
 
+      {/* Automation UI paused; retained for future use.
       <section className="card form settings-card settings-automation-card">
         <div className="settings-section-head">
           <span><BellRing size={18}/></span>
@@ -60,6 +61,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <input type="hidden" name="automatic_payment_whatsapp_enabled" value={gym.automatic_payment_whatsapp_enabled ? "on" : ""}/><label className="toggle"><input disabled type="checkbox" defaultChecked={Boolean(gym.automatic_payment_whatsapp_enabled)}/><span/></label>
         </div>
       </section>
+      */}
 
       <div className="settings-save"><SubmitButton className="button" pendingLabel="Saving settings...">Save settings</SubmitButton></div>
     </form>

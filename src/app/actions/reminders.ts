@@ -1,16 +1,19 @@
 "use server";
 
-import { redirect } from "next/navigation";
+// import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireGym } from "@/lib/auth";
 import { formatDisplayDate, formatInr } from "@/lib/domain";
 import { renderReminderTemplate, whatsappNumber } from "@/lib/reminders";
-import { processAutomaticMembershipReminders, processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
+// import { processAutomaticMembershipReminders, processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
 
+/* Automation-only helper paused.
 function fail(error: unknown): never {
   const message = error instanceof Error ? error.message : String(error);
   redirect(`/reminders?error=${encodeURIComponent(message)}`);
 }
+
+*/
 
 type OpenReminderResult = { ok: true; url: string } | { ok: false; error: string };
 
@@ -75,6 +78,7 @@ export async function openWhatsAppReminder(formData: FormData): Promise<OpenRemi
   }
 }
 
+/* Automated send actions are not exposed while manual-only mode is enabled.
 export async function runAutomaticPaymentReminders() {
   let message = "";
   try {
@@ -98,3 +102,5 @@ export async function runAutomaticMembershipReminders() {
   }
   redirect(`/reminders?success=${encodeURIComponent(message)}`);
 }
+
+*/

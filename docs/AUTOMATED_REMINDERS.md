@@ -1,6 +1,6 @@
 # Automated WhatsApp payment reminders
 
-> Current operating mode (2026-09-05): WhatsApp reminders are owner-triggered only. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
+> Current operating mode (2026-09-05): WhatsApp reminders are individual owner-reviewed click-to-chat only. The bulk Meta send button, automated Server Actions, and automation settings UI are commented out; saving Settings preserves existing Supabase reminder configuration. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
 
 FitKiro can submit one approved WhatsApp Utility template for memberships approaching expiry. Automation is opt-in at both gym and member level, uses Meta WhatsApp Cloud API directly, records submitted/skipped/failed attempts, and will not submit the same membership/rule reminder twice for the same scheduled date.
 

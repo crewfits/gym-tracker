@@ -293,14 +293,17 @@ export async function updateSettings(formData: FormData) {
       gstin: z.string(),
       timezone: text,
       receipt_prefix: z.string().trim().min(1).max(8),
+      // Reminder settings are preserved in Supabase; the UI cannot change them.
+/*
       payment_reminder_template: text,
       renewal_reminder_template: text,
       automatic_payment_whatsapp_enabled: z.string().optional(),
       whatsapp_payment_template_name: z.string().trim().min(1).regex(/^[a-z0-9_]+$/),
       whatsapp_template_language: z.string().trim().min(2),
+*/
     }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requireGym();
-    const { error } = await supabase.from("gyms").update({ ...input, email: input.email || null, automatic_payment_whatsapp_enabled: input.automatic_payment_whatsapp_enabled === "on" }).eq("id", gym.id); if (error) throw error;
+    const { error } = await supabase.from("gyms").update({ ...input, email: input.email || null }).eq("id", gym.id); if (error) throw error;
     done("/settings", "Settings saved");
   } catch (e) { fail("/settings", e); }
 }
