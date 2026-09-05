@@ -96,7 +96,7 @@ export default async function Transactions({ searchParams }: PageProps<"/transac
           <div><span className="dashboard-kicker">Payment mix</span><h2>{methodTotal ? formatPaymentMethod(topMethod[0]) : "No collections yet"}</h2><p>{methodTotal ? `${Math.round((topMethod[1] / methodTotal) * 100)}% of this view came through ${formatPaymentMethod(topMethod[0])}.` : "Once collections come in, each payment channel will light up here."}</p></div>
           <div className="mix-total"><span>Total split</span><strong>{formatInr(methodTotal)}</strong></div>
         </div>
-        <div className="mix-share-rail" aria-label="Payment method share">{methodAmounts.map(([method, amount]) => <span className={`mix-segment ${method}`} key={method} style={{ flexGrow: methodTotal ? Math.max(1, amount) : 1 }} title={`${formatPaymentMethod(method)} ${formatInr(amount)}`}/>)}</div>
+        <div className="mix-share-rail" aria-label="Payment method share">{methodAmounts.map(([method, amount]) => amount > 0 && <span className={`mix-segment ${method}`} key={method} style={{ flexGrow: amount }} title={`${formatPaymentMethod(method)} ${formatInr(amount)}`}/>)}</div>
         <div className="ledger-method-grid">{methodAmounts.map(([method, amount]) => {
           const meta = methodMeta(method);
           const Icon = meta.icon;
