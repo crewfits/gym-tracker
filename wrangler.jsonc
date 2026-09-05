@@ -11,11 +11,10 @@
   "vars": {
     "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com",
     "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91",
-    "WHATSAPP_GRAPH_API_VERSION": "v23.0"
+    "WHATSAPP_GRAPH_API_VERSION": "v25.0"
   },
-  "triggers": {
-    "crons": ["0 3 * * *"]
-  },
+  // WhatsApp scheduling is paused; retain the trigger configuration for later.
+  // "triggers": { "crons": ["0 3 * * *"] },
   "routes": [
     {
       "pattern": "musclefitness.fitkiro.com",

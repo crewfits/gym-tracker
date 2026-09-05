@@ -39,6 +39,8 @@ Record evidence and the tester for every item in the release issue. A failed req
 - [ ] Every charge has a visible/editable due date.
 - [ ] Due-today, overdue, and expiring queues are correct in the gym timezone.
 - [ ] Opening a reminder creates an `opened` WhatsApp audit event and never claims sent/delivered.
+- [ ] Automatic WhatsApp expiry-payment reminders require gym enablement, member opt-in, an approved Utility template, and matching Cloudflare/Supabase `CRON_SECRET` values.
+- [ ] Apply the cron-pause migration and deploy the disabled cron endpoint; verify no scheduled WhatsApp sends occur and owner-triggered reminders remain available.
 - [ ] Prefilled payment and renewal messages use the configured templates and correct member phone.
 - [ ] Payment reversal retains the original receipt and updates balances/exports.
 

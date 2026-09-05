@@ -3,6 +3,10 @@
 // @ts-ignore Generated during `opennextjs-cloudflare build`.
 import openNextWorker from "./.open-next/worker.js";
 
+export default openNextWorker;
+
+// Scheduled handler paused; preserved for a future explicitly enabled rollout.
+/*
 type ReminderWorkerEnv = {
   CRON_SECRET?: string;
   NEXT_PUBLIC_APP_URL?: string;
@@ -37,3 +41,5 @@ const worker = {
 };
 
 export default worker;
+
+*/

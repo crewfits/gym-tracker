@@ -1,5 +1,7 @@
 # FitKiro product overview
 
+> Current operating mode (2026-09-05): WhatsApp reminders are owner-triggered only. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
+
 Last reviewed: 2026-08-23
 
 This document defines the intended product boundary. Update it whenever a major user flow, product decision, or scope boundary changes.
@@ -44,7 +46,7 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 - Produce immutable receipt numbers and signed, member-readable receipt links for individual WhatsApp sharing.
 - Void incorrect payments with a reason instead of deleting them.
 - Open owner-reviewed WhatsApp payment/renewal reminders and record only that the handoff was opened.
-- Optionally submit one idempotent WhatsApp Utility template on the charge follow-up date for members who have opted in, recording submitted, skipped, or failed attempts.
+- Optionally submit an idempotent WhatsApp Utility template 7 days before membership expiry and on expiry day for opted-in members without a future renewal, recording submitted, skipped, or failed attempts.
 
 ### Daily operations and reporting
 

@@ -49,15 +49,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       <section className="card form settings-card settings-automation-card">
         <div className="settings-section-head">
           <span><BellRing size={18}/></span>
-          <div><h2>Automation</h2><p className="muted">Your approved Meta template is managed in Meta Business. FitKiro only controls whether automatic payment reminders are enabled.</p></div>
+          <div><h2>Automation</h2><p className="muted">Scheduled WhatsApp reminders are paused. Use the reminder actions to send manually.</p></div>
         </div>
         <input type="hidden" name="payment_reminder_template" value={gym.payment_reminder_template}/>
         <input type="hidden" name="renewal_reminder_template" value={gym.renewal_reminder_template}/>
-        <input type="hidden" name="whatsapp_payment_template_name" value={gym.whatsapp_payment_template_name ?? "fitkiro_payment_follow_up"}/>
-        <input type="hidden" name="whatsapp_template_language" value={gym.whatsapp_template_language ?? "en"}/>
+        <input type="hidden" name="whatsapp_payment_template_name" value={gym.whatsapp_payment_template_name ?? "membership_payment_reminder"}/>
+        <input type="hidden" name="whatsapp_template_language" value={gym.whatsapp_template_language ?? "en_US"}/>
         <div className="automation-setting compact">
-          <div><strong>Automatic payment reminders</strong><p className="muted">Use only for members who have consented to WhatsApp reminders.</p></div>
-          <label className="toggle"><input type="checkbox" name="automatic_payment_whatsapp_enabled" defaultChecked={Boolean(gym.automatic_payment_whatsapp_enabled)}/><span/></label>
+          <div><strong>Automatic payment reminders</strong><p className="muted">Scheduling is disabled. Your saved preference is preserved for later.</p></div>
+          <input type="hidden" name="automatic_payment_whatsapp_enabled" value={gym.automatic_payment_whatsapp_enabled ? "on" : ""}/><label className="toggle"><input disabled type="checkbox" defaultChecked={Boolean(gym.automatic_payment_whatsapp_enabled)}/><span/></label>
         </div>
       </section>
 

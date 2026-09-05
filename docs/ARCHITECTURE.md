@@ -1,5 +1,7 @@
 # FitKiro V1 architecture
 
+> Current operating mode (2026-09-05): WhatsApp reminders are owner-triggered only. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
+
 Last reviewed: 2026-08-23
 
 This document describes only the architecture required for the contracted first-client application. Ideas that are not part of V1 are intentionally kept outside the active documentation set.
@@ -133,7 +135,7 @@ V1 reminders combine owner-initiated WhatsApp click-to-chat with opt-in automate
 - The application prepares a message and opens WhatsApp.
 - The owner reviews and sends it from their own account.
 - Manual handoffs record `opened` or `prepared`, never `sent` or `delivered`.
-- A Cloudflare Cron Trigger invokes a secured daily endpoint that submits an approved Utility template only for outstanding charges whose follow-up date is the current gym-local date and whose member has opted in. A unique database key prevents duplicate charge/date/channel submission.
+- Supabase `pg_cron` invokes a secured daily endpoint through `pg_net`. The app submits an approved Utility template only for opted-in active members whose membership expires in 7 days or on the run date and who do not already have a future renewal. A unique database key plus a claim token prevents duplicate membership/rule/date/channel submission.
 - Invalid numbers and missing consent are recorded as skipped. Provider failures are recorded as failed and may be retried on the same scheduled date. A successful Graph API response is recorded as submitted with the Meta message ID; delivered/read tracking requires a future webhook.
 - Archived members are excluded.
 - Renewal reminders use membership expiry; partial-payment and overdue reminders use the charge follow-up date.
