@@ -136,10 +136,14 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTot
             <HealthItem href="/members?status=active" tone="green" label="Active" value={summary.active_members}/>
             <HealthItem href="/reminders?filter=expiring" tone="amber" label="Expiring soon" value={summary.expiring_members}/>
             <HealthItem href="/reminders?filter=expired" tone="red" label="Already expired" value={summary.expired_members}/>
-            <div className="health-divider"><span>Accounts</span></div>
-            <HealthItem href="/members?status=outstanding" tone="blue" label="Pending accounts with open balance" value={summary.pending_accounts}/>
           </div>
         </div>
+        <Link href="/members?status=outstanding" className="priority-account-callout">
+          <span><IndianRupee size={17}/> Account recovery</span>
+          <strong>{summary.pending_accounts}</strong>
+          <small>{summary.pending_accounts === 1 ? "member has an open balance" : "members have open balances"}</small>
+          <ArrowRight size={15}/>
+        </Link>
       </section>
 
       <section className="card engagement-health-card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Weekly member engagement</span><h2>Engagement health</h2><span className="muted">Active and expiring members counted together.</span></div><Link className="text-link" href="/attendance?view=history">View attendance <ArrowRight size={15}/></Link></div>

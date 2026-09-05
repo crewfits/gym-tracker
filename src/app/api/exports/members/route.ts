@@ -5,7 +5,7 @@ import { businessDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/do
 
 type MemberExportRow = { member_code: string; name: string; phone: string; email: string | null; is_archived: boolean; plan_name: string | null; starts_on: string | null; expires_on: string | null; membership_status: string; balance_paise: number; qr_version: number | null; qr_enabled: boolean; qr_shared_at: string | null; total_count: number };
 const statuses = new Set(["active", "expiring", "expired", "upcoming", "not_enrolled", "outstanding", "qr_not_generated", "qr_not_shared", "qr_shared", "qr_disabled", "archived", "all"]);
-const sorts = new Set(["created_at", "name", "expires_on", "balance", "status"]);
+const sorts = new Set(["created_at", "member_code", "name", "expires_on", "balance", "status"]);
 
 export async function GET(request: NextRequest) {
   const { supabase, gym } = await requireGym();
