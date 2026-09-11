@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "fitkiro",
+  "main": "custom-worker.ts",
+  "compatibility_date": "2026-08-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com",
+    "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91",
+    "WHATSAPP_GRAPH_API_VERSION": "v25.0"
+  },
+  // WhatsApp scheduling is paused; retain the trigger configuration for later.
+  // "triggers": { "crons": ["0 3 * * *"] },
+  "routes": [
+    {
+      "pattern": "musclefitness.fitkiro.com",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

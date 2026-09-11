@@ -1,0 +1,74 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1920" height="1080" fill="#05090D"/>
+  <defs>
+    <linearGradient id="floor" x1="0" y1="476" x2="1920" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1217"/>
+      <stop offset=".52" stop-color="#111815"/>
+      <stop offset="1" stop-color="#050608"/>
+    </linearGradient>
+    <radialGradient id="limeGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1445 418) rotate(118) scale(566 370)">
+      <stop stop-color="#9CE51F" stop-opacity=".34"/>
+      <stop offset=".52" stop-color="#9CE51F" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#9CE51F" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="light" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#FFF7E0" stop-opacity="0"/>
+      <stop offset=".18" stop-color="#FFF7E0"/>
+      <stop offset=".82" stop-color="#FFF7E0"/>
+      <stop offset="1" stop-color="#FFF7E0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect y="420" width="1920" height="660" fill="url(#floor)"/>
+  <rect width="1920" height="1080" fill="url(#limeGlow)"/>
+  <g opacity=".7">
+    <path d="M0 725H1920" stroke="#273139" stroke-opacity=".42"/>
+    <path d="M0 842H1920" stroke="#273139" stroke-opacity=".36"/>
+    <path d="M0 960H1920" stroke="#273139" stroke-opacity=".32"/>
+    <path d="M240 420L140 1080" stroke="#29333A" stroke-opacity=".35"/>
+    <path d="M520 420L500 1080" stroke="#29333A" stroke-opacity=".33"/>
+    <path d="M842 420L920 1080" stroke="#29333A" stroke-opacity=".3"/>
+    <path d="M1218 420L1398 1080" stroke="#29333A" stroke-opacity=".28"/>
+    <path d="M1610 420L1876 1080" stroke="#29333A" stroke-opacity=".24"/>
+  </g>
+  <g opacity=".95">
+    <rect x="364" y="82" width="286" height="10" rx="5" transform="rotate(-10 364 82)" fill="url(#light)"/>
+    <rect x="780" y="58" width="330" height="10" rx="5" transform="rotate(-8 780 58)" fill="url(#light)"/>
+    <rect x="1210" y="92" width="312" height="10" rx="5" transform="rotate(-6 1210 92)" fill="url(#light)"/>
+    <rect x="1490" y="226" width="180" height="8" rx="4" transform="rotate(-90 1490 226)" fill="#F8E7B7" fill-opacity=".78"/>
+  </g>
+  <g opacity=".72" stroke="#1E2A31" stroke-width="14">
+    <path d="M680 250V756"/>
+    <path d="M900 220V780"/>
+    <path d="M1120 250V756"/>
+    <path d="M640 290H1160"/>
+    <path d="M640 450H1160"/>
+    <path d="M640 620H1160"/>
+  </g>
+  <g opacity=".86">
+    <rect x="230" y="540" width="410" height="34" rx="17" fill="#171C20"/>
+    <circle cx="260" cy="557" r="44" fill="#0C1013" stroke="#2B3134" stroke-width="10"/>
+    <circle cx="610" cy="557" r="44" fill="#0C1013" stroke="#2B3134" stroke-width="10"/>
+    <rect x="1460" y="520" width="360" height="38" rx="19" fill="#171C20"/>
+    <circle cx="1502" cy="539" r="38" fill="#0C1013" stroke="#2B3134" stroke-width="9"/>
+    <circle cx="1782" cy="539" r="38" fill="#0C1013" stroke="#2B3134" stroke-width="9"/>
+  </g>
+  <g opacity=".55">
+    <rect x="136" y="210" width="122" height="372" rx="8" fill="#162127"/>
+    <rect x="150" y="226" width="94" height="142" rx="3" fill="#BFE4FF" fill-opacity=".2"/>
+    <rect x="150" y="386" width="94" height="178" rx="3" fill="#BFE4FF" fill-opacity=".13"/>
+    <rect x="300" y="180" width="132" height="420" rx="8" fill="#10181D"/>
+    <rect x="316" y="198" width="100" height="154" rx="3" fill="#BFE4FF" fill-opacity=".18"/>
+    <rect x="316" y="372" width="100" height="205" rx="3" fill="#BFE4FF" fill-opacity=".1"/>
+  </g>
+  <g filter="url(#shadow)">
+    <path d="M1460 366H1522L1486 418H1426L1460 366Z" fill="white" fill-opacity=".88"/>
+    <path d="M1518 366H1568L1494 486H1443L1518 366Z" fill="#9BE51C"/>
+    <path d="M1415 446H1478L1452 486H1388L1415 446Z" fill="white" fill-opacity=".86"/>
+  </g>
+  <defs>
+    <filter id="shadow" x="1358" y="336" width="240" height="180" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#9BE51C" flood-opacity=".22"/>
+    </filter>
+  </defs>
+  <rect width="1920" height="1080" fill="black" fill-opacity=".18"/>
+</svg>

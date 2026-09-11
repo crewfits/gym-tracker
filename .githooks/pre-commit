@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+echo "Running GymDesk commit checks..."
+npm run check:commit
