@@ -128,7 +128,7 @@ gyms
 - Plans are reusable templates.
 - Membership rows snapshot the applied plan name, duration, start date, and expiry date.
 - Renewals create new membership history rather than overwriting previous memberships.
-- Active access is determined from membership dates in the gym timezone.
+- Active access is determined from membership dates in the gym timezone. 12
 
 ### Charges and payments
 
