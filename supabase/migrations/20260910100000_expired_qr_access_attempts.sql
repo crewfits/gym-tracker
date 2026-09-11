@@ -78,9 +78,6 @@ begin
   select * into v_expired from public.memberships where gym_id = v_gym and member_id = p_member_id
     and reverted_at is null and expires_on < v_today order by expires_on desc, id desc limit 1;
   if not found then raise exception 'Member does not have an active membership'; end if;
-  select * into v_attempt from public.denied_access_attempts where gym_id = v_gym and member_id = p_member_id
-    and occurred_at >= now() - interval '30 seconds' order by occurred_at desc, id desc limit 1;
-  if found then return jsonb_build_object('status', 'denied', 'attempt', to_jsonb(v_attempt), 'duplicate', true); end if;
   insert into public.denied_access_attempts(gym_id, member_id, membership_id, qr_version, expires_on, scanned_by, request_id)
     values(v_gym, p_member_id, v_expired.id, p_qr_version, v_expired.expires_on, auth.uid(), p_request_id)
     returning * into v_attempt;

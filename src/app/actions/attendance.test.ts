@@ -19,7 +19,7 @@ describe("scanner denied attempt feedback", () => {
     expect(result.token).toBeUndefined(); expect(result.direction).toBeUndefined();
     expect(db.rpc).toHaveBeenCalledWith("process_qr_access", { p_member_id: "member-a", p_qr_version: 1, p_request_id: requestId, p_direction: null });
   });
-  it("labels suppressed scans as already logged", async () => {
+  it("labels the same request id as already logged", async () => {
     db.rpc.mockResolvedValue({ data: { status: "denied", attempt: { occurred_at: "2026-09-10T05:00:00Z" }, duplicate: true }, error: null });
     expect((await scanAndRecordAttendance("ABCDEFGHJKLM", requestId)).message).toContain("already logged");
   });
