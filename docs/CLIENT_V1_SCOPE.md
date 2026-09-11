@@ -32,7 +32,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 
 ### Payments and reminders
 
-- Record full or partial manual payments.
+- Record full or partial manual payments, including up to 10 cash/UPI/card/bank-transfer entries in one activation, enrollment, renewal, or balance collection. Each entry has its own amount, date, optional reference, and receipt.
 - Show total, paid, outstanding, due date, and payment history.
 - Show partial-payment, overdue, and expiring-soon queues.
 - Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.
@@ -102,3 +102,9 @@ A reusable customer-facing import UI is not required for V1.
 9. Old members remain searchable in archived/all views without cluttering daily operations.
 10. Owner can export operational data and the documented backup can be restored.
 11. Reusing an archived member's phone opens that historical profile and offers reactivation instead of creating an accidental duplicate.
+
+## Expired-membership access attempts (2026-09-10)
+
+Expired members with a current, enabled QR remain denied, but the owner scanner now logs their attempted visit. Repeat scans within 30 seconds are suppressed. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
+
+The separate `denied_access_attempts` ledger never contributes to attendance or occupancy. Attendance → Denied attempts provides search, date filters, pagination and CSV; backups include the ledger. Direct scan-page visits remain read-only until the owner confirms **Log denied attempt**. Apply migration `20260910100000_expired_qr_access_attempts.sql` before deploying. See [QR attendance architecture](qr-attendance-architecture.md#expired-membership-access-attempts-2026-09-10) for database guarantees and verification.

@@ -1,29 +1,40 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreditCard, Plus, RefreshCw, Share2 } from "lucide-react";
-import { reactivateMember, removeMistakenRenewal, renewMembership, updateChargeDueDate, updateMember } from "@/app/actions/core";
+import { reactivateMember, removeMistakenRenewal, updateChargeDueDate, updateMember } from "@/app/actions/core";
+import { renewWithPayments } from "@/app/actions/split-payments";
 import { Feedback } from "@/components/feedback";
 import { MemberPhotoField } from "@/components/member-photo-field";
 import { MembershipForm } from "@/components/membership-form";
 import { MemberWorkspace } from "@/components/member-workspace";
 import { RemoveRenewalButton } from "@/components/remove-renewal-button";
 import { SubmitButton } from "@/components/submit-button";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { businessDate, formatDisplayDate, formatInr, memberOperationalView, membershipStatus, paymentStatus } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
-import type { Plan } from "@/lib/types";
+import { canAccess } from "@/lib/permissions";
+import { loadStaffHandlers, roleLabel } from "@/lib/staff-handlers";
+import type { Plan, TrainerOption } from "@/lib/types";
 
 type PaymentReversalRow = { id: string; amount_paise: number; reason: string; created_at: string };
-type PaymentRow = { id: string; charge_id: string; amount_paise: number; method: string; paid_on: string; receipt_number: string; voided_at: string | null; void_reason: string | null; created_at: string; payment_reversals: PaymentReversalRow[] };
+type HandlerRow = { display_name: string | null; role: string };
+function handlerName(handler: HandlerRow | HandlerRow[] | null) {
+  const row = Array.isArray(handler) ? handler[0] : handler;
+  return row ? row.display_name || roleLabel(row.role) : null;
+}
+type PaymentRow = { id: string; charge_id: string; amount_paise: number; method: string; paid_on: string; receipt_number: string; voided_at: string | null; void_reason: string | null; created_at: string; handled_by_gym_user_id: string | null; handled_by: HandlerRow | HandlerRow[] | null; payment_reversals: PaymentReversalRow[] };
 type ChargeRow = { id: string; subtotal_paise: number; discount_paise: number; gst_rate_basis_points: number; tax_paise: number; total_paise: number; due_on: string; payments: PaymentRow[] };
-type MembershipRow = { id: string; plan_id: string | null; plan_name: string; starts_on: string; expires_on: string; date_overridden: boolean; reverted_at: string | null; charges: ChargeRow | null };
+type MembershipRow = { id: string; plan_id: string | null; plan_name: string; starts_on: string; expires_on: string; date_overridden: boolean; reverted_at: string | null; handled_by: HandlerRow | HandlerRow[] | null; charges: ChargeRow | null };
 
 export default async function MemberDetail({ params, searchParams }: PageProps<"/members/[id]">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const { supabase, gym } = await requireGym();
-  const [{ data }, { data: plans }] = await Promise.all([
-    supabase.from("members").select("*, memberships(*, charges(*, payments(*, payment_reversals(*))))").eq("id", id).eq("gym_id", gym.id).single(),
+  const { supabase, gym, user, viewer } = await requirePermission("members.view");
+  const showTrainerAssignment = canAccess(viewer, "trainer.assign", "trainer_assignment");
+  const [{ data }, { data: plans }, { data: trainers }, handlerData] = await Promise.all([
+    supabase.from("members").select("*, memberships(*, handled_by:gym_users!memberships_handled_by_gym_user_fk(display_name,role), charges(*, payments(*, handled_by:gym_users!payments_handled_by_gym_user_fk(display_name,role), payment_reversals(*))))").eq("id", id).eq("gym_id", gym.id).single(),
     supabase.from("plans").select("*").eq("gym_id", gym.id).eq("is_active", true).order("name"),
+    showTrainerAssignment ? supabase.from("gym_users").select("id,display_name").eq("gym_id", gym.id).eq("role", "trainer").eq("status", "active").order("display_name") : Promise.resolve({ data: [] }),
+    loadStaffHandlers(supabase, gym.id, user.id),
   ]);
   if (!data) notFound();
 
@@ -84,7 +95,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
         <section className="member-renewal-section">
           <h2>{latest ? "Renew membership" : "Start membership"}</h2>
           {unpaidMemberships.length > 0 && !member.is_archived && <p className="member-renewal-balance-note">Previous balance: {formatInr(totalOutstanding)}. Renewal payments apply to the new membership period.</p>}
-          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} action={renewMembership} today={today} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} returnPath={`/members/${id}?view=membership`}/>}
+          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} trainers={(trainers ?? []) as TrainerOption[]} showTrainerAssignment={showTrainerAssignment} action={renewWithPayments} today={today} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} defaultTrainerId={member.assigned_trainer_user_id ?? null} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} returnPath={`/members/${id}?view=membership`}/>}
           {!member.is_archived && !latest && <Link className="button" href={`/members/${id}/enroll`}><Plus size={16}/> Start plan</Link>}
           {member.is_archived && <p className="muted">Reactivate this member before renewing their membership.</p>}
         </section>
@@ -99,7 +110,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                 <summary>
                   <span className="membership-record-main">
                     <strong>{membership.plan_name}</strong>
-                    <span className="muted">{formatDisplayDate(membership.starts_on)} - {formatDisplayDate(membership.expires_on)}{membership.date_overridden ? " · custom expiry" : ""}</span>
+                    <span className="muted">{formatDisplayDate(membership.starts_on)} - {formatDisplayDate(membership.expires_on)}{membership.date_overridden ? " · custom expiry" : ""}{handlerName(membership.handled_by) ? ` · handled by ${handlerName(membership.handled_by)}` : ""}</span>
                   </span>
                   <span className="membership-record-meta">
                     <span className={`badge ${status}`}>{statusLabel(status)}</span>
@@ -122,6 +133,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                       <SubmitButton className="button secondary small" pendingLabel="Updating...">Update</SubmitButton>
                     </form>
                   </div>}
+                  {charge && charge.payments.length > 0 && <div className="membership-payment-audit">{charge.payments.map((payment: PaymentRow) => handlerName(payment.handled_by) && <small className="muted" key={payment.id}>{payment.receipt_number} collected by {handlerName(payment.handled_by)}</small>)}</div>}
                   {charge && membership.balance > 0 && <div className="membership-actions">
                     <Link className="button small collect-button" href={`/members/${id}/pay?charge=${charge.id}`}><CreditCard size={14}/> Collect {formatInr(membership.balance)}</Link>
                   </div>}

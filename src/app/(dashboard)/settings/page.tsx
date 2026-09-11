@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { Building2, ReceiptText } from "lucide-react";
 import { updateSettings } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
 import { SubmitButton } from "@/components/submit-button";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const params = await searchParams;
-  const { gym } = await requireGym();
+  const { gym } = await requirePermission("settings.manage");
   const success = typeof params.success === "string" ? params.success : undefined;
   const error = typeof params.error === "string" ? params.error : undefined;
 
@@ -65,5 +66,6 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
       <div className="settings-save"><SubmitButton className="button" pendingLabel="Saving settings...">Save settings</SubmitButton></div>
     </form>
+    <div className="settings-save"><Link className="button secondary" href="/settings/staff">Manage staff and feature flags</Link></div>
   </>;
 }

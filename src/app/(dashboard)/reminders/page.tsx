@@ -7,7 +7,7 @@ import { RefreshButton } from "@/components/refresh-button";
 import { PaymentFollowUps } from "@/components/payment-follow-ups";
 // import { SubmitButton } from "@/components/submit-button";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { businessDate, formatDisplayDate, memberOperationalView } from "@/lib/domain";
 
 const pageSize = 50;
@@ -20,7 +20,7 @@ type Candidate = { candidate_kind: "expired" | "expiring"; member_id: string; me
 
 export default async function RemindersPage({ searchParams }: { searchParams: Promise<{ filter?: string; timing?: string; page?: string; error?: string; success?: string; sort?: string; order?: string }> }) {
   const params = await searchParams;
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym } = await requirePermission("reminders.manage");
   const selectedFilter = typeof params.filter === "string" && filters.has(params.filter) ? params.filter : "";
   const requestedPage = Number(params.page ?? "1");
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;

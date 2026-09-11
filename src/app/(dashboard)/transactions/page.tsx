@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowDownToLine, Banknote, CircleDollarSign, CreditCard, Landmark, RefreshCw, RotateCcw, Smartphone, Wallet } from "lucide-react";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { businessDate, formatDisplayDate, formatInr, formatPaymentMethod } from "@/lib/domain";
+import { canAccess } from "@/lib/permissions";
 import type { PaymentMethod } from "@/lib/types";
 import { Pagination } from "@/components/pagination";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
@@ -16,7 +17,7 @@ type TransactionSummary = { outstanding_paise: number; pending_accounts: number 
 
 export default async function Transactions({ searchParams }: PageProps<"/transactions">) {
   const params = await searchParams;
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym, viewer } = await requirePermission("payments.view");
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   const methodValue = typeof params.method === "string" && methods.has(params.method as PaymentMethod) ? params.method as PaymentMethod : null;
   const status = typeof params.status === "string" && statuses.has(params.status) ? params.status : "";
@@ -81,7 +82,7 @@ export default async function Transactions({ searchParams }: PageProps<"/transac
   const refreshHref = `/transactions?${currentQuery.toString()}`.replace(/\?$/, "");
 
   return <>
-    <div className="page-head"><div><p className="eyebrow">Financial ledger</p><h1>Transactions</h1><p className="muted">Track every receipt and correction without opening individual members.</p></div><div className="page-actions"><a className="button secondary" href={refreshHref}><RefreshCw size={16}/> Refresh</a><a className="button secondary" href={`/api/exports/payments?${queryFor().toString()}`}><ArrowDownToLine size={16}/> Export this view</a></div></div>
+    <div className="page-head"><div><p className="eyebrow">Financial ledger</p><h1>Transactions</h1><p className="muted">Track every receipt and correction without opening individual members.</p></div><div className="page-actions"><a className="button secondary" href={refreshHref}><RefreshCw size={16}/> Refresh</a>{canAccess(viewer, "exports.payments", "csv_exports") && <a className="button secondary" href={`/api/exports/payments?${queryFor().toString()}`}><ArrowDownToLine size={16}/> Export this view</a>}</div></div>
     <section className="transaction-ledger-row">
       <div className="card ledger-command-card">
         <div className="ledger-command-head"><span className="metric-icon"><CircleDollarSign size={21}/></span><div><span className="dashboard-kicker">Collection focus</span><h2>Collected in this view</h2><div className="metric">{formatInr(Number(totals?.view_collected_paise ?? 0))}</div><p>Net receipts from the filters currently applied.</p></div></div>

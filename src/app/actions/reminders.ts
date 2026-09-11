@@ -2,7 +2,7 @@
 
 // import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { formatDisplayDate, formatInr } from "@/lib/domain";
 import { renderReminderTemplate, whatsappNumber } from "@/lib/reminders";
 // import { processAutomaticMembershipReminders, processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
@@ -25,7 +25,7 @@ export async function openWhatsAppReminder(formData: FormData): Promise<OpenRemi
       membership_id: z.uuid(),
       charge_id: z.union([z.uuid(), z.literal("")]),
     }).parse(Object.fromEntries(formData));
-    const { supabase, user, gym } = await requireGym();
+    const { supabase, user, gym } = await requirePermission("reminders.manage");
     const { data: member, error: memberError } = await supabase.from("members").select("id,name,phone,is_archived").eq("id", input.member_id).eq("gym_id", gym.id).maybeSingle();
     if (memberError) throw memberError;
     if (!member || member.is_archived) throw new Error("Active member not found");
@@ -82,7 +82,7 @@ export async function openWhatsAppReminder(formData: FormData): Promise<OpenRemi
 export async function runAutomaticPaymentReminders() {
   let message = "";
   try {
-    const { gym } = await requireGym();
+    const { gym } = await requirePermission("reminders.manage");
     const result = await processAutomaticPaymentReminders(gym.id);
     message = `WhatsApp run complete: ${result.sent} submitted, ${result.skipped} skipped, ${result.failed} failed.`;
   } catch (error) {
@@ -94,7 +94,7 @@ export async function runAutomaticPaymentReminders() {
 export async function runAutomaticMembershipReminders() {
   let message = "";
   try {
-    const { gym } = await requireGym();
+    const { gym } = await requirePermission("reminders.manage");
     const result = await processAutomaticMembershipReminders(gym.id);
     message = `WhatsApp run complete: ${result.sent} submitted, ${result.skipped} skipped, ${result.failed} failed.`;
   } catch (error) {

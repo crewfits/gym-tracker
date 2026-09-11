@@ -5,6 +5,7 @@ import { DashboardViewSelector } from "@/components/dashboard-view-selector";
 import { DashboardLiveRefresh } from "@/components/dashboard-live-refresh";
 import { Pagination } from "@/components/pagination";
 import { requireGym } from "@/lib/auth";
+import { canAccess } from "@/lib/permissions";
 import { businessDate, formatDisplayDate, formatInr, memberOperationalView } from "@/lib/domain";
 
 type DashboardSummary = { active_members: number; expiring_members: number; expired_members: number; total_members: number; new_members_month: number; outstanding_paise: number; overdue_paise: number; pending_accounts: number; today_collected_paise: number; today_payment_count: number; month_collected_paise: number; month_payment_count: number; renewals_month: number; attendance_entries_today: number; attendance_exits_today: number; attendance_inside_now: number; method_cash_paise: number; method_upi_paise: number; method_card_paise: number; method_bank_transfer_paise: number };
@@ -18,8 +19,9 @@ const followupPageSize = 5;
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ view?: string; expiringPage?: string; expiredPage?: string }> }) {
   const { view, expiringPage: expiringPageParam, expiredPage: expiredPageParam } = await searchParams;
-  const selectedView = view === "trends" ? "trends" : "current";
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym, viewer } = await requireGym();
+  const showFinancials = canAccess(viewer, "payments.view");
+  const selectedView = view === "trends" && showFinancials ? "trends" : "current";
   const today = businessDate(gym.timezone);
   const weekStart = startOfWeek(today);
   const previousWeekStart = addDays(weekStart, -7);
@@ -71,13 +73,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <h1>Dashboard</h1>
         <p className="muted">{selectedView === "current" ? "Today's membership, collection, attendance, and follow-up picture." : "Compare member growth, renewals, and collections over the last six months."}</p>
       </div>
-      <div className="dashboard-hero-actions"><DashboardViewSelector value={selectedView}/><Link className="button" href="/members/new"><UserPlus size={16}/> Add member</Link></div>
+      <div className="dashboard-hero-actions">{showFinancials && <DashboardViewSelector value={selectedView}/>}<Link className="button" href="/members/new"><UserPlus size={16}/> Add member</Link></div>
     </div>
-    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} statusViews={statusViews} expiring={expiring} expired={expired} expiringTotal={allExpiring.length} expiredTotal={allExpired.length} expiringPage={expiringPage} expiredPage={expiredPage} expiringPages={expiringPages} expiredPages={expiredPages} trends={trends} engagementEvents={engagementEvents} weekStart={weekStart} previousWeekStart={previousWeekStart} previousWeekEnd={previousWeekEnd} gymName={gym.name} timezone={gym.timezone}/>}
+    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} statusViews={statusViews} expiring={expiring} expired={expired} expiringTotal={allExpiring.length} expiredTotal={allExpired.length} expiringPage={expiringPage} expiredPage={expiredPage} expiringPages={expiringPages} expiredPages={expiredPages} trends={trends} engagementEvents={engagementEvents} weekStart={weekStart} previousWeekStart={previousWeekStart} previousWeekEnd={previousWeekEnd} gymName={gym.name} timezone={gym.timezone} showFinancials={showFinancials}/>}
   </>;
 }
 
-function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTotal, expiredTotal, expiringPage, expiredPage, expiringPages, expiredPages, trends, engagementEvents, weekStart, previousWeekStart, previousWeekEnd, gymName, timezone }: { summary: DashboardSummary; statusViews: ExpiringMember[]; expiring: ExpiringMember[]; expired: ExpiringMember[]; expiringTotal: number; expiredTotal: number; expiringPage: number; expiredPage: number; expiringPages: number; expiredPages: number; trends: MonthlyTrend[]; engagementEvents: EngagementEvent[]; weekStart: string; previousWeekStart: string; previousWeekEnd: string; gymName: string; timezone: string }) {
+function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTotal, expiredTotal, expiringPage, expiredPage, expiringPages, expiredPages, trends, engagementEvents, weekStart, previousWeekStart, previousWeekEnd, gymName, timezone, showFinancials }: { summary: DashboardSummary; statusViews: ExpiringMember[]; expiring: ExpiringMember[]; expired: ExpiringMember[]; expiringTotal: number; expiredTotal: number; expiringPage: number; expiredPage: number; expiringPages: number; expiredPages: number; trends: MonthlyTrend[]; engagementEvents: EngagementEvent[]; weekStart: string; previousWeekStart: string; previousWeekEnd: string; gymName: string; timezone: string; showFinancials: boolean }) {
   const healthTotal = Math.max(1, Number(summary.active_members) + Number(summary.expiring_members) + Number(summary.expired_members));
   const activeAngle = (Number(summary.active_members) / healthTotal) * 360;
   const expiringAngle = activeAngle + (Number(summary.expiring_members) / healthTotal) * 360;
@@ -92,7 +94,7 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTot
   const engagementRate = Math.min(100, Math.round((currentWeekVisitors / activeRoster) * 100));
   const previousEngagementRate = Math.min(100, Math.round((previousWeekVisitors / activeRoster) * 100));
   const slippingMembers = Math.max(0, Number(summary.active_members) - currentWeekVisitors);
-  const priorityAreaCount = [Number(summary.expiring_members), Number(summary.expired_members), Number(summary.pending_accounts)].filter(Boolean).length;
+  const priorityAreaCount = [Number(summary.expiring_members), Number(summary.expired_members), showFinancials ? Number(summary.pending_accounts) : 0].filter(Boolean).length;
   const followupHref = (kind: "expiring" | "expired", targetPage: number) => {
     const query = new URLSearchParams();
     const nextExpiringPage = kind === "expiring" ? targetPage : expiringPage;
@@ -113,7 +115,7 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTot
         <div className="gym-pulse-stats">
           <Link href="/attendance"><span className="pulse-stat-icon entry"><LogIn size={18}/></span><span><strong>{summary.attendance_entries_today}</strong><small>Check-ins</small></span></Link>
           <Link href="/attendance?direction=exit"><span className="pulse-stat-icon exit"><ScanLine size={18}/></span><span><strong>{summary.attendance_exits_today}</strong><small>Check-outs</small></span></Link>
-          <Link href="/transactions?range=today"><span className="pulse-stat-icon cash"><IndianRupee size={18}/></span><span><strong>{formatInr(Number(summary.today_collected_paise))}</strong><small>Collected today</small></span></Link>
+          {showFinancials && <Link href="/transactions?range=today"><span className="pulse-stat-icon cash"><IndianRupee size={18}/></span><span><strong>{formatInr(Number(summary.today_collected_paise))}</strong><small>Collected today</small></span></Link>}
         </div>
       </section>
 
@@ -121,8 +123,8 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTot
         <div className="insight-head"><div><span className="dashboard-kicker">Momentum</span><h2>This month</h2></div><span className="spark-icon"><Sparkles size={18}/></span></div>
         <div className="momentum-list">
           <Momentum icon={<UserPlus/>} label="New members" value={signedNumber(Number(summary.new_members_month))} detail={percentChangeLabel(Number(currentTrend.new_members), Number(previousTrend.new_members))} href="/members"/>
-          <Momentum icon={<RefreshCw/>} label="Renewals" value={String(summary.renewals_month)} detail={countChangeLabel(Number(currentTrend.renewals), Number(previousTrend.renewals))} href="/transactions?range=month"/>
-          <Momentum icon={<TrendingUp/>} label="Collections" value={formatInr(Number(summary.month_collected_paise))} detail={percentChangeLabel(Number(currentTrend.collected_paise), Number(previousTrend.collected_paise))} href="/transactions?range=month"/>
+          {showFinancials && <Momentum icon={<RefreshCw/>} label="Renewals" value={String(summary.renewals_month)} detail={countChangeLabel(Number(currentTrend.renewals), Number(previousTrend.renewals))} href="/transactions?range=month"/>}
+          {showFinancials && <Momentum icon={<TrendingUp/>} label="Collections" value={formatInr(Number(summary.month_collected_paise))} detail={percentChangeLabel(Number(currentTrend.collected_paise), Number(previousTrend.collected_paise))} href="/transactions?range=month"/>}
         </div>
       </section>
     </div>
@@ -138,12 +140,12 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTot
             <HealthItem href="/reminders?filter=expired" tone="red" label="Already expired" value={summary.expired_members}/>
           </div>
         </div>
-        <Link href="/members?status=outstanding" className="priority-account-callout">
+        {showFinancials && <Link href="/members?status=outstanding" className="priority-account-callout">
           <span><IndianRupee size={17}/> Account recovery</span>
           <strong>{summary.pending_accounts}</strong>
           <small>{summary.pending_accounts === 1 ? "member has an open balance" : "members have open balances"}</small>
           <ArrowRight size={15}/>
-        </Link>
+        </Link>}
       </section>
 
       <section className="card engagement-health-card"><div className="section-head"><div className="section-head-copy"><span className="eyebrow">Weekly member engagement</span><h2>Engagement health</h2><span className="muted">Active and expiring members counted together.</span></div><Link className="text-link" href="/attendance?view=history">View attendance <ArrowRight size={15}/></Link></div>

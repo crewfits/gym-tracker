@@ -7,16 +7,18 @@ import { Bell, Camera, Dumbbell, LayoutDashboard, LogOut, Menu, ReceiptText, Sca
 import { signOut } from "@/app/actions/auth";
 import { BackButton } from "@/components/back-button";
 import { SubmitButton } from "@/components/submit-button";
+import { canAccess, type Permission, type Viewer } from "@/lib/permissions";
 
-const links = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, scannerApp: false },
-  { href: "/members", label: "Members", icon: Users, scannerApp: false },
-  { href: "/reminders", label: "Reminders", icon: Bell, scannerApp: false },
-  { href: "/scanner", label: "Scanner", icon: Camera, scannerApp: true },
-  { href: "/attendance", label: "Attendance", icon: ScanLine, scannerApp: true },
-  { href: "/transactions", label: "Transactions", icon: ReceiptText, scannerApp: false },
-  { href: "/plans", label: "Plans", icon: Tags, scannerApp: false },
-  { href: "/settings", label: "Settings", icon: Settings, scannerApp: false },
+const links: Array<{ href: string; label: string; icon: typeof LayoutDashboard; scannerApp: boolean; permission: Permission; exact?: boolean }> = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, scannerApp: false, permission: "members.view" },
+  { href: "/members", label: "Members", icon: Users, scannerApp: false, permission: "members.view" },
+  { href: "/reminders", label: "Reminders", icon: Bell, scannerApp: false, permission: "reminders.manage" },
+  { href: "/scanner", label: "Scanner", icon: Camera, scannerApp: true, permission: "attendance.scan" },
+  { href: "/attendance", label: "Attendance", icon: ScanLine, scannerApp: true, permission: "attendance.view" },
+  { href: "/transactions", label: "Transactions", icon: ReceiptText, scannerApp: false, permission: "payments.view" },
+  { href: "/plans", label: "Plans", icon: Tags, scannerApp: false, permission: "plans.manage" },
+  { href: "/settings", label: "Settings", icon: Settings, scannerApp: false, permission: "settings.manage", exact: true },
+  { href: "/settings/staff", label: "Staff", icon: Users, scannerApp: false, permission: "staff.manage" },
 ];
 
 function logicalBackFallback(pathname: string): string {
@@ -47,11 +49,13 @@ function routeTitle(pathname: string): string {
   if (pathname === "/plans") return "Membership plans";
   if (/^\/plans\/[^/]+\/edit$/.test(pathname)) return "Edit membership plan";
   if (pathname === "/settings") return "Gym settings";
+  if (pathname === "/settings/staff") return "Staff access";
   return "FitKiro";
 }
 
-function pathMatchesTarget(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+function pathMatchesTarget(pathname: string, href: string, exact = false): boolean {
+  if (href === "/" || exact) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 function currentRoute(pathname: string, search: string): string {
@@ -84,7 +88,7 @@ function RouteLoadingPreview() {
   </div>;
 }
 
-export function AppShell({ gymName, children }: { gymName: string; children: React.ReactNode }) {
+export function AppShell({ gymName, viewer, children }: { gymName: string; viewer: Viewer; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -97,6 +101,7 @@ export function AppShell({ gymName, children }: { gymName: string; children: Rea
   const scanMode = pathname.startsWith("/scan") || pathname.startsWith("/s/") || pathname === "/scanner";
   const activePath = isNavigating && pendingHref ? routePath(pendingHref) : pathname;
   const isQueryNavigation = Boolean(isNavigating && pendingHref && routePath(pendingHref) === pathname);
+  const visibleLinks = links.filter((link) => canAccess(viewer, link.permission));
 
   useEffect(() => {
     if (isNavigating || !pendingTableRef.current) return;
@@ -153,5 +158,5 @@ export function AppShell({ gymName, children }: { gymName: string; children: Rea
     startNavigation(() => router.push(targetHref, { scroll: false }));
   }
 
-  return <div className={`app ${scanMode ? "scan-app" : ""}`} onClick={handleInternalNavigation} onSubmit={handleQuerySubmit}><aside className="sidebar"><div className="brand-row"><Link className="brand" href="/" aria-label="Go to dashboard"><span className="brand-mark"><Dumbbell size={20}/></span> FitKiro</Link><details className="scan-menu"><summary aria-label="Open navigation"><Menu size={20}/></summary><div className="scan-menu-panel"><Link href="/scanner"><Camera size={17}/> Scanner</Link><Link href="/attendance"><ScanLine size={17}/> Attendance</Link><Link className="pwa-full-app-only" href="/members"><Users size={17}/> Members</Link><Link className="pwa-full-app-only" href="/"><LayoutDashboard size={17}/> Dashboard</Link><form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={17}/> Sign out</SubmitButton></form></div></details></div><nav className="nav">{links.map(({ href, label, icon: Icon, scannerApp }) => { const active = pathMatchesTarget(activePath, href); return <Link className={`${active ? "active" : ""}${scannerApp ? "" : " pwa-full-app-only"}`.trim() || undefined} href={href} key={href}><Icon size={18}/> {label}</Link>; })}<form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={18}/> Sign out</SubmitButton></form></nav></aside><main className="main"><div className={`route-progress ${isNavigating && !isQueryNavigation ? "is-active" : ""}`} aria-hidden="true"/><header className="topbar"><div className="topbar-page">{pathname !== "/" && <BackButton fallback={logicalBackFallback(pathname)} useHistory={pathname !== initialPath}/>}<strong className="topbar-title">{routeTitle(activePath)}</strong></div><strong className="topbar-gym">{gymName}</strong></header><div className="content">{isNavigating && !isQueryNavigation ? <RouteLoadingPreview/> : children}</div></main></div>;
+  return <div className={`app ${scanMode ? "scan-app" : ""}`} onClick={handleInternalNavigation} onSubmit={handleQuerySubmit}><aside className="sidebar"><div className="brand-row"><Link className="brand" href="/" aria-label="Go to dashboard"><span className="brand-mark"><Dumbbell size={20}/></span> FitKiro</Link><details className="scan-menu"><summary aria-label="Open navigation"><Menu size={20}/></summary><div className="scan-menu-panel">{canAccess(viewer, "attendance.scan") && <Link href="/scanner"><Camera size={17}/> Scanner</Link>}{canAccess(viewer, "attendance.view") && <Link href="/attendance"><ScanLine size={17}/> Attendance</Link>}{canAccess(viewer, "members.view") && <Link className="pwa-full-app-only" href="/members"><Users size={17}/> Members</Link>}{canAccess(viewer, "members.view") && <Link className="pwa-full-app-only" href="/"><LayoutDashboard size={17}/> Dashboard</Link>}<form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={17}/> Sign out</SubmitButton></form></div></details></div><nav className="nav">{visibleLinks.map(({ href, label, icon: Icon, scannerApp, exact }) => { const active = pathMatchesTarget(activePath, href, exact); return <Link className={`${active ? "active" : ""}${scannerApp ? "" : " pwa-full-app-only"}`.trim() || undefined} href={href} key={href}><Icon size={18}/> {label}</Link>; })}<form action={signOut}><SubmitButton pendingLabel="Signing out…"><LogOut size={18}/> Sign out</SubmitButton></form></nav></aside><main className="main"><div className={`route-progress ${isNavigating && !isQueryNavigation ? "is-active" : ""}`} aria-hidden="true"/><header className="topbar"><div className="topbar-page">{pathname !== "/" && <BackButton fallback={logicalBackFallback(pathname)} useHistory={pathname !== initialPath}/>}<strong className="topbar-title">{routeTitle(activePath)}</strong></div><strong className="topbar-gym">{gymName}</strong></header><div className="content">{isNavigating && !isQueryNavigation ? <RouteLoadingPreview/> : children}</div></main></div>;
 }

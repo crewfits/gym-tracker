@@ -45,7 +45,7 @@ docs/                    Current product, architecture and operating documentati
 Important modules:
 
 - `src/lib/auth.ts` resolves the authenticated gym owner.
-- `src/app/actions/core.ts` handles member, membership, payment and settings mutations.
+- `src/app/actions/core.ts` handles existing member/settings/correction actions. `src/app/actions/split-payments.ts` handles activation, enrollment, renewal and collection through one transactional RPC.
 - `src/app/actions/attendance.ts` handles QR lifecycle and attendance writes.
 - `src/lib/qr-token.ts` keeps backward compatibility for older signed QR tokens and identifies the current short QR-code format.
 - `src/lib/receipt-token.ts` creates signed bearer links for member-readable payment receipts.
@@ -74,7 +74,7 @@ The owner account is provisioned by us. Public account creation is not part of V
 
 Every operational record is scoped by `gym_id`. Server-side queries resolve the authenticated owner's gym and PostgreSQL RLS independently enforces the same boundary. Route parameters and form values are never sufficient authorization.
 
-V1 retains the current relationship:
+V1 started with this relationship:
 
 ```text
 Supabase auth user
@@ -82,7 +82,17 @@ Supabase auth user
         `-- one gyms row through owner_id
 ```
 
-Do not replace this with staff, organization, or role-management infrastructure for V1.
+Staff access extends that model with `gym_users` rather than role-specific tables:
+
+```text
+auth.users
+  |-- gyms.owner_id
+  `-- gym_users(gym_id, user_id, role, status)
+```
+
+Roles are `owner`, `receptionist`, `trainer`, and internal `admin`. `gym_feature_flags` stores per-gym feature availability plus `admin_enabled` preview access. Application UI visibility is derived from the viewer role and feature flags; protected server routes still enforce permissions directly. CSV exports are owner/admin-only even if a receptionist or trainer reaches the URL manually.
+
+Trainer assignment is stored on `members.assigned_trainer_user_id`, pointing to an active trainer row in `gym_users`. This represents the member's current trainer for V1. Historical trainer assignment can be added later if the client needs per-membership assignment history.
 
 Required authentication states:
 
@@ -127,6 +137,11 @@ gyms
 - Payments are manual records tied to a charge.
 - Incorrect payments are voided with a reason instead of deleted.
 - Each charge keeps an internal follow-up date for reminder queries. The owner is not asked to choose this during normal enrollment; new memberships and renewals default it to seven days after the membership start.
+
+- `20260911100000_atomic_split_payments.sql` adds `submit_payment_operation` and owner-readable `payment_operations`. The RPC derives the active gym from authentication, locks its counter row, validates member/charge ownership, and saves zero to ten payments (at least one for collection) with membership creation in one transaction. Each row uses the existing receipt counter and `record_payment` outstanding-balance checks.
+- The client preserves a request UUID across failures. The database returns the stored result for an identical retry and rejects changed payloads under an already committed UUID. Receipt IDs remain stable; retries do not extend membership or rotate QR again. A fresh page starts a new operation, so owners should review history before manually repeating an uncertain collection after reloading.
+- Each payment links to its operation using a composite `(gym_id, operation_id)` foreign key. Existing payments remain valid with a null operation. Owner-only `/payments/[id]` lists all receipts, net amounts after reversals, and the current charge balance. Public receipt links remain individual signed links.
+- Optional activation QR issuance occurs in the transaction. Photo upload follows the successful financial save; storage failure returns a completed enrollment with a warning and must never invite another activation. Backups include the operation ledger.
 
 ### Reminder activity
 
@@ -218,3 +233,9 @@ npm run check:release
 ```
 
 Migration changes additionally require Supabase linting and tenant-isolation checks.
+
+## Expired-membership access attempts (2026-09-10)
+
+Expired members with a current, enabled QR remain denied, but the owner scanner now logs their attempted visit. Repeat scans within 30 seconds are suppressed. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
+
+The separate `denied_access_attempts` ledger never contributes to attendance or occupancy. Attendance → Denied attempts provides search, date filters, pagination and CSV; backups include the ledger. Direct scan-page visits remain read-only until the owner confirms **Log denied attempt**. Apply migration `20260910100000_expired_qr_access_attempts.sql` before deploying. See [QR attendance architecture](qr-attendance-architecture.md#expired-membership-access-attempts-2026-09-10) for database guarantees and verification.

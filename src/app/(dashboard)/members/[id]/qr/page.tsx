@@ -9,7 +9,7 @@ import { ShareReceiptButton, WhatsAppReceiptButton } from "@/components/print-bu
 import { SubmitButton } from "@/components/submit-button";
 import { QrSharedStatusForm } from "@/components/qr-shared-status-form";
 import { disableMemberQr, issueMemberQr, markMemberQrShared } from "@/app/actions/attendance";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { requestAppOrigin } from "@/lib/app-origin";
 import { attendanceLabel, formatDisplayDate, formatDisplayDateTime, formatInr, formatPaymentMethod } from "@/lib/domain";
 import { qrUrls } from "@/lib/qr-token";
@@ -31,7 +31,7 @@ type MemberPayment = {
 
 export default async function MemberQrPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Query> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const [{ supabase, gym }, origin] = await Promise.all([requireGym(), requestAppOrigin()]);
+  const [{ supabase, gym }, origin] = await Promise.all([requirePermission("members.manage"), requestAppOrigin()]);
   const requestedPage = Number(query.receipts ?? 1);
   const receiptPage = Number.isSafeInteger(requestedPage) && requestedPage > 0 && requestedPage <= 100000 ? requestedPage : 1;
   const pageSize = 8;

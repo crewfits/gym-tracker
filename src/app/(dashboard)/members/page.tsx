@@ -9,6 +9,7 @@ import { SortableTableHeader, type SortOrder } from "@/components/sortable-table
 import { requireGym } from "@/lib/auth";
 import { businessDate, formatDisplayDate, formatInr, memberOperationalView } from "@/lib/domain";
 import { signedMemberPhotoUrls } from "@/lib/member-photo";
+import { canAccess } from "@/lib/permissions";
 
 const pageSize = 10;
 const allowedStatuses = new Set(["active", "expiring", "expired", "upcoming", "not_enrolled", "outstanding", "qr_not_generated", "qr_not_shared", "qr_shared", "qr_disabled", "archived", "all", "visited_this_week", "slipping", "visited_last_week"]);
@@ -40,7 +41,7 @@ type AttendanceMemberEvent = { member_id: string; occurred_at: string };
 
 export default async function Members({ searchParams }: PageProps<"/members">) {
   const params = await searchParams;
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym, viewer } = await requireGym();
   const requestedPage = Number(typeof params.page === "string" ? params.page : "1");
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
@@ -120,7 +121,7 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
   return <>
     <div className="page-head">
       <div><p className="eyebrow">Directory</p><h1>Members</h1><p className="muted">Search, review and take action across the full member history.</p></div>
-      <div className="page-actions"><a className="button secondary" href={refreshHref}><RefreshCw size={16}/> Refresh</a><a className="button secondary" href={`/api/exports/members?${exportQuery.toString()}`}><ArrowDownToLine size={16}/> Export this view</a><Link className="button" href="/members/new"><Plus size={17}/> Add member</Link></div>
+      <div className="page-actions"><a className="button secondary" href={refreshHref}><RefreshCw size={16}/> Refresh</a>{canAccess(viewer, "exports.members", "csv_exports") && <a className="button secondary" href={`/api/exports/members?${exportQuery.toString()}`}><ArrowDownToLine size={16}/> Export this view</a>}{canAccess(viewer, "members.create") && <Link className="button" href="/members/new"><Plus size={17}/> Add member</Link>}</div>
     </div>
     <Feedback success={success} error={error}/>
     <form className="toolbar members-toolbar">

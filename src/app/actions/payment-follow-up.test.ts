@@ -6,7 +6,7 @@ const { db, lookup, mutation, redirect } = vi.hoisted(() => ({
   mutation: { update: vi.fn().mockReturnThis(), eq: vi.fn() },
   redirect: vi.fn((url: string) => { throw Object.assign(new Error(url), { digest: "NEXT_REDIRECT" }); }),
 }));
-vi.mock("@/lib/auth", () => ({ requireGym: vi.fn(async () => ({ supabase: db, gym: { id: "gym-one" } })) }));
+vi.mock("@/lib/auth", () => ({ requirePermission: vi.fn(async () => ({ supabase: db, gym: { id: "gym-one" } })) }));
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/app-origin", () => ({ requestAppOrigin: vi.fn() }));

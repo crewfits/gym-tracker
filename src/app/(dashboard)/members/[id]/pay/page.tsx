@@ -1,22 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { businessDate, formatDisplayDate, formatInr } from "@/lib/domain";
-import { recordPayment } from "@/app/actions/core";
+import { collectPayments } from "@/app/actions/split-payments";
 import { CollectPaymentForm } from "@/components/collect-payment-form";
 import { Feedback } from "@/components/feedback";
+import { loadStaffHandlers } from "@/lib/staff-handlers";
 
 export default async function Pay({ params, searchParams }: PageProps<"/members/[id]/pay">) {
   const [{ id }, p] = await Promise.all([params, searchParams]);
   if (!p.charge || typeof p.charge !== "string") notFound();
 
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym, user } = await requirePermission("payments.manage");
   const error = typeof p.error === "string" ? p.error : undefined;
-  const [{ data: charge, error: chargeError }, { data: member, error: memberError }] = await Promise.all([
+  const [{ data: charge, error: chargeError }, { data: member, error: memberError }, handlerData] = await Promise.all([
     supabase.from("charges")
       .select("*, memberships!inner(member_id,plan_name,starts_on,expires_on,reverted_at)")
       .eq("id", p.charge).eq("gym_id", gym.id).single(),
     supabase.from("members").select("name,member_code").eq("id", id).eq("gym_id", gym.id).maybeSingle(),
+    loadStaffHandlers(supabase, gym.id, user.id),
   ]);
   if (chargeError && chargeError.code !== "PGRST116") throw chargeError;
   if (memberError) throw memberError;
@@ -49,6 +51,6 @@ export default async function Pay({ params, searchParams }: PageProps<"/members/
         <div><dt>Outstanding</dt><dd className={balance > 0 ? "member-balance-due" : "member-balance-settled"}>{formatInr(balance)}</dd></div>
       </dl>
     </section>
-    {balance > 0 ? <CollectPaymentForm memberId={id} chargeId={charge.id} balancePaise={balance} today={today} action={recordPayment}/> : <div className="collection-settled"><strong>This membership is fully paid.</strong><Link className="button secondary small" href={`/members/${id}/qr`}>View receipts</Link></div>}
+    {balance > 0 ? <CollectPaymentForm memberId={id} chargeId={charge.id} balancePaise={balance} today={today} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} action={collectPayments}/> : <div className="collection-settled"><strong>This membership is fully paid.</strong><Link className="button secondary small" href={`/members/${id}/qr`}>View receipts</Link></div>}
   </div>;
 }

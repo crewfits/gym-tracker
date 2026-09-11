@@ -3,18 +3,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requestAppOrigin } from "@/lib/app-origin";
-import { requireGym } from "@/lib/auth";
+import { requireGym, requirePermission } from "@/lib/auth";
 import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
-import { memberPhotoBucket, memberPhotoPath } from "@/lib/member-photo";
+import { memberPhotoBucket } from "@/lib/member-photo";
 import { createReceiptToken } from "@/lib/receipt-token";
 import { newMemberSchema, memberValidationErrors, type CreateMemberResult } from "@/lib/new-member-validation";
+import { decodePhotoDataUrl, saveMemberPhoto } from "@/lib/member-photo-upload";
 import { Resend } from "resend";
 
 const text = z.string().trim().min(1);
 const money = z.coerce.number().min(0).transform(v => Math.round(v * 100));
 const optionalDate = z.union([z.iso.date(), z.literal("")]).optional();
-const allowedPhotoMimeTypes = new Set(["image/webp", "image/jpeg", "image/png"]);
-const maxPhotoBytes = 512 * 1024;
 function feedbackPath(path: string, key: "success" | "error", message: string) {
   const url = new URL(path, "http://localhost");
   url.searchParams.set(key, message);
@@ -39,29 +38,6 @@ function photoInput(formData: FormData) {
   return { dataUrl, removed };
 }
 
-function decodePhotoDataUrl(dataUrl: string) {
-  if (!dataUrl) return null;
-  const match = /^data:(image\/(?:webp|jpeg|png));base64,([a-z0-9+/=]+)$/i.exec(dataUrl);
-  if (!match) throw new Error("Photo must be a compressed WebP, JPEG, or PNG image");
-  const [, contentType, base64] = match;
-  if (!allowedPhotoMimeTypes.has(contentType)) throw new Error("Unsupported photo type");
-  const binary = atob(base64);
-  if (binary.length > maxPhotoBytes) throw new Error("Photo must be under 512 KB after compression");
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return { blob: new Blob([bytes], { type: contentType }), contentType };
-}
-
-async function saveMemberPhoto(supabase: Awaited<ReturnType<typeof requireGym>>["supabase"], gymId: string, memberId: string, dataUrl: string, existingPath?: string | null) {
-  const decoded = decodePhotoDataUrl(dataUrl);
-  if (!decoded) return existingPath ?? null;
-  const nextPath = memberPhotoPath(gymId, memberId);
-  const { error: uploadError } = await supabase.storage.from(memberPhotoBucket).upload(nextPath, decoded.blob, { contentType: decoded.contentType, upsert: true });
-  if (uploadError) throw uploadError;
-  if (existingPath && existingPath !== nextPath) await supabase.storage.from(memberPhotoBucket).remove([existingPath]);
-  return nextPath;
-}
-
 async function removeMemberPhoto(supabase: Awaited<ReturnType<typeof requireGym>>["supabase"], existingPath?: string | null) {
   if (!existingPath) return;
   await supabase.storage.from(memberPhotoBucket).remove([existingPath]);
@@ -78,7 +54,7 @@ export async function createMember(formData: FormData): Promise<CreateMemberResu
     const parsed = newMemberSchema.safeParse(values);
     if (!parsed.success) return { ok: false, fieldErrors: memberValidationErrors(values) };
     const input = parsed.data;
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("members.create");
     const selectedPhoto = photoInput(formData);
     try { decodePhotoDataUrl(selectedPhoto.dataUrl); }
     catch (error) { return { ok: false, fieldErrors: { profile_photo_data_url: error instanceof Error ? error.message : "Choose a valid photo." } }; }
@@ -139,7 +115,7 @@ export async function updateMember(formData: FormData) {
   const id = String(formData.get("id"));
   try {
     const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), is_archived: z.string().optional(), whatsapp_reminders_enabled: z.string().optional() }).parse(Object.fromEntries(formData));
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("members.manage");
     const selectedPhoto = photoInput(formData);
     const { data: existing, error: existingError } = await supabase.from("members").select("profile_photo_path").eq("id", id).eq("gym_id", gym.id).maybeSingle();
     if (existingError) throw existingError;
@@ -158,7 +134,7 @@ export async function updateMember(formData: FormData) {
 export async function reactivateMember(formData: FormData) {
   const memberId = z.uuid().parse(formData.get("member_id"));
   try {
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("members.manage");
     const { data: member, error: memberError } = await supabase.from("members").select("id,is_archived").eq("id", memberId).eq("gym_id", gym.id).maybeSingle();
     if (memberError) throw memberError;
     if (!member) throw new Error("Member not found");
@@ -174,14 +150,14 @@ export async function reactivateMember(formData: FormData) {
 export async function createPlan(formData: FormData) {
   try {
     const input = z.object({ name: text, duration_value: z.coerce.number().int().positive(), duration_unit: z.enum(["days", "months"]), fee: money }).parse(Object.fromEntries(formData));
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("plans.manage");
     const { error } = await supabase.from("plans").insert({ gym_id: gym.id, name: input.name, duration_value: input.duration_value, duration_unit: input.duration_unit, default_fee_paise: input.fee });
     if (error) throw error; done("/plans", "Plan created");
   } catch (e) { fail("/plans", e); }
 }
 
 export async function togglePlan(formData: FormData) {
-  const { supabase, gym } = await requireGym(); const id = String(formData.get("id")); const active = formData.get("active") === "true";
+  const { supabase, gym } = await requirePermission("plans.manage"); const id = String(formData.get("id")); const active = formData.get("active") === "true";
   await supabase.from("plans").update({ is_active: active, updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
   done("/plans", active ? "Plan activated" : "Plan archived");
 }
@@ -190,7 +166,7 @@ export async function updatePlan(formData: FormData) {
   const id = String(formData.get("id"));
   try {
     const input = z.object({ name: text, duration_value: z.coerce.number().int().positive(), duration_unit: z.enum(["days", "months"]), fee: money }).parse(Object.fromEntries(formData));
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("plans.manage");
     const { error } = await supabase.from("plans").update({ name: input.name, duration_value: input.duration_value, duration_unit: input.duration_unit, default_fee_paise: input.fee, updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
     if (error) throw error;
     done("/plans", "Plan updated. Existing memberships were not changed.");
@@ -201,7 +177,7 @@ export async function createMembership(formData: FormData) {
   const memberId = String(formData.get("member_id"));
   try {
     const input = z.object({ member_id: z.uuid(), plan_id: z.uuid(), starts_on: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate, subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100) }).parse(Object.fromEntries(formData));
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("payments.manage");
     const { data: plan, error: planError } = await supabase.from("plans").select("*").eq("id", input.plan_id).eq("gym_id", gym.id).eq("is_active", true).single();
     if (planError || !plan) throw new Error("Active plan not found");
     const computedExpiry = calculateExpiry(input.starts_on, plan.duration_value, plan.duration_unit);
@@ -218,7 +194,7 @@ export async function renewMembership(formData: FormData) {
   const returnPath = formData.get("return_path") === `/members/${memberId}?view=membership` ? `/members/${memberId}?view=membership` : formData.get("return_path") === `/members/${memberId}` ? `/members/${memberId}` : `/members/${memberId}/renew`;
   let renewalCreated = false;
   try {
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("payments.manage");
     const input = z.object({ plan_id: z.uuid(), renewal_date: z.iso.date(), expires_on: z.iso.date().or(z.literal("")), due_on: optionalDate, subtotal: money, discount: money, gst_rate: z.coerce.number().min(0).max(100), amount_paid: money, method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string() }).parse(Object.fromEntries(formData));
     const [{ data: latest, error: latestError }, { data: plan, error: planError }] = await Promise.all([
       supabase.from("memberships").select("expires_on").eq("member_id", memberId).eq("gym_id", gym.id).is("reverted_at", null).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
@@ -254,7 +230,7 @@ export async function removeMistakenRenewal(formData: FormData) {
   const membershipId = String(formData.get("membership_id"));
   const memberId = String(formData.get("member_id"));
   try {
-    const { supabase, gym, user } = await requireGym();
+    const { supabase, gym, user } = await requirePermission("payments.manage");
     const { data: membership, error: membershipLoadError } = await supabase.from("memberships").select("id,created_at,reverted_at").eq("id", membershipId).eq("member_id", memberId).eq("gym_id", gym.id).maybeSingle();
     if (membershipLoadError) throw membershipLoadError;
     if (!membership) throw new Error("Renewal not found");
@@ -286,7 +262,7 @@ export async function recordPayment(formData: FormData) {
   const chargeId = String(formData.get("charge_id")); const memberId = String(formData.get("member_id"));
   try {
     const input = z.object({ amount: money, method: z.enum(["cash", "upi", "card", "bank_transfer"]), reference: z.string(), paid_on: z.iso.date(), notes: z.string() }).parse(Object.fromEntries(formData));
-    const { supabase } = await requireGym();
+    const { supabase } = await requirePermission("payments.manage");
     const { data, error } = await supabase.rpc("record_payment", { p_charge_id: chargeId, p_amount_paise: input.amount, p_method: input.method, p_reference: input.reference, p_paid_on: input.paid_on, p_notes: input.notes });
     if (error) throw error;
     const payment = data as { id?: string } | null;
@@ -300,7 +276,7 @@ export async function updateChargeDueDate(formData: FormData) {
   const returnPath = formData.get("return_path") === "/reminders?filter=payments" ? "/reminders?filter=payments" : `/members/${memberId}`;
   try {
     const input = z.object({ charge_id: z.uuid(), due_on: z.iso.date() }).parse(Object.fromEntries(formData));
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("reminders.manage");
     const { data: charge, error: chargeError } = await supabase.from("charges")
       .select("id,memberships!inner(member_id,reverted_at)").eq("id", input.charge_id).eq("gym_id", gym.id)
       .eq("memberships.member_id", memberId).is("memberships.reverted_at", null).maybeSingle();
@@ -316,7 +292,7 @@ export async function updateChargeDueDate(formData: FormData) {
 
 export async function reversePayment(formData: FormData) {
   const paymentId = String(formData.get("payment_id")); const memberId = String(formData.get("member_id"));
-  try { const input = z.object({ reason: text, amount: money }).parse(Object.fromEntries(formData)); const { supabase } = await requireGym(); const { error } = await supabase.rpc("reverse_payment", { p_payment_id: paymentId, p_amount_paise: input.amount, p_reason: input.reason }); if (error) throw error; done(`/members/${memberId}`, "Payment reversal recorded. The original receipt remains in the audit history."); } catch (e) { fail(`/members/${memberId}`, e); }
+  try { const input = z.object({ reason: text, amount: money }).parse(Object.fromEntries(formData)); const { supabase } = await requirePermission("payments.manage"); const { error } = await supabase.rpc("reverse_payment", { p_payment_id: paymentId, p_amount_paise: input.amount, p_reason: input.reason }); if (error) throw error; done(`/members/${memberId}`, "Payment reversal recorded. The original receipt remains in the audit history."); } catch (e) { fail(`/members/${memberId}`, e); }
 }
 
 export async function updateSettings(formData: FormData) {
@@ -338,7 +314,7 @@ export async function updateSettings(formData: FormData) {
       whatsapp_template_language: z.string().trim().min(2),
 */
     }).parse(Object.fromEntries(formData));
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("settings.manage");
     const { error } = await supabase.from("gyms").update({ ...input, email: input.email || null }).eq("id", gym.id); if (error) throw error;
     done("/settings", "Settings saved");
   } catch (e) { fail("/settings", e); }
@@ -347,7 +323,7 @@ export async function updateSettings(formData: FormData) {
 export async function emailReceipt(formData: FormData) {
   const paymentId = String(formData.get("payment_id"));
   try {
-    const { supabase, gym } = await requireGym();
+    const { supabase, gym } = await requirePermission("payments.manage");
     const { data: p } = await supabase.from("payments").select("*, charges!inner(*, memberships!inner(*, members!inner(*)))").eq("id", paymentId).eq("gym_id", gym.id).single();
     if (!p) throw new Error("Receipt not found");
     const member = p.charges.memberships.members;

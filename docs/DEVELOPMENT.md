@@ -7,6 +7,7 @@ Last reviewed: 2026-08-23
 - Product scope: [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md)
 - V1 architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
 - QR attendance: [qr-attendance-architecture.md](qr-attendance-architecture.md)
+- RBAC and feature flags: [RBAC_AND_FEATURE_FLAGS.md](RBAC_AND_FEATURE_FLAGS.md)
 - Initial data import: [INITIAL_IMPORT.md](INITIAL_IMPORT.md)
 - Production operations: [PRODUCTION_RUNBOOK.md](PRODUCTION_RUNBOOK.md)
 - Release acceptance: [V1_ROLLOUT_CHECKLIST.md](V1_ROLLOUT_CHECKLIST.md)

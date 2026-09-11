@@ -65,3 +65,20 @@ Record evidence and the tester for every item in the release issue. A failed req
 - [ ] Owner receives the production URL, credential rotation guidance, and minimal operating guide.
 - [ ] Client accepts the imported counts and the three contracted workflows.
 - [ ] Known non-blocking limitations and the support/warranty dates are recorded.
+
+### Expired QR attempt verification
+
+- [ ] Apply the denied-access migration before the application deployment.
+- [ ] An expired member's current QR shows red denial and one denied-attempt row; rapid repeats do not add rows.
+- [ ] Active/expiry-day members still check in and out; denied attempts do not change occupancy or movement totals.
+- [ ] Invalid, disabled, replaced, archived, and other-gym QRs cannot add expired-attempt rows.
+- [ ] Direct scan-page GETs write nothing; explicit denial confirmation records only a denied attempt.
+- [ ] Search/date filters and CSV work in Attendance → Denied attempts; backups include the ledger.
+
+## Split manual payments
+
+- [ ] Apply `20260911100000_atomic_split_payments.sql` before deploying the new forms.
+- [ ] Run `supabase/tests/split_payments.sql` on a disposable migrated database.
+- [ ] Verify activation, renewal and outstanding-balance collection with UPI + cash, partial totals, zero-payment membership, and per-row receipts/reversals.
+- [ ] Verify failed submissions preserve entries/photos and retries do not create duplicate memberships, receipts or QR versions.
+- [ ] Verify the collection summary and row controls at mobile widths; send receipts manually from each receipt page.

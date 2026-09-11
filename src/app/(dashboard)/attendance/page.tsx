@@ -5,20 +5,21 @@ import { correctAttendanceLog } from "@/app/actions/attendance";
 import { AttendanceCorrectionForm } from "@/components/attendance-correction-form";
 import { Feedback } from "@/components/feedback";
 import { Pagination } from "@/components/pagination";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateTime } from "@/lib/domain";
+import { canAccess } from "@/lib/permissions";
 import type { AttendanceDirection } from "@/lib/types";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
 
 const pageSize = 10;
-const allowedViews = new Set(["today", "inside", "missed", "history"]);
+const allowedViews = new Set(["today", "inside", "missed", "history", "denied"]);
 const attendanceSorts = new Set(["occurred_at", "member_name"]);
 
-type AttendanceRow = { id: string; member_id: string; member_code: string; member_name: string; membership_id: string | null; plan_name: string | null; direction: AttendanceDirection; qr_version: number | null; source: "qr" | "manual"; occurred_at: string; business_date: string; can_undo: boolean; replacement_direction: AttendanceDirection; total_count: number };
+type AttendanceRow = { reason?: string; expires_on?: string; id: string; member_id: string; member_code: string; member_name: string; membership_id: string | null; plan_name: string | null; direction: AttendanceDirection; qr_version: number | null; source: "qr" | "manual"; occurred_at: string; business_date: string; can_undo: boolean; replacement_direction: AttendanceDirection; total_count: number };
 
 export default async function AttendancePage({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; direction?: string; view?: string; from?: string; to?: string; sort?: string; order?: string; success?: string; error?: string }> }) {
   const params = await searchParams;
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym, viewer } = await requirePermission("attendance.view");
   const today = businessDate(gym.timezone);
   const requestedPage = Number(params.page ?? "1");
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
@@ -42,7 +43,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     p_order: order,
   });
   const [main, entries, exits, inside, missed] = await Promise.all([
-    rpc(view, direction, page),
+    view === "denied" ? supabase.rpc("list_denied_access_attempts", { p_query: q || null, p_from: from, p_to: to, p_page: page, p_page_size: pageSize, p_sort: sort, p_order: order }) : rpc(view, direction, page),
     rpc("today", "entry", 1, 1),
     rpc("today", "exit", 1, 1),
     rpc("inside", null, 1, 1),
@@ -57,7 +58,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     const query = new URLSearchParams();
     if (q) query.set("q", q);
     if (view !== "today") query.set("view", view);
-    if (direction) query.set("direction", direction);
+    if (direction && view !== "denied") query.set("direction", direction);
     if (from) query.set("from", from);
     if (to) query.set("to", to);
     const selectedSort = nextSort ?? sort;
@@ -76,11 +77,12 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
   const refreshHref = `/attendance?${currentQuery.toString()}`.replace(/\?$/, "");
 
   return <>
-    <div className="page-head"><div><p className="eyebrow">Access ledger · {formatDisplayDate(today)}</p><h1>Attendance</h1><p className="muted">Today&apos;s check-ins, check-outs and searchable history.</p></div><div className="page-actions"><a className="button secondary" href={refreshHref}><RefreshCw size={16}/> Refresh</a><a className="button secondary" href={`/api/exports/attendance?${queryFor().toString()}`}><ArrowDownToLine size={16}/> Export this view</a></div></div>
+    <div className="page-head"><div><p className="eyebrow">Access ledger · {formatDisplayDate(today)}</p><h1>Attendance</h1><p className="muted">Today&apos;s check-ins, check-outs and searchable history.</p></div><div className="page-actions"><a className="button secondary" href={refreshHref}><RefreshCw size={16}/> Refresh</a>{canAccess(viewer, "exports.attendance", "csv_exports") && <a className="button secondary" href={`/api/exports/attendance?${queryFor().toString()}`}><ArrowDownToLine size={16}/> Export this view</a>}</div></div>
     <Feedback success={params.success} error={params.error}/>
     <div className="cards dashboard-kpis"><Metric href="/attendance" icon={<LogIn/>} label="Check-ins today" value={countOf(entries.data)}/><Metric href="/attendance?direction=exit" icon={<LogOut/>} label="Check-outs today" value={countOf(exits.data)}/><Metric href="/attendance?view=inside" icon={<UserRoundCheck/>} label="Currently inside" value={countOf(inside.data)}/><Metric href="/attendance?view=missed" icon={<LogOut/>} label="Missing yesterday's check-out" value={countOf(missed.data)}/></div>
-    <form className="attendance-filters card">{sort !== "occurred_at" && <input type="hidden" name="sort" value={sort}/>} {(sort !== "occurred_at" || order !== "desc") && <input type="hidden" name="order" value={order}/>}<div className="toolbar"><input className="search" name="q" defaultValue={q} maxLength={100} placeholder="Search member, ID or phone"/><select className="search" name="view" defaultValue={view}><option value="today">Today</option><option value="inside">Currently inside</option><option value="history">History</option>{view === "missed" && <option value="missed">Missing yesterday&apos;s check-out</option>}</select><button className="button">Apply</button><Link className="button secondary" href="/attendance">Clear</Link></div><details open={view === "history" || Boolean(direction || from || to)}><summary>More filters</summary><div className="form-grid attendance-more"><div className="field"><label>Attendance type</label><select name="direction" defaultValue={direction ?? ""}><option value="">Check-in and Check-out</option><option value="entry">Check-in</option><option value="exit">Check-out</option></select></div><div className="field"><label>From</label><input type="date" name="from" defaultValue={from ?? ""}/></div><div className="field"><label>To</label><input type="date" name="to" defaultValue={to ?? ""}/></div></div></details></form>
-    <div className="card table-wrap"><table className="table"><thead><tr><SortableTableHeader label="Time" href={hrefForSort("occurred_at", "desc")} active={sort === "occurred_at"} order={order}/><SortableTableHeader label="Member" href={hrefForSort("member_name", "asc")} active={sort === "member_name"} order={order}/><th>Attendance</th><th>Membership</th><th>Actions</th></tr></thead><tbody>{events.map((event) => <tr key={event.id}><td>{formatDisplayDateTime(event.occurred_at, gym.timezone)}</td><td><Link href={`/members/${event.member_id}`}><strong>{event.member_name}</strong><br/><small className="muted">{event.member_code}</small></Link></td><td><span className={`badge ${event.direction === "entry" ? "active" : "upcoming"}`}>{attendanceLabel(event.direction)}</span>{event.source === "manual" && <><br/><small className="muted">Manual correction</small></>}</td><td>{event.plan_name ?? "—"}</td><td>{event.can_undo ? <AttendanceCorrectionForm action={correctAttendanceLog} eventId={event.id} requestId={randomUUID()} returnPath={refreshHref} direction={event.direction} replacementDirection={event.replacement_direction}/> : <span className="muted">—</span>}</td></tr>)}</tbody></table>{!events.length && <div className="empty">No attendance records match this view.</div>}</div>
+    <form className="attendance-filters card">{sort !== "occurred_at" && <input type="hidden" name="sort" value={sort}/>} {(sort !== "occurred_at" || order !== "desc") && <input type="hidden" name="order" value={order}/>}<div className="toolbar"><input className="search" name="q" defaultValue={q} maxLength={100} placeholder="Search member, ID or phone"/><select className="search" name="view" defaultValue={view}><option value="today">Today</option><option value="inside">Currently inside</option><option value="history">History</option><option value="denied">Denied attempts</option>{view === "missed" && <option value="missed">Missing yesterday&apos;s check-out</option>}</select><button className="button">Apply</button><Link className="button secondary" href="/attendance">Clear</Link></div><details open={view === "history" || view === "denied" || Boolean(direction || from || to)}><summary>More filters</summary><div className="form-grid attendance-more"><div className="field"><label>Attendance type</label><select name="direction" disabled={view === "denied"} defaultValue={direction ?? ""}><option value="">Check-in and Check-out</option><option value="entry">Check-in</option><option value="exit">Check-out</option></select></div><div className="field"><label>From</label><input type="date" name="from" defaultValue={from ?? ""}/></div><div className="field"><label>To</label><input type="date" name="to" defaultValue={to ?? ""}/></div></div></details></form>
+    {view === "denied" && <p className="muted">Expired-membership attempts only. These are not check-ins and do not affect occupancy.</p>}
+    <div className="card table-wrap"><table className="table"><thead><tr><SortableTableHeader label="Time" href={hrefForSort("occurred_at", "desc")} active={sort === "occurred_at"} order={order}/><SortableTableHeader label="Member" href={hrefForSort("member_name", "asc")} active={sort === "member_name"} order={order}/><th>Attendance</th><th>Membership</th><th>Actions</th></tr></thead><tbody>{events.map((event) => <tr key={event.id}><td>{formatDisplayDateTime(event.occurred_at, gym.timezone)}</td><td><Link href={`/members/${event.member_id}`}><strong>{event.member_name}</strong><br/><small className="muted">{event.member_code}</small></Link></td><td><span className={`badge ${view === "denied" ? "expired" : event.direction === "entry" ? "active" : "upcoming"}`}>{view === "denied" ? "Access denied" : attendanceLabel(event.direction)}</span>{view === "denied" && <><br/><small className="error-text">Membership expired{event.expires_on ? ` · ${formatDisplayDate(event.expires_on)}` : ""}</small></>}{event.source === "manual" && <><br/><small className="muted">Manual correction</small></>}</td><td>{event.plan_name ?? "—"}</td><td>{view === "denied" ? <Link href={`/members/${event.member_id}?view=membership`}>Open member</Link> : event.can_undo ? <AttendanceCorrectionForm action={correctAttendanceLog} eventId={event.id} requestId={randomUUID()} returnPath={refreshHref} direction={event.direction} replacementDirection={event.replacement_direction}/> : <span className="muted">—</span>}</td></tr>)}</tbody></table>{!events.length && <div className="empty">{view === "denied" ? "No denied attempts match this view." : "No attendance records match this view."}</div>}</div>
     <Pagination page={page} pages={pages} total={total} label="events" pageSize={pageSize} hrefForPage={(targetPage) => `/attendance?${queryFor({ targetPage }).toString()}`.replace(/\?$/, "")}/>
   </>;
 }

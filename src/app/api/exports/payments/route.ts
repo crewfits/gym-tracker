@@ -2,13 +2,15 @@ import type { NextRequest } from "next/server";
 import { requireGym } from "@/lib/auth";
 import { csvDocument } from "@/lib/csv";
 import { businessDate, formatDisplayDate } from "@/lib/domain";
+import { canAccess } from "@/lib/permissions";
 import type { PaymentMethod } from "@/lib/types";
 
 type PaymentExportRow = { receipt_number: string; paid_on: string; method: PaymentMethod; reference: string | null; amount_paise: number; reversed_paise: number; net_paise: number; voided_at: string | null; void_reason: string | null; member_code: string; member_name: string; plan_name: string; total_count: number };
 const sorts = new Set(["paid_on", "member_name", "amount"]);
 
 export async function GET(request: NextRequest) {
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym, viewer } = await requireGym();
+  if (!canAccess(viewer, "exports.payments", "csv_exports")) return Response.json({ error: "CSV export is restricted to owner access." }, { status: 403 });
   const params = request.nextUrl.searchParams;
   const q = (params.get("q") ?? "").trim().slice(0, 100) || null;
   const method = ["cash", "upi", "card", "bank_transfer"].includes(params.get("method") ?? "") ? params.get("method") as PaymentMethod : null;

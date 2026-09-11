@@ -4,14 +4,14 @@ import { createPlan, togglePlan } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
 import { SubmitButton } from "@/components/submit-button";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { formatInr, planDurationDays } from "@/lib/domain";
 
 const planSorts = new Set(["default", "name", "duration", "fee", "status"]);
 
 export default async function Plans({ searchParams }: PageProps<"/plans">) {
   const params = await searchParams;
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym } = await requirePermission("plans.manage");
   const { data: plans } = await supabase.from("plans").select("*").eq("gym_id", gym.id).order("is_active", { ascending: false }).order("name");
   const sort = typeof params.sort === "string" && planSorts.has(params.sort) ? params.sort : "default";
   const order: SortOrder = params.order === "asc" || params.order === "desc" ? params.order : "asc";

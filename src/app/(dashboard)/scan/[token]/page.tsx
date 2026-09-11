@@ -37,10 +37,11 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
   if (!payload) notFound();
   if (payload.gymId !== gym.id) notFound();
   const today = businessDate(gym.timezone);
-  const [{ data: member }, { data: membership }, { data: lastEvent }] = await Promise.all([
+  const [{ data: member }, { data: membership }, { data: lastEvent }, { data: expiredMembership }] = await Promise.all([
     supabase.from("members").select("id,member_code,name,phone,email,profile_photo_path,is_archived").eq("id", payload.memberId).eq("gym_id", gym.id).maybeSingle(),
-    supabase.from("memberships").select("id,plan_name,starts_on,expires_on").eq("member_id", payload.memberId).eq("gym_id", gym.id).lte("starts_on", today).gte("expires_on", today).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("memberships").select("id,plan_name,starts_on,expires_on").eq("member_id", payload.memberId).eq("gym_id", gym.id).is("reverted_at", null).lte("starts_on", today).gte("expires_on", today).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("attendance_events").select("direction,occurred_at").eq("member_id", payload.memberId).eq("gym_id", gym.id).is("voided_at", null).order("occurred_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("memberships").select("id,expires_on").eq("member_id", payload.memberId).eq("gym_id", gym.id).is("reverted_at", null).lt("expires_on", today).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!member) notFound();
   const photoUrl = await signedMemberPhotoUrl(supabase, member.profile_photo_path);
@@ -83,6 +84,14 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
             <SubmitButton className={`button scan-action ${direction} ${direction === suggestedDirection ? "suggested" : "secondary"}`} pendingLabel={`Recording ${attendanceLabel(direction)}…`}>{attendanceLabel(direction)}</SubmitButton>
           </form>)}
         </div>}
+        {qrValid && !membership && expiredMembership && <form action={recordAttendance} className="scan-actions">
+          <input type="hidden" name="token" value={token}/>
+          <input type="hidden" name="direction" value="entry"/>
+          <input type="hidden" name="denied_only" value="true"/>
+          <input type="hidden" name="request_id" value={randomUUID()}/>
+          <SubmitButton className="button danger" pendingLabel="Logging attempt…">Log denied attempt</SubmitButton>
+          <p className="muted">Records the attempted visit only. Access remains denied.</p>
+        </form>}
         <p className="scan-context"><span>Last movement</span><strong>{lastMovement}</strong></p>
       </section>
     </div>

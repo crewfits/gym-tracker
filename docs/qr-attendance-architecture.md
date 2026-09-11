@@ -104,3 +104,13 @@ Phone numbers are normalized for the link. Ten-digit local numbers use `NEXT_PUB
 - Today, current-occupancy, missed-exit, filtered history, pagination, and CSV export.
 - Individual WhatsApp click-to-chat with a manual QR PNG attachment and the latest receipt link, plus older receipt sharing.
 - Manual QR shared/not-shared tracking with member-list filters.
+
+## Expired-membership access attempts (2026-09-10)
+
+The owner scanner records a denied attempt when a current, enabled QR belongs to a non-archived member with an expired, non-reverted membership and no membership active on the gym-local date. Access remains denied. Memberships expiring today remain active; a future renewal does not grant access before its start date. Invalid, replaced, disabled, archived, and upcoming-only/no-history cases are denied without an expired-attempt entry.
+
+`denied_access_attempts` stores the member, expired membership and expiry date, QR version, timestamp, operator, and request ID. It is a separate audit ledger: attempts never affect check-in/out sequences, occupancy, dashboard attendance totals, or correction eligibility. Gym-scoped RLS restricts reads; only the authenticated `process_qr_access` function writes after validating tenant, credential, and membership state. It locks the member and credential, suppresses repeat attempts within 30 seconds, and returns a denial normally so the audit insert commits. Reusing an original request ID returns its existing result.
+
+The camera scanner logs automatically on its POST action and shows a red denial with “Attempt logged” or “Attempt already logged.” Direct scan URLs remain read-only on GET and offer **Log denied attempt** for eligible expired members; if renewal has since activated, this action does not create attendance. **Attendance → Denied attempts** offers member search, gym-local date filtering, sorting, pagination, and a separate denied-attempt CSV. Existing attendance views remain unchanged. Backups include the new ledger; no automatic purge is enabled.
+
+Rollout: apply `20260910100000_expired_qr_access_attempts.sql` before deploying the app. Older app versions remain compatible but do not log denied attempts. Verify using `supabase/tests/denied_access_attempts.sql` against a disposable migrated database (the test rolls back), then scan an expired test member on the target environment and check the denied view and unchanged occupancy.

@@ -14,7 +14,10 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 ## Primary actors
 
-- **Gym owner** — the single provisioned application user who manages members, packages, payments, reminders, and attendance.
+- **Gym owner** — the provisioned administrator who manages members, packages, payments, reminders, attendance, exports, settings, staff access, and feature flags.
+- **Receptionist** — an optional front-desk user who can handle daily member, payment, reminder, and attendance operations without CSV export or settings access.
+- **Trainer** — an optional staff user who can scan attendance and view member access allowed by the enabled role model.
+- **Admin** — an internal support role used by FitKiro to preview admin-enabled feature flags and test role-gated flows before the gym receives them.
 - **Member** — a gym customer managed by the owner; members do not sign in to V1.
 
 ## Current core flows
@@ -22,9 +25,9 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 ### Member onboarding
 
 1. An owner signs in and creates a member with contact details.
-2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and initial payment. New-member validation appears under the relevant field, and activation is disabled until required inputs are valid. Failed enrollment keeps the entered data and selected photo. Intentional shared phones require confirmation and allow up to three member records; archived duplicates offer reactivation.
-3. The database creates the member, membership, charge, and optional payment transactionally.
-4. QR issuance is optional. It may happen immediately or later from the member list. When a payment receipt exists, the QR pass screen is the owner handoff point for sharing both the pass and latest receipt.
+2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and optional initial payment entries. New-member validation appears under the relevant field, and activation is disabled until required inputs are valid. Failed enrollment keeps the entered data and selected photo. Intentional shared phones require confirmation and allow up to three member records; archived duplicates offer reactivation.
+3. The database creates the member, membership, charge, optional QR, and all initial payment entries transactionally. Photo storage is handled afterward; a failed photo upload does not undo or repeat the financial operation.
+4. QR issuance is optional. It may happen immediately or later from the member list. After recording payments, a collection summary lists every receipt and links to the QR pass. Each receipt can be opened and shared individually.
 
 ### QR access and attendance
 
@@ -41,10 +44,10 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 ### Membership and payment operations
 
 - Manage member details and memberships in separate views of the same member page. Profile editing is the default; the Membership view contains renewal and membership history. The shared summary provides direct renewal and collection actions. Unpaid periods appear above the views with their own remaining balances and collection buttons, oldest first. Collection shows the member, membership period, total, paid amount, and remaining balance after the entered payment; it records another payment against that period and opens receipt sharing. Renewal payments apply only to the new period, leaving previous balances separately collectible.
-- Record manual payments and outstanding balances.
+- Record up to 10 manual payment entries together, including mixed UPI and cash. Show the summed collection and remaining balance before saving. Remove all rows for an unpaid activation/enrollment/renewal; balance collection requires at least one positive entry. Each row retains its method, date, reference, receipt and independent reversal history. Failed saves retain form inputs and photos; retries of the same request do not duplicate memberships or receipts.
 - Automatically place unpaid membership balances into the partial-payment reminder window seven days after the membership start or renewal start date.
 - Produce immutable receipt numbers and signed, member-readable receipt links for individual WhatsApp sharing.
-- Reverse incorrect payments with a reason from the authenticated receipt page instead of deleting them. If renewal creation succeeds but its payment step fails, direct the owner back to the existing membership balance and receipts, with an explicit warning not to renew again.
+- Reverse incorrect payments with a reason from the authenticated receipt page instead of deleting them. Renewal creation and all payment rows commit together; a failure rolls back the entire operation.
 - Open owner-reviewed WhatsApp payment/renewal reminders and record only that the handoff was opened.
 - Reminders separates All renewals, Expiring, Expired, and Payment follow-ups. Payment follow-ups defaults to positive balances with a follow-up date today or earlier; Upcoming shows the next seven days. Each unpaid period remains eligible even after renewal, with direct WhatsApp, collection, and follow-up rescheduling actions. Settled balances, archived members, and reverted periods are excluded. Payment filtering and pagination run in PostgreSQL using the existing charge balance view; no new migration is required.
 - Optionally submit an idempotent WhatsApp Utility template 7 days before membership expiry and on expiry day for opted-in members without a future renewal, recording submitted, skipped, or failed attempts.
@@ -56,6 +59,7 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 - Attendance shows today, current occupancy, yesterday's missing Check-outs, and searchable/exportable history.
 - Member, payment, and attendance CSV exports are owner-authenticated and reflect the selected operational view.
 - Initial client data uses a validated, pre-backed-up, atomic operator-run import rather than a public import screen.
+- Staff-role features are gym-feature-flagged. UI sections, tabs, dashboard financial cards, and buttons are rendered from the viewer's role and enabled gym features, while export APIs enforce owner/admin permission server-side.
 
 ## Product invariants
 
@@ -84,4 +88,11 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 - [First-client V1 scope](CLIENT_V1_SCOPE.md)
 - [Architecture](ARCHITECTURE.md)
 - [QR attendance architecture](qr-attendance-architecture.md)
+- [RBAC and feature flags](RBAC_AND_FEATURE_FLAGS.md)
 - [Development and commit checks](DEVELOPMENT.md)
+
+## Expired-membership access attempts (2026-09-10)
+
+Expired members with a current, enabled QR remain denied, but the owner scanner now logs their attempted visit. Repeat scans within 30 seconds are suppressed. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
+
+The separate `denied_access_attempts` ledger never contributes to attendance or occupancy. Attendance → Denied attempts provides search, date filters, pagination and CSV; backups include the ledger. Direct scan-page visits remain read-only until the owner confirms **Log denied attempt**. Apply migration `20260910100000_expired_qr_access_attempts.sql` before deploying. See [QR attendance architecture](qr-attendance-architecture.md#expired-membership-access-attempts-2026-09-10) for database guarantees and verification.

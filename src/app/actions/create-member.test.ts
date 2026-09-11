@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const { db, requireGym, queries } = vi.hoisted(() => ({ db: { from: vi.fn(), rpc: vi.fn() }, requireGym: vi.fn(), queries: [] as Array<{ table: string; eq: ReturnType<typeof vi.fn> }> }));
-vi.mock("@/lib/auth", () => ({ requireGym }));
+const { db, requirePermission, queries } = vi.hoisted(() => ({ db: { from: vi.fn(), rpc: vi.fn() }, requirePermission: vi.fn(), queries: [] as Array<{ table: string; eq: ReturnType<typeof vi.fn> }> }));
+vi.mock("@/lib/auth", () => ({ requirePermission }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn(() => { throw new Error("Unexpected redirect on failed enrollment"); }) }));
 vi.mock("@/lib/app-origin", () => ({ requestAppOrigin: vi.fn() }));
@@ -16,7 +16,7 @@ function setup(duplicates: Array<{ id: string; name: string; member_code: string
   });
 }
 const duplicate = { id: "existing", name: "Santhosh", member_code: "MEM-00001", is_archived: false };
-beforeEach(() => { vi.clearAllMocks(); queries.length = 0; requireGym.mockResolvedValue({ supabase: db, gym: { id: "gym-one" } }); setup(); db.rpc.mockResolvedValue({ data: { member_id: "created" }, error: null }); });
+beforeEach(() => { vi.clearAllMocks(); queries.length = 0; requirePermission.mockResolvedValue({ supabase: db, gym: { id: "gym-one" } }); setup(); db.rpc.mockResolvedValue({ data: { member_id: "created" }, error: null }); });
 describe("member enrollment failures and shared phones", () => {
   it("returns field errors without attempting enrollment", async () => { const result = await createMember(form({ phone: "abc" })); expect(result).toMatchObject({ ok: false, fieldErrors: { phone: expect.any(String) } }); expect(db.rpc).not.toHaveBeenCalled(); });
   it("requires shared-phone consent and scopes lookups to the gym", async () => { setup([duplicate]); const result = await createMember(form()); expect(result).toMatchObject({ ok: false, fieldErrors: { shared_phone: expect.stringContaining("Santhosh") } }); expect(queries[0].eq).toHaveBeenCalledWith("gym_id", "gym-one"); expect(db.rpc).not.toHaveBeenCalled(); });

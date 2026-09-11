@@ -2,12 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { updatePlan } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
-import { requireGym } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { SubmitButton } from "@/components/submit-button";
 
 export default async function EditPlan({ params, searchParams }: PageProps<"/plans/[id]/edit">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const { supabase, gym } = await requireGym();
+  const { supabase, gym } = await requirePermission("plans.manage");
   const { data: plan } = await supabase.from("plans").select("*").eq("id", id).eq("gym_id", gym.id).single();
   if (!plan) notFound();
   const error = typeof query.error === "string" ? query.error : undefined;
