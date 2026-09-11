@@ -114,3 +114,6 @@ The owner scanner records a denied attempt when a current, enabled QR belongs to
 The camera scanner logs automatically on its POST action and shows a red denial with “Attempt logged” or “Attempt already logged.” Direct scan URLs remain read-only on GET and offer **Log denied attempt** for eligible expired members; if renewal has since activated, this action does not create attendance. **Attendance → Denied attempts** offers member search, gym-local date filtering, sorting, pagination, and a separate denied-attempt CSV. Existing attendance views remain unchanged. Backups include the new ledger; no automatic purge is enabled.
 
 Rollout: apply `20260910100000_expired_qr_access_attempts.sql` before deploying the app. Older app versions remain compatible but do not log denied attempts. Verify using `supabase/tests/denied_access_attempts.sql` against a disposable migrated database (the test rolls back), then scan an expired test member on the target environment and check the denied view and unchanged occupancy.
+
+
+Expired-membership QR attempts are logged every time the QR resolves to a member and the membership is expired. Normal attendance idempotency still uses `request_id`, but there is no short time-window suppression for denied expired-member attempts because owners need to see repeated attempted access.
