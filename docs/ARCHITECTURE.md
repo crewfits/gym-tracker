@@ -236,6 +236,6 @@ Migration changes additionally require Supabase linting and tenant-isolation che
 
 ## Expired-membership access attempts (2026-09-10)
 
-Expired members with a current, enabled QR remain denied, but the owner scanner now logs their attempted visit. Repeat scans within 30 seconds are suppressed. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
+Expired members with a current, enabled QR remain denied, but the owner scanner logs every attempted visit. Reusing the same request ID stays idempotent, but separate scans are persisted without the normal attendance cooldown so owners can see repeated expired-membership access attempts. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
 
 The separate `denied_access_attempts` ledger never contributes to attendance or occupancy. Attendance → Denied attempts provides search, date filters, pagination and CSV; backups include the ledger. Direct scan-page visits remain read-only until the owner confirms **Log denied attempt**. Apply migration `20260910100000_expired_qr_access_attempts.sql` before deploying. See [QR attendance architecture](qr-attendance-architecture.md#expired-membership-access-attempts-2026-09-10) for database guarantees and verification.
