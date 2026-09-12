@@ -1310,3 +1310,52 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .payment-entries .field-error, .form .field-error { color: #b42318; font-size: 12px; }
 .payment-entries .required-marker { color: #b42318; }
 .payment-entries [aria-invalid="true"] { border-color: #b42318; }
+
+.qr-share-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+}
+.qr-share-modal {
+  position: relative;
+  width: min(420px, 100%);
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  padding: 30px 28px 26px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+.qr-share-modal h3 { margin: 0; color: var(--ink); font-size: 22px; }
+.qr-share-modal p { max-width: 32ch; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.qr-share-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--muted);
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.qr-share-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  color: #078447;
+  background: #e9fbf2;
+  border-radius: 999px;
+}
+.qr-share-modal-ok { margin-top: 4px; }
