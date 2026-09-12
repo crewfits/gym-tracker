@@ -22,6 +22,22 @@ html { scroll-behavior: smooth; }
 body { margin: 0; color: var(--ink); background: var(--paper); font-family: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", Poppins, Arial, sans-serif; font-size: 15px; line-height: 1.45; }
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; }
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px !important;
+  color: var(--ink);
+  background-color: #fff;
+  background-image: linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%), linear-gradient(180deg, #f8fafc, #eef4fb);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%, calc(100% - 36px) 50%;
+  background-size: 6px 6px, 6px 6px, 1px 22px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+select:hover { border-color: #b7c7da; background-color: #fbfdff; }
+select:disabled { color: #94a3b8; background-color: #f3f6fb; cursor: not-allowed; opacity: 1; }
+select::-ms-expand { display: none; }
 button, a { -webkit-tap-highlight-color: transparent; }
 
 .app { min-height: 80vh; display: grid; grid-template-columns: 192px minmax(0, 1fr); }
@@ -81,7 +97,7 @@ h2 { margin: 0; font-size: 19px; letter-spacing: -.02em; }
 .dashboard-hero .button { color: white; background: linear-gradient(135deg, var(--brand), #3b82f6); box-shadow: 0 7px 18px rgba(37, 99, 235, .18); }
 .dashboard-hero-actions { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .dashboard-view-select { display: grid; gap: 4px; color: #66758b; font-size: 11px; font-weight: 750; }
-.dashboard-view-select select { min-width: 210px; min-height: 40px; padding: 8px 34px 8px 11px; color: #123b78; background: white; border: 1px solid rgba(255,255,255,.7); border-radius: 10px; font-weight: 750; outline: none; }
+.dashboard-view-select select { min-width: 210px; min-height: 40px; padding-block: 8px; padding-left: 11px; color: #123b78; border: 1px solid rgba(255,255,255,.7); border-radius: 10px; font-weight: 750; outline: none; }
 .page-head > div:first-child { min-width: 0; flex: 1 1 auto; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
 .section-head-copy { min-width: 0; }
@@ -590,7 +606,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .toggle-label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 800; white-space: nowrap; }
 .staff-list-card { display: grid; gap: 18px; }
 .staff-row-form { min-width: 620px; display: grid; grid-template-columns: minmax(130px, 1fr) minmax(110px, .8fr) 130px 120px auto; gap: 8px; align-items: center; }
-.staff-row-form input, .staff-row-form select { min-height: 38px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; }
+.staff-row-form input, .staff-row-form select { min-height: 38px; padding-block: 8px; padding-left: 10px; border: 1px solid var(--line); border-radius: 9px; }
 .transaction-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
 .transaction-summary .card { overflow: hidden; min-height: 116px; background: linear-gradient(180deg, #fff, #f9fbff); }
 .transaction-kpi-row { display: grid; grid-template-columns: minmax(180px, 1.35fr) repeat(2, minmax(145px, 1fr)) repeat(4, minmax(125px, .9fr)); gap: 12px; margin-bottom: 16px; }
@@ -737,7 +753,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .camera-panel { flex-basis: 100%; display: grid; gap: 10px; margin-top: 6px; padding: 10px; background: white; border: 1px solid var(--line); border-radius: 14px; }
 .camera-preview { width: min(320px, 100%); aspect-ratio: 1; background: #0f172a; border-radius: 12px; object-fit: cover; transform: scaleX(-1); }
 .camera-select { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 750; }
-.camera-select select { width: min(320px, 100%); min-height: 38px; padding: 8px 10px; color: var(--ink); background: white; border: 1px solid var(--line); border-radius: 9px; }
+.camera-select select { width: min(320px, 100%); min-height: 38px; padding-block: 8px; padding-left: 10px; color: var(--ink); border: 1px solid var(--line); border-radius: 9px; }
 .camera-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .member-cell { display: flex; align-items: center; gap: 10px; }
 .member-avatar.small { width: 38px; height: 38px; font-size: 14px; }
