@@ -69,7 +69,7 @@ Record evidence and the tester for every item in the release issue. A failed req
 ### Expired QR attempt verification
 
 - [ ] Apply the denied-access migration before the application deployment.
-- [ ] An expired member's current QR shows red denial and one denied-attempt row; rapid repeats do not add rows.
+- [ ] An expired member's current QR shows red denial and creates a denied-attempt row for every fresh scan; reusing the same request ID remains idempotent.
 - [ ] Active/expiry-day members still check in and out; denied attempts do not change occupancy or movement totals.
 - [ ] Invalid, disabled, replaced, archived, and other-gym QRs cannot add expired-attempt rows.
 - [ ] Direct scan-page GETs write nothing; explicit denial confirmation records only a denied attempt.

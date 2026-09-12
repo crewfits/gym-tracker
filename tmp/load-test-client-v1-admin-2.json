@@ -1,0 +1,64 @@
+{
+  "run_id": "client-v1-admin-2",
+  "gym_id": "6a092cd7-6e3e-400a-acf7-2234011e69aa",
+  "gym_name": "FitKiro Load Test client-v1-admin-2",
+  "created_at": "2026-09-12T11:08:26.903Z",
+  "password": "FitKiroLoadTest#2026",
+  "counts": {
+    "members": 1500,
+    "active_memberships": 600,
+    "payments": 1422,
+    "attendance_events": 560,
+    "denied_attempts": 120
+  },
+  "users": [
+    {
+      "email": "fitkiro.loadtest+client-v1-admin-2.admin@example.com",
+      "role": "admin",
+      "user_id": "c1b33165-8c64-4841-94f8-13e1c1f3f594",
+      "display_name": "Load Test Admin"
+    },
+    {
+      "email": "fitkiro.loadtest+client-v1-admin-2.owner@example.com",
+      "role": "owner",
+      "user_id": "77473de0-13ab-47c6-9c3c-ba7eb4948e4c",
+      "display_name": "Load Test Owner"
+    },
+    {
+      "email": "fitkiro.loadtest+client-v1-admin-2.trainer1@example.com",
+      "role": "trainer",
+      "user_id": "d11dc6e5-9c1b-4303-aba7-015291aeb5ba",
+      "display_name": "Load Test Trainer 1"
+    },
+    {
+      "email": "fitkiro.loadtest+client-v1-admin-2.trainer2@example.com",
+      "role": "trainer",
+      "user_id": "c57c99a8-eba9-40d6-8610-ffcf38ef76d1",
+      "display_name": "Load Test Trainer 2"
+    },
+    {
+      "email": "fitkiro.loadtest+client-v1-admin-2.trainer3@example.com",
+      "role": "trainer",
+      "user_id": "00acb27b-d9d0-4980-808e-cdf5208b3f0a",
+      "display_name": "Load Test Trainer 3"
+    },
+    {
+      "email": "fitkiro.loadtest+client-v1-admin-2.trainer4@example.com",
+      "role": "trainer",
+      "user_id": "861433e5-035d-4b4d-adaa-c83dda7ff45b",
+      "display_name": "Load Test Trainer 4"
+    },
+    {
+      "email": "fitkiro.loadtest+client-v1-admin-2.trainer5@example.com",
+      "role": "trainer",
+      "user_id": "42a4808b-1bb1-4b7f-8dcc-f0b9f6b652e3",
+      "display_name": "Load Test Trainer 5"
+    },
+    {
+      "email": "fitkiro.loadtest+client-v1-admin-2.receptionist@example.com",
+      "role": "receptionist",
+      "user_id": "d9064ea4-947b-41ff-90c9-7364710f3c2a",
+      "display_name": "Load Test Receptionist"
+    }
+  ]
+}

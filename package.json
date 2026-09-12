@@ -29,7 +29,10 @@
     "data:backup": "node --env-file=.env.local scripts/backup-gym.mjs",
     "data:import": "node --env-file=.env.local scripts/import-members.mjs",
     "ops:preflight": "node scripts/check-production-env.mjs",
-    "prepare": "node scripts/install-git-hooks.mjs"
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "testdata:load:seed": "node --env-file=.env.local scripts/load-test-gym.mjs seed",
+    "testdata:load:cleanup": "node --env-file=.env.local scripts/load-test-gym.mjs cleanup",
+    "testdata:scanner-load": "node --env-file=.env.local scripts/scanner-load-test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
