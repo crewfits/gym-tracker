@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     if (page === 500) return Response.json({ error: "Export is limited to 50,000 payments. Apply a date filter and try again." }, { status: 413 });
   }
   const csv = csvDocument(
-    ["Receipt", "Payment date", "Member ID", "Member name", "Plan", "Method", "Reference", "Original amount (INR)", "Reversed (INR)", "Net amount (INR)", "Status", "Reversal reason"],
+    ["Receipt", "Payment date", "Member ID", "Member name", "Plan", "Method", "Reference", `Original amount (${gym.currency_code ?? "INR"})`, `Reversed (${gym.currency_code ?? "INR"})`, `Net amount (${gym.currency_code ?? "INR"})`, "Status", "Reversal reason"],
     rows.map((row) => [row.receipt_number, formatDisplayDate(row.paid_on), row.member_code, row.member_name, row.plan_name, row.method, row.reference, (Number(row.amount_paise) / 100).toFixed(2), (Number(row.reversed_paise) / 100).toFixed(2), (Number(row.net_paise) / 100).toFixed(2), row.voided_at ? "reversed" : Number(row.reversed_paise) > 0 ? "partially reversed" : "completed", row.void_reason]),
   );
   return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="payments-${businessDate(gym.timezone)}.csv"`, "Cache-Control": "private, no-store" } });

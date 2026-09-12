@@ -1,5 +1,5 @@
 import { addDays, addMonths, differenceInCalendarDays, format, parseISO, subDays } from "date-fns";
-import type { AttendanceDirection, DurationUnit, MembershipStatus, PaymentStatus } from "./types";
+import type { AttendanceDirection, CurrencyCode, DurationUnit, MembershipStatus, PaymentStatus } from "./types";
 
 export function formatDate(date: Date): string { return format(date, "yyyy-MM-dd"); }
 
@@ -108,8 +108,43 @@ export function memberOperationalView<T extends { starts_on: string; expires_on:
   return { status: "not_enrolled" };
 }
 
-export function formatInr(paise: number): string {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(paise / 100);
+export const supportedCurrencies: { code: CurrencyCode; label: string }[] = [
+  { code: "INR", label: "Indian Rupee (INR)" },
+  { code: "USD", label: "US Dollar (USD)" },
+  { code: "EUR", label: "Euro (EUR)" },
+  { code: "GBP", label: "British Pound (GBP)" },
+  { code: "AED", label: "UAE Dirham (AED)" },
+  { code: "SGD", label: "Singapore Dollar (SGD)" },
+];
+
+const supportedCurrencyCodes = new Set(supportedCurrencies.map((currency) => currency.code));
+
+export function normalizeCurrencyCode(value: unknown): CurrencyCode {
+  return typeof value === "string" && supportedCurrencyCodes.has(value as CurrencyCode) ? value as CurrencyCode : "INR";
+}
+
+function currencySymbol(currencyCode: CurrencyCode) {
+  const formatted = new Intl.NumberFormat("en-IN", { style: "currency", currency: currencyCode, currencyDisplay: "narrowSymbol", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(0);
+  return formatted.replace(/[0-9\s.,]/g, "") || currencyCode;
+}
+
+export function formatMoney(paise: number, currencyCode: CurrencyCode = "INR"): string {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: normalizeCurrencyCode(currencyCode) }).format(paise / 100);
+}
+
+export function formatCompactMoney(paise: number, currencyCode: CurrencyCode = "INR"): string {
+  const amount = Math.abs(paise / 100);
+  const sign = paise < 0 ? "-" : "";
+  const symbol = currencySymbol(normalizeCurrencyCode(currencyCode));
+  const compact = (value: number, suffix: string) => `${sign}${symbol}${Number(value.toFixed(value >= 100 ? 0 : 1))}${suffix}`;
+  if (amount >= 10_000_000) return compact(amount / 10_000_000, "Cr");
+  if (amount >= 100_000) return compact(amount / 100_000, "L");
+  if (amount >= 1_000) return compact(amount / 1_000, "K");
+  return formatMoney(paise, currencyCode);
+}
+
+export function formatInr(paise: number, currencyCode: CurrencyCode = "INR"): string {
+  return formatMoney(paise, currencyCode);
 }
 
 export function formatPaymentMethod(method: string): string {

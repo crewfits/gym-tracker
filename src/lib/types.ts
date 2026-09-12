@@ -1,4 +1,5 @@
 export type DurationUnit = "days" | "months";
+export type CurrencyCode = "INR" | "USD" | "EUR" | "GBP" | "AED" | "SGD";
 export type PaymentMethod = "cash" | "upi" | "card" | "bank_transfer";
 export type PaymentStatus = "unpaid" | "partial" | "paid";
 export type MembershipStatus = "active" | "expiring" | "expired" | "upcoming";

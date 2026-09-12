@@ -6,7 +6,8 @@ import { DashboardLiveRefresh } from "@/components/dashboard-live-refresh";
 import { Pagination } from "@/components/pagination";
 import { requireGym } from "@/lib/auth";
 import { canAccess } from "@/lib/permissions";
-import { businessDate, formatDisplayDate, formatInr, memberOperationalView } from "@/lib/domain";
+import { businessDate, formatCompactMoney, formatDisplayDate, formatInr, memberOperationalView, normalizeCurrencyCode } from "@/lib/domain";
+import type { CurrencyCode } from "@/lib/types";
 
 type DashboardSummary = { active_members: number; expiring_members: number; expired_members: number; total_members: number; new_members_month: number; outstanding_paise: number; overdue_paise: number; pending_accounts: number; today_collected_paise: number; today_payment_count: number; month_collected_paise: number; month_payment_count: number; renewals_month: number; attendance_entries_today: number; attendance_exits_today: number; attendance_inside_now: number; method_cash_paise: number; method_upi_paise: number; method_card_paise: number; method_bank_transfer_paise: number };
 type ExpiringMember = { id: string; member_code: string; name: string; plan_name: string | null; expires_on: string | null; membership_status: string };
@@ -20,6 +21,7 @@ const followupPageSize = 5;
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ view?: string; expiringPage?: string; expiredPage?: string }> }) {
   const { view, expiringPage: expiringPageParam, expiredPage: expiredPageParam } = await searchParams;
   const { supabase, gym, viewer } = await requireGym();
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const showFinancials = canAccess(viewer, "payments.view");
   const selectedView = view === "trends" && showFinancials ? "trends" : "current";
   const today = businessDate(gym.timezone);
@@ -75,11 +77,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
       <div className="dashboard-hero-actions">{showFinancials && <DashboardViewSelector value={selectedView}/>}<Link className="button" href="/members/new"><UserPlus size={16}/> Add member</Link></div>
     </div>
-    {selectedView === "trends" ? <TrendDashboard trends={trends}/> : <CurrentDashboard summary={summary} statusViews={statusViews} expiring={expiring} expired={expired} expiringTotal={allExpiring.length} expiredTotal={allExpired.length} expiringPage={expiringPage} expiredPage={expiredPage} expiringPages={expiringPages} expiredPages={expiredPages} trends={trends} engagementEvents={engagementEvents} weekStart={weekStart} previousWeekStart={previousWeekStart} previousWeekEnd={previousWeekEnd} gymName={gym.name} timezone={gym.timezone} showFinancials={showFinancials}/>}
+    {selectedView === "trends" ? <TrendDashboard trends={trends} currencyCode={currencyCode}/> : <CurrentDashboard summary={summary} statusViews={statusViews} expiring={expiring} expired={expired} expiringTotal={allExpiring.length} expiredTotal={allExpired.length} expiringPage={expiringPage} expiredPage={expiredPage} expiringPages={expiringPages} expiredPages={expiredPages} trends={trends} engagementEvents={engagementEvents} weekStart={weekStart} previousWeekStart={previousWeekStart} previousWeekEnd={previousWeekEnd} gymName={gym.name} timezone={gym.timezone} currencyCode={currencyCode} showFinancials={showFinancials}/>}
   </>;
 }
 
-function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTotal, expiredTotal, expiringPage, expiredPage, expiringPages, expiredPages, trends, engagementEvents, weekStart, previousWeekStart, previousWeekEnd, gymName, timezone, showFinancials }: { summary: DashboardSummary; statusViews: ExpiringMember[]; expiring: ExpiringMember[]; expired: ExpiringMember[]; expiringTotal: number; expiredTotal: number; expiringPage: number; expiredPage: number; expiringPages: number; expiredPages: number; trends: MonthlyTrend[]; engagementEvents: EngagementEvent[]; weekStart: string; previousWeekStart: string; previousWeekEnd: string; gymName: string; timezone: string; showFinancials: boolean }) {
+function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTotal, expiredTotal, expiringPage, expiredPage, expiringPages, expiredPages, trends, engagementEvents, weekStart, previousWeekStart, previousWeekEnd, gymName, timezone, currencyCode, showFinancials }: { summary: DashboardSummary; statusViews: ExpiringMember[]; expiring: ExpiringMember[]; expired: ExpiringMember[]; expiringTotal: number; expiredTotal: number; expiringPage: number; expiredPage: number; expiringPages: number; expiredPages: number; trends: MonthlyTrend[]; engagementEvents: EngagementEvent[]; weekStart: string; previousWeekStart: string; previousWeekEnd: string; gymName: string; timezone: string; currencyCode: CurrencyCode; showFinancials: boolean }) {
   const healthTotal = Math.max(1, Number(summary.active_members) + Number(summary.expiring_members) + Number(summary.expired_members));
   const activeAngle = (Number(summary.active_members) / healthTotal) * 360;
   const expiringAngle = activeAngle + (Number(summary.expiring_members) / healthTotal) * 360;
@@ -115,7 +117,7 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTot
         <div className="gym-pulse-stats">
           <Link href="/attendance"><span className="pulse-stat-icon entry"><LogIn size={18}/></span><span><strong>{summary.attendance_entries_today}</strong><small>Check-ins</small></span></Link>
           <Link href="/attendance?direction=exit"><span className="pulse-stat-icon exit"><ScanLine size={18}/></span><span><strong>{summary.attendance_exits_today}</strong><small>Check-outs</small></span></Link>
-          {showFinancials && <Link href="/transactions?range=today"><span className="pulse-stat-icon cash"><IndianRupee size={18}/></span><span><strong>{formatInr(Number(summary.today_collected_paise))}</strong><small>Collected today</small></span></Link>}
+          {showFinancials && <Link href="/transactions?range=today"><span className="pulse-stat-icon cash"><IndianRupee size={18}/></span><span><strong title={formatInr(Number(summary.today_collected_paise), currencyCode)}>{formatCompactMoney(Number(summary.today_collected_paise), currencyCode)}</strong><small>Collected today</small></span></Link>}
         </div>
       </section>
 
@@ -124,7 +126,7 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTot
         <div className="momentum-list">
           <Momentum icon={<UserPlus/>} label="New members" value={signedNumber(Number(summary.new_members_month))} detail={percentChangeLabel(Number(currentTrend.new_members), Number(previousTrend.new_members))} href="/members"/>
           {showFinancials && <Momentum icon={<RefreshCw/>} label="Renewals" value={String(summary.renewals_month)} detail={countChangeLabel(Number(currentTrend.renewals), Number(previousTrend.renewals))} href="/transactions?range=month"/>}
-          {showFinancials && <Momentum icon={<TrendingUp/>} label="Collections" value={formatInr(Number(summary.month_collected_paise))} detail={percentChangeLabel(Number(currentTrend.collected_paise), Number(previousTrend.collected_paise))} href="/transactions?range=month"/>}
+          {showFinancials && <Momentum icon={<TrendingUp/>} label="Collections" value={formatCompactMoney(Number(summary.month_collected_paise), currencyCode)} detail={percentChangeLabel(Number(currentTrend.collected_paise), Number(previousTrend.collected_paise))} href="/transactions?range=month"/>}
         </div>
       </section>
     </div>
@@ -188,7 +190,7 @@ function CurrentDashboard({ summary, statusViews, expiring, expired, expiringTot
   </div>;
 }
 
-function TrendDashboard({ trends }: { trends: MonthlyTrend[] }) {
+function TrendDashboard({ trends, currencyCode }: { trends: MonthlyTrend[]; currencyCode: CurrencyCode }) {
   const current = trends.at(-1) ?? { month_start: "", new_members: 0, collected_paise: 0, payment_count: 0, renewals: 0 };
   const previous = trends.at(-2) ?? current;
   const collectionMax = Math.max(1, ...trends.map((item) => Number(item.collected_paise)));
@@ -200,16 +202,16 @@ function TrendDashboard({ trends }: { trends: MonthlyTrend[] }) {
   return <div className="dashboard-sections trend-dashboard trend-dashboard-modern">
     <section className="trend-command-card">
       <div className="trend-command-copy"><span className="dashboard-kicker">Six-month momentum</span><h2>{monthLabel(current.month_start)} Performance Pulse</h2><p>Track growth, collections, renewals and payment volume from one operating view.</p></div>
-      <div className="trend-command-total"><span>Total collected</span><strong>{formatInr(totalCollected)}</strong><small>{totalNewMembers} new members across this period</small></div>
+      <div className="trend-command-total"><span>Total collected</span><strong title={formatInr(totalCollected, currencyCode)}>{formatCompactMoney(totalCollected, currencyCode)}</strong><small>{totalNewMembers} new members across this period</small></div>
       <div className="trend-kpi-grid">
         <Comparison icon={<UserPlus/>} label="New members" value={String(current.new_members)} change={change(Number(current.new_members), Number(previous.new_members))}/>
-        <Comparison icon={<IndianRupee/>} label="Amount collected" value={formatInr(Number(current.collected_paise))} change={change(Number(current.collected_paise), Number(previous.collected_paise))}/>
+        <Comparison icon={<IndianRupee/>} label="Amount collected" value={formatCompactMoney(Number(current.collected_paise), currencyCode)} change={change(Number(current.collected_paise), Number(previous.collected_paise))}/>
         <Comparison icon={<RefreshCw/>} label="Renewals" value={String(current.renewals)} change={change(Number(current.renewals), Number(previous.renewals))}/>
         <Comparison icon={<WalletCards/>} label="Payments" value={String(current.payment_count)} change={change(Number(current.payment_count), Number(previous.payment_count))}/>
       </div>
     </section>
     <div className="trend-visual-grid">
-      <TrendChart title="Monthly collections" detail="Net collections after reversals." trends={trends} max={collectionMax} value={(item) => Number(item.collected_paise)} format={formatInr} tone="lime"/>
+      <TrendChart title="Monthly collections" detail="Net collections after reversals." trends={trends} max={collectionMax} value={(item) => Number(item.collected_paise)} format={(value) => formatCompactMoney(value, currencyCode)} tone="lime"/>
       <TrendChart title="New member growth" detail="Profiles added each month." trends={trends} max={memberMax} value={(item) => Number(item.new_members)} format={String} tone="blue"/>
       <TrendChart title="Renewal rhythm" detail="Renewals completed by month." trends={trends} max={renewalMax} value={(item) => Number(item.renewals)} format={String} tone="violet"/>
     </div>

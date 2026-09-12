@@ -27,7 +27,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 1. An owner signs in and creates a member with contact details.
 2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and optional initial payment entries. New-member validation appears under the relevant field, and activation is disabled until required inputs are valid. Failed enrollment keeps the entered data and selected photo. Intentional shared phones require confirmation and allow up to three member records; archived duplicates offer reactivation.
 3. The database creates the member, membership, charge, optional QR, and all initial payment entries transactionally. Photo storage is handled afterward; a failed photo upload does not undo or repeat the financial operation.
-4. QR issuance is optional. When the activation creates a QR, the operator lands on the QR handoff screen immediately; otherwise payment-capable roles see the collection summary. Each receipt can be opened and shared individually.
+4. QR issuance is optional. When the activation creates a QR, the operator lands on the QR handoff screen immediately; otherwise payment-capable roles see the collection summary. Mixed payment entries are presented as one customer receipt with method-level payment lines.
 
 ### QR access and attendance
 
@@ -44,7 +44,7 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 ### Membership and payment operations
 
 - Manage member details and memberships in separate views of the same member page. Profile editing is the default; the Membership view contains renewal and membership history. The shared summary provides direct renewal and collection actions. Unpaid periods appear above the views with their own remaining balances and collection buttons, oldest first. Collection shows the member, membership period, total, paid amount, and remaining balance after the entered payment; it records another payment against that period and opens receipt sharing. Renewal payments apply only to the new period, leaving previous balances separately collectible.
-- Record up to 10 manual payment entries together, including mixed UPI and cash. Show the summed collection and remaining balance before saving. Remove all rows for an unpaid activation/enrollment/renewal; balance collection requires at least one positive entry. Each row retains its method, date, reference, receipt and independent reversal history. Failed saves retain form inputs and photos; retries of the same request do not duplicate memberships or receipts.
+- Record up to 10 manual payment entries together, including mixed UPI and cash. Show the summed collection and remaining balance before saving. Remove all rows for an unpaid activation/enrollment/renewal; balance collection requires at least one positive entry. Each row retains its method, date, reference, and independent reversal history; customer-facing receipts are grouped per payment operation. Failed saves retain form inputs and photos; retries of the same request do not duplicate memberships or receipts.
 - Automatically place unpaid membership balances into the partial-payment reminder window seven days after the membership start or renewal start date.
 - Produce immutable receipt numbers and signed, member-readable receipt links for individual WhatsApp sharing.
 - Reverse incorrect payments with a reason from the authenticated receipt page instead of deleting them. Renewal creation and all payment rows commit together; a failure rolls back the entire operation.
@@ -64,7 +64,7 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 ## Product invariants
 
 - Every operational record must remain scoped to the provisioned gym.
-- Money is stored as integer paise; display formatting is not the source of truth.
+- Money is stored as integer minor units; the gym currency setting controls display labels and symbols but does not convert historical values.
 - Applied plans, prices, and membership terms are snapshotted for historical accuracy.
 - Attendance and financial activity are append-only or corrected through audited actions. An undone attendance event remains stored but is excluded from operational status, totals, and exports.
 - Manual WhatsApp handoffs are never represented as sent or delivered, and QR share tracking records only owner confirmation; automated Cloud API records are labelled submitted until webhook delivery tracking is added.

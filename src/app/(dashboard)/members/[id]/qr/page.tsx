@@ -11,7 +11,7 @@ import { QrSharedStatusForm } from "@/components/qr-shared-status-form";
 import { disableMemberQr, issueMemberQr, markMemberQrShared } from "@/app/actions/attendance";
 import { requirePermission } from "@/lib/auth";
 import { requestAppOrigin } from "@/lib/app-origin";
-import { attendanceLabel, formatDisplayDate, formatDisplayDateTime, formatInr, formatPaymentMethod } from "@/lib/domain";
+import { attendanceLabel, formatDisplayDate, formatDisplayDateTime, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { qrUrls } from "@/lib/qr-token";
 import { createReceiptToken } from "@/lib/receipt-token";
 import { whatsappClickToChatUrl } from "@/lib/reminders";
@@ -33,6 +33,7 @@ type MemberPayment = {
 export default async function MemberQrPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Query> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const [{ supabase, gym }, origin] = await Promise.all([requirePermission("members.manage"), requestAppOrigin()]);
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const requestedPage = Number(query.receipts ?? 1);
   const receiptPage = Number.isSafeInteger(requestedPage) && requestedPage > 0 && requestedPage <= 100000 ? requestedPage : 1;
   const pageSize = 8;
@@ -78,7 +79,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
     const reversed = payment.payment_reversals.reduce((total, reversal) => total + Number(reversal.amount_paise), 0);
     return sum + (payment.voided_at ? 0 : Number(payment.amount_paise) - reversed);
   }, 0);
-  const receiptAmount = latestPrimaryPayment ? formatInr(receiptAmountPaise) : "";
+  const receiptAmount = latestPrimaryPayment ? formatInr(receiptAmountPaise, currencyCode) : "";
   const receiptPaidOn = latestPrimaryPayment ? formatDisplayDate(latestPrimaryPayment.paid_on) : "";
   const receiptUrl = latestPrimaryPayment ? `${origin}/r/${createReceiptToken(latestPrimaryPayment.id)}` : "";
   const receiptShare = latestPrimaryPayment ? { amount: receiptAmount, paidOn: receiptPaidOn, receiptNumber: latestPrimaryPayment.receipt_number, url: receiptUrl } : null;
@@ -140,10 +141,10 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
                 const reversed = item.payment_reversals.reduce((total, reversal) => total + Number(reversal.amount_paise), 0);
                 return sum + (item.voided_at ? 0 : Number(item.amount_paise) - reversed);
               }, 0);
-              const amount = formatInr(amountPaise);
+              const amount = formatInr(amountPaise, currencyCode);
               const url = `${origin}/r/${createReceiptToken(payment.id)}`;
               const whatsappUrl = receiptWhatsappUrl(payment, amount, url);
-              const methodLabel = group.map(item => `${formatPaymentMethod(item.method)} ${formatInr(item.voided_at ? 0 : Number(item.amount_paise) - item.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0))}`).join(" + ");
+              const methodLabel = group.map(item => `${formatPaymentMethod(item.method)} ${formatInr(item.voided_at ? 0 : Number(item.amount_paise) - item.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0), currencyCode)}`).join(" + ");
               const hasReversal = group.some(item => item.voided_at || item.payment_reversals.length > 0);
               return <details className="qr-receipt-record" key={payment.operation_id ?? payment.id}>
                 <summary><span><strong>{payment.receipt_number}</strong><small className="muted">{formatDisplayDate(payment.paid_on)} · {methodLabel}</small></span><span className="qr-receipt-amount"><strong>{amount}</strong>{hasReversal ? <small className="badge partial">Adjusted</small> : group.some(item => item.id === latestPrimaryPayment?.id) ? <small className="muted">Latest</small> : null}</span><ChevronDown size={16} className="receipt-chevron" aria-hidden="true"/></summary>

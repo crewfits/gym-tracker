@@ -132,7 +132,8 @@ gyms
 
 ### Charges and payments
 
-- Money is stored as integer paise.
+- Money is stored as integer minor units.
+- `gyms.currency_code` controls display currency across owner screens, receipts, reminders, and exports. Stored integer amounts remain minor-unit values; changing the display currency does not perform exchange-rate conversion or rewrite historical payment amounts.
 - Each membership has a charge with subtotal, discount, tax, total, paid, and outstanding values.
 - Payments are manual records tied to a charge.
 - Incorrect payments are voided with a reason instead of deleted.

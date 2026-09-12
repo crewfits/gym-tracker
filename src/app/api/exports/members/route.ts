@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (page === 50) return Response.json({ error: "Export is limited to 5,000 members" }, { status: 413 });
   }
   const csv = csvDocument(
-    ["Member ID", "Name", "Phone", "Email", "Archived", "Plan", "Plan start date", "Plan end date", "Membership status", "Outstanding (INR)", "QR status", "QR shared at"],
+    ["Member ID", "Name", "Phone", "Email", "Archived", "Plan", "Plan start date", "Plan end date", "Membership status", `Outstanding (${gym.currency_code ?? "INR"})`, "QR status", "QR shared at"],
     rows.map((row) => {
       const qrStatus = row.is_archived ? "archived" : !row.qr_version ? "not generated" : !row.qr_enabled ? "disabled" : row.qr_shared_at ? "shared" : "not shared";
       return [row.member_code, row.name, row.phone, row.email, row.is_archived, row.plan_name, formatDisplayDate(row.starts_on), formatDisplayDate(row.expires_on), row.is_archived ? "archived" : row.membership_status, (Number(row.balance_paise) / 100).toFixed(2), qrStatus, formatDisplayDateTime(row.qr_shared_at, gym.timezone)];

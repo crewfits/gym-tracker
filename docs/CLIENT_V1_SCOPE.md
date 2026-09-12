@@ -56,7 +56,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 ## Supporting essentials
 
 - Secure owner sign-in; no public self-registration.
-- Gym name, contact details, timezone, and reminder-message settings.
+- Gym name, contact details, timezone, receipt prefix, and display currency settings.
 - Dashboard counts for active/expiring/outstanding members and today's attendance.
 - CSV export and a documented backup process.
 - Installable Android PWA with in-app QR camera scanning, sound/vibration feedback, and no new browser tab, plus mobile-friendly WhatsApp handoff.

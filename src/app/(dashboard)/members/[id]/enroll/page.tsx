@@ -2,7 +2,7 @@ import Link from "next/link";
 import { enrollWithPayments } from "@/app/actions/split-payments";
 import { MembershipForm } from "@/components/membership-form";
 import { requirePermission } from "@/lib/auth";
-import { businessDate } from "@/lib/domain";
+import { businessDate, normalizeCurrencyCode } from "@/lib/domain";
 import { canAccess } from "@/lib/permissions";
 import { loadStaffHandlers } from "@/lib/staff-handlers";
 import type { Plan, TrainerOption } from "@/lib/types";
@@ -31,6 +31,7 @@ export default async function Enroll({ params, searchParams }: { params: Promise
       defaultTrainerId={member?.assigned_trainer_user_id ?? null}
       action={enrollWithPayments}
       today={businessDate(gym.timezone)}
+      currencyCode={normalizeCurrencyCode(gym.currency_code)}
       error={query.error}
     />
   </>;

@@ -3,7 +3,7 @@
 // import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
-import { formatDisplayDate, formatInr } from "@/lib/domain";
+import { formatDisplayDate, formatInr, normalizeCurrencyCode } from "@/lib/domain";
 import { renderReminderTemplate, whatsappNumber } from "@/lib/reminders";
 // import { processAutomaticMembershipReminders, processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
 
@@ -26,6 +26,7 @@ export async function openWhatsAppReminder(formData: FormData): Promise<OpenRemi
       charge_id: z.union([z.uuid(), z.literal("")]),
     }).parse(Object.fromEntries(formData));
     const { supabase, user, gym } = await requirePermission("reminders.manage");
+    const currencyCode = normalizeCurrencyCode(gym.currency_code);
     const { data: member, error: memberError } = await supabase.from("members").select("id,name,phone,is_archived").eq("id", input.member_id).eq("gym_id", gym.id).maybeSingle();
     if (memberError) throw memberError;
     if (!member || member.is_archived) throw new Error("Active member not found");
@@ -46,7 +47,7 @@ export async function openWhatsAppReminder(formData: FormData): Promise<OpenRemi
         name: member.name,
         gym_name: gym.name,
         plan_name: membership.plan_name,
-        balance: formatInr(Number(charge.balance_paise)),
+        balance: formatInr(Number(charge.balance_paise), currencyCode),
         due_date: formatDisplayDate(charge.due_on),
       });
     } else {
