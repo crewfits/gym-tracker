@@ -5,7 +5,7 @@ import { OpenWhatsAppReminderButton } from "@/components/open-whatsapp-reminder-
 import { SubmitButton } from "@/components/submit-button";
 import { SortableTableHeader } from "@/components/sortable-table-header";
 import { requireGym } from "@/lib/auth";
-import { businessDate, calculatePaymentFollowUpDate, formatDisplayDate, formatInr } from "@/lib/domain";
+import { businessDate, calculatePaymentFollowUpDate, formatDisplayDate, formatInr, normalizeCurrencyCode } from "@/lib/domain";
 
 type FollowUp = {
   id: string; membership_id: string; due_on: string; balance_paise: number;
@@ -15,6 +15,7 @@ type FollowUp = {
 
 export async function PaymentFollowUps({ page, upcoming, descending }: { page: number; upcoming: boolean; descending: boolean }) {
   const { supabase, gym } = await requireGym();
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const today = businessDate(gym.timezone);
   const pageSize = 50;
   let query = supabase.from("charge_balances")
@@ -47,7 +48,7 @@ export async function PaymentFollowUps({ page, upcoming, descending }: { page: n
         return <tr key={item.id}>
           <td><Link href={`/members/${membership.member_id}`}><strong>{member.name}</strong><br/><small className="muted">{member.member_code} · {member.phone}</small></Link></td>
           <td>{membership.plan_name}<br/><small className="muted">{formatDisplayDate(membership.starts_on)} - {formatDisplayDate(membership.expires_on)}</small></td>
-          <td><strong>{formatInr(Number(item.balance_paise))}</strong></td>
+          <td><strong>{formatInr(Number(item.balance_paise), currencyCode)}</strong></td>
           <td><strong>{formatDisplayDate(item.due_on)}</strong><br/><span className={`badge ${item.due_on < today ? "expired" : "expiring"}`}>{item.due_on < today ? "Overdue" : item.due_on === today ? "Due today" : "Upcoming"}</span></td>
           <td><div className="payment-follow-up-actions">
             <OpenWhatsAppReminderButton kind="payment" memberId={membership.member_id} membershipId={item.membership_id} chargeId={item.id}/>

@@ -32,7 +32,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 
 ### Payments and reminders
 
-- Record full or partial manual payments, including up to 10 cash/UPI/card/bank-transfer entries in one activation, enrollment, renewal, or balance collection. Each entry has its own amount, date, optional reference, and receipt.
+- Record full or partial manual payments, including up to 10 cash/UPI/card/bank-transfer entries in one activation, enrollment, renewal, or balance collection. Each entry has its own amount, date, and optional reference; the customer-facing receipt is grouped per payment operation and lists the payment-method breakdown plus paid and due amounts.
 - Show total, paid, outstanding, due date, and payment history.
 - Show partial-payment, overdue, and expiring-soon queues.
 - Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.
@@ -56,7 +56,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 ## Supporting essentials
 
 - Secure owner sign-in; no public self-registration.
-- Gym name, contact details, timezone, and reminder-message settings.
+- Gym name, contact details, timezone, receipt prefix, and display currency settings.
 - Dashboard counts for active/expiring/outstanding members and today's attendance.
 - CSV export and a documented backup process.
 - Installable Android PWA with in-app QR camera scanning, sound/vibration feedback, and no new browser tab, plus mobile-friendly WhatsApp handoff.
@@ -105,6 +105,6 @@ A reusable customer-facing import UI is not required for V1.
 
 ## Expired-membership access attempts (2026-09-10)
 
-Expired members with a current, enabled QR remain denied, but the owner scanner now logs their attempted visit. Repeat scans within 30 seconds are suppressed. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
+Expired members with a current, enabled QR remain denied, but the owner scanner logs every attempted visit. Reusing the same request ID stays idempotent, but separate scans are persisted without the normal attendance cooldown so owners can see repeated expired-membership access attempts. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
 
 The separate `denied_access_attempts` ledger never contributes to attendance or occupancy. Attendance → Denied attempts provides search, date filters, pagination and CSV; backups include the ledger. Direct scan-page visits remain read-only until the owner confirms **Log denied attempt**. Apply migration `20260910100000_expired_qr_access_attempts.sql` before deploying. See [QR attendance architecture](qr-attendance-architecture.md#expired-membership-access-attempts-2026-09-10) for database guarantees and verification.

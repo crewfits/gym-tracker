@@ -13,7 +13,7 @@ function form(extra: Record<string, string> = {}) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.requirePermission.mockResolvedValue({ supabase: { rpc: mocks.rpc, from: mocks.from }, gym: { id: member } });
+  mocks.requirePermission.mockResolvedValue({ supabase: { rpc: mocks.rpc, from: mocks.from }, gym: { id: member }, viewer: { role: "owner", features: {}, adminFeatures: {} } });
   mocks.rpc.mockResolvedValue({ data: { member_id: member, operation_id: operation, payment_ids: [member, operation] }, error: null });
 });
 describe("atomic split-payment actions", () => {
@@ -30,6 +30,14 @@ describe("atomic split-payment actions", () => {
     expect(await renewWithPayments(form({ payments: "[]" }))).toMatchObject({ ok: true });
     expect(await collectPayments(form({ payments: "[]" }))).toMatchObject({ ok: false, fieldErrors: { payments: expect.any(String) } });
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  });
+  it("opens the QR handoff after activation when QR generation is selected", async () => {
+    expect(await activateWithPayments(form({ generate_qr: "on" }))).toEqual({ ok: true, location: `/members/${member}/qr?success=Saved%20successfully.` });
+  });
+  it("keeps receptionist activation away from the restricted payment summary", async () => {
+    mocks.requirePermission.mockResolvedValue({ supabase: { rpc: mocks.rpc, from: mocks.from }, gym: { id: member }, viewer: { role: "receptionist", features: {}, adminFeatures: {} } });
+    expect(await activateWithPayments(form())).toEqual({ ok: true, location: `/members/${member}?success=Saved%20successfully.` });
+    expect(await activateWithPayments(form({ generate_qr: "on" }))).toEqual({ ok: true, location: `/members/${member}/qr?success=Saved%20successfully.` });
   });
   it("rejects malformed payments before database writes", async () => {
     expect(await activateWithPayments(form({ payments: "not-json" }))).toMatchObject({ ok: false });

@@ -4,12 +4,14 @@ import { updateSettings } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
 import { SubmitButton } from "@/components/submit-button";
 import { requirePermission } from "@/lib/auth";
+import { normalizeCurrencyCode, supportedCurrencies } from "@/lib/domain";
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const params = await searchParams;
   const { gym } = await requirePermission("settings.manage");
   const success = typeof params.success === "string" ? params.success : undefined;
   const error = typeof params.error === "string" ? params.error : undefined;
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
 
   return <>
     <div className="page-head">
@@ -43,6 +45,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           </div>
           <div className="field"><label>GSTIN</label><input name="gstin" defaultValue={gym.gstin ?? ""}/></div>
           <div className="field"><label>Receipt prefix</label><input name="receipt_prefix" defaultValue={gym.receipt_prefix} maxLength={8}/></div>
+          <div className="field"><label>Currency</label><select name="currency_code" defaultValue={currencyCode}>{supportedCurrencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}</select></div>
           <div className="field"><label>Timezone</label><select name="timezone" defaultValue={gym.timezone}><option value="Asia/Kolkata">Asia/Kolkata</option><option value="Asia/Dubai">Asia/Dubai</option><option value="Europe/London">Europe/London</option><option value="America/New_York">America/New_York</option></select></div>
         </section>
       </div>

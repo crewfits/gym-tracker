@@ -7,7 +7,7 @@ import { Feedback } from "@/components/feedback";
 import { Pagination } from "@/components/pagination";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
 import { requireGym } from "@/lib/auth";
-import { businessDate, formatDisplayDate, formatInr, memberOperationalView } from "@/lib/domain";
+import { businessDate, formatDisplayDate, formatInr, memberOperationalView, normalizeCurrencyCode } from "@/lib/domain";
 import { signedMemberPhotoUrls } from "@/lib/member-photo";
 import { canAccess } from "@/lib/permissions";
 
@@ -42,6 +42,7 @@ type AttendanceMemberEvent = { member_id: string; occurred_at: string };
 export default async function Members({ searchParams }: PageProps<"/members">) {
   const params = await searchParams;
   const { supabase, gym, viewer } = await requireGym();
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const requestedPage = Number(typeof params.page === "string" ? params.page : "1");
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
@@ -150,7 +151,7 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
             <td><span className="member-contact-phone">{member.phone}</span>{member.email && <small className="muted member-contact-email" title={member.email}>{member.email}</small>}</td>
             <td><span className="member-plan-name" title={effectiveMembership?.plan_name ?? member.plan_name ?? undefined}>{effectiveMembership?.plan_name ?? member.plan_name ?? "—"}</span></td>
             <td>{formatDisplayDate(effectiveMembership?.expires_on ?? member.expires_on)}</td>
-            <td>{formatInr(Number(member.balance_paise))}</td>
+            <td>{formatInr(Number(member.balance_paise), currencyCode)}</td>
             <td><span className={`badge ${displayStatus}`}>{displayStatus.replaceAll("_", " ")}</span></td>
             <td><span className={`badge ${qrBadgeClass}`}>{qrStatus}</span></td>
             <td><div className="inline-actions member-row-actions"><Link className="button secondary small member-action-icon" href={`/members/${member.id}`} title="Manage member" aria-label={`Manage ${member.name}`}><UserRoundPen size={16}/></Link>{!member.is_archived && <Link className="button secondary small member-action-icon" href={`/members/${member.id}/qr`} title={member.qr_enabled ? "Share QR pass & receipts" : "Generate QR pass"} aria-label={`${member.qr_enabled ? "Share QR pass and receipts for" : "Generate QR pass for"} ${member.name}`}><Share2 size={16}/></Link>}{!member.is_archived && member.qr_enabled && <ConfirmActionForm action={issueMemberQr} memberId={member.id} message={`Regenerate ${member.name}'s QR? Every old copy will stop working.`} className="button danger small member-action-icon" label={`Regenerate QR for ${member.name}`} icon={<RefreshCw size={16}/>} pendingLabel="Regenerating…"/>}</div></td>

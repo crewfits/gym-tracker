@@ -1,8 +1,8 @@
 "use client";
 
-import { Download, Share2 } from "lucide-react";
+import { CheckCircle2, Download, Share2, X } from "lucide-react";
 import { useState } from "react";
-import { whatsappClickToChatUrl } from "@/lib/reminders";
+import { whatsappAppUrl, whatsappClickToChatUrl } from "@/lib/reminders";
 
 type Props = {
   defaultCountryCode: string;
@@ -91,52 +91,47 @@ function downloadBlob(blob: Blob, filename: string) {
 export function QrShareActions({ defaultCountryCode, filename, gymName, memberCode, memberName, phone, qrPngDataUrl, receipt }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const message = receipt
     ? `Hi ${memberName}, please save the QR pass image I am sending. Use it at the gym for Check-in and Check-out. Your payment receipt ${receipt.receiptNumber} for ${receipt.amount}, paid on ${receipt.paidOn}: ${receipt.url}`
     : `Hi ${memberName}, please save the QR pass image I am sending. Use it at the gym for Check-in and Check-out.`;
   let whatsappUrl: string | null = null;
+  let whatsappDesktopUrl: string | null = null;
   try {
     whatsappUrl = whatsappClickToChatUrl(phone, defaultCountryCode, message);
+    whatsappDesktopUrl = whatsappAppUrl(phone, defaultCountryCode, message);
   } catch {
     // Older imported members may not yet have a WhatsApp-routable phone number.
   }
 
   async function copyPassImage() {
     const blob = await buildPassImage({ gymName, memberName, memberCode, qrPngDataUrl });
-    if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
-      try {
-        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-        window.alert("QR pass image copied. Paste it into the WhatsApp chat and send.");
-        return;
-      } catch {
-        // Clipboard permission can be denied even when the API is available.
-      }
-    }
-    downloadBlob(blob, filename);
-    window.alert("QR pass image downloaded. Attach it in WhatsApp and ask the member to save it.");
+    if (!navigator.clipboard || typeof ClipboardItem === "undefined") throw new Error("Image copy is not supported in this browser. Use Download QR image and attach it manually.");
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
   }
 
   async function shareToWhatsApp() {
     if (!whatsappUrl || pending) return;
     setError(null);
-    // Reserve the window during the click, before asynchronous image generation.
-    const popup = window.open("about:blank", "fitkiro-whatsapp-qr-share");
-    if (!popup) {
-      setError("Allow pop-ups for FitKiro, then try again.");
-      return;
-    }
-    popup.opener = null;
     setPending(true);
     try {
       await copyPassImage();
-      popup.location.href = whatsappUrl;
-      popup.focus();
-    } catch {
-      popup.close();
-      setError("Could not prepare the QR pass. Please try again.");
+      setConfirmOpen(true);
+    } catch (copyError) {
+      setError(copyError instanceof Error ? copyError.message : "Could not copy the QR pass image. Please try again.");
     } finally {
       setPending(false);
     }
+  }
+
+  function openWhatsAppApp() {
+    if (!whatsappDesktopUrl) return;
+    window.location.href = whatsappDesktopUrl;
+  }
+
+  function openWhatsAppWeb() {
+    if (!whatsappUrl) return;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   }
 
   async function downloadPassImage() {
@@ -156,12 +151,24 @@ export function QrShareActions({ defaultCountryCode, filename, gymName, memberCo
   return <div className="qr-share-actions">
     {whatsappUrl ? <button className="button success qr-whatsapp-button" type="button" onClick={shareToWhatsApp} disabled={pending}>
       <Share2 size={18}/>
-      {receipt ? "Share QR pass and receipt" : "Share QR pass"}
+      {pending ? "Copying QR image…" : receipt ? "Share QR pass and receipt" : "Share QR pass"}
     </button> : <button className="button secondary qr-whatsapp-button" type="button" onClick={downloadPassImage} disabled={pending}><Download size={18}/> Download QR image</button>}
     {whatsappUrl && <div className="qr-secondary-actions">
       <button className="button secondary small" type="button" onClick={downloadPassImage} disabled={pending}><Download size={15}/> Download QR image</button>
     </div>}
     {error && <small className="form-error" role="alert">{error}</small>}
     {!whatsappUrl && <small className="muted">Add a valid WhatsApp phone number to share directly.</small>}
+    {confirmOpen && <div className="qr-share-modal-backdrop" role="presentation">
+      <div className="qr-share-modal" role="dialog" aria-modal="true" aria-labelledby="qr-share-modal-title">
+        <button className="qr-share-modal-close" type="button" onClick={() => setConfirmOpen(false)} aria-label="Close"><X size={18}/></button>
+        <div className="qr-share-modal-icon"><CheckCircle2 size={30} aria-hidden="true"/></div>
+        <h3 id="qr-share-modal-title">QR image copied</h3>
+        <p>Paste the copied QR image in the WhatsApp chat, then send it to the member.</p>
+        <div className="qr-share-modal-actions">
+          <button className="button success qr-share-modal-ok" type="button" onClick={openWhatsAppApp}><CheckCircle2 size={18}/> Open WhatsApp app</button>
+          <button className="button secondary qr-share-modal-ok" type="button" onClick={openWhatsAppWeb}>Open WhatsApp Web</button>
+        </div>
+      </div>
+    </div>}
   </div>;
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth";
 import { newMemberSchema } from "@/lib/new-member-validation";
+import { canAccess } from "@/lib/permissions";
 import { parsePaymentRows, type SplitPaymentResult } from "@/lib/split-payments";
 import { decodePhotoDataUrl, saveMemberPhoto } from "@/lib/member-photo-upload";
 
@@ -38,7 +39,7 @@ async function submit(kind: "activate" | "enroll" | "renew" | "collect", form: F
       details = { member_id: input.member_id, plan_id: input.plan_id, starts_on: input.starts_on, expires_on: input.expires_on, subtotal_paise: input.subtotal, discount_paise: input.discount, gst_rate_basis_points: Math.round(input.gst_rate * 100), ...(form.has("handled_by_gym_user_id") ? { handled_by_gym_user_id: handledBy } : {}), ...(form.has("assigned_trainer_user_id") ? { assigned_trainer_user_id: input.assigned_trainer_user_id || null } : {}) };
     }
     const permission = kind === "activate" ? "members.create" : kind === "collect" ? "payments.manage" : "payments.manage";
-    const { supabase, gym } = await requirePermission(permission);
+    const { supabase, gym, viewer } = await requirePermission(permission);
     const { data, error } = await supabase.rpc("submit_payment_operation", { p_request_id: requestId, p_kind: kind, p_details: details, p_payments: payments });
     if (error) {
       const field = ["plan_id", "phone", "shared_phone", "expires_on", "payments", "handled_by_gym_user_id"].includes(error.hint) ? error.hint : undefined;
@@ -60,7 +61,9 @@ async function submit(kind: "activate" | "enroll" | "renew" | "collect", form: F
       } catch { warning = " Membership saved, but photo upload failed. Add the photo from the member profile."; }
     }
     revalidatePath("/", "layout");
-    const path = result.payment_ids.length ? `/payments/${result.operation_id}` : kind === "activate" && details.generate_qr ? `/members/${result.member_id}/qr` : `/members/${result.member_id}`;
+    const generatedQr = kind === "activate" && details.generate_qr === true;
+    const canReviewPayments = canAccess(viewer, "payments.view");
+    const path = generatedQr ? `/members/${result.member_id}/qr` : result.payment_ids.length && canReviewPayments ? `/payments/${result.operation_id}` : `/members/${result.member_id}`;
     return { ok: true, location: `${path}?success=${encodeURIComponent(`Saved successfully.${warning}`)}` };
   } catch (error) {
     if (completedMember) return { ok: true, location: `/members/${completedMember}?error=${encodeURIComponent("Saved successfully. Open membership history to review payments.")}` };

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
-import { formatDisplayDate, formatInr, formatPaymentMethod } from "@/lib/domain";
+import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { roleLabel } from "@/lib/staff-handlers";
 
 type HandlerRelation = { display_name: string | null; role: string } | Array<{ display_name: string | null; role: string }> | null;
@@ -16,6 +16,7 @@ export default async function PaymentCollectionPage({ params, searchParams }: { 
   const [{ id }, query] = await Promise.all([params, searchParams]);
   if (!z.uuid().safeParse(id).success) notFound();
   const { supabase, gym } = await requirePermission("payments.view");
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const { data: operation, error } = await supabase.from("payment_operations").select("result").eq("id", id).eq("gym_id", gym.id).maybeSingle();
   if (error) throw error;
   if (!operation) notFound();
@@ -27,18 +28,21 @@ export default async function PaymentCollectionPage({ params, searchParams }: { 
   ]);
   if (memberError || paymentsError || balanceError) throw memberError || paymentsError || balanceError;
   const net = (payment: NonNullable<typeof payments>[number]) => payment.voided_at ? 0 : Number(payment.amount_paise) - payment.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
+  const totalCollected = (payments ?? []).reduce((sum, payment) => sum + net(payment), 0);
+  const primaryPayment = payments?.[0] ?? null;
+  const methodSummary = (payments ?? []).map(payment => `${formatPaymentMethod(payment.method)} ${formatInr(net(payment), currencyCode)}`).join(" + ");
   return <div className="page-stack">
     <Feedback success={typeof query.success === "string" ? query.success : undefined}/>
-    <div className="page-header"><div><p className="eyebrow">Payment collection</p><h1>{member.name}</h1><p className="muted">{member.member_code} · Each payment has its own receipt.</p></div></div>
-    <div className="payment-entry-totals card"><span>Net collected <strong>{formatInr((payments ?? []).reduce((sum, payment) => sum + net(payment), 0))}</strong></span><span>Current membership balance <strong>{formatInr(Number(balance.balance_paise))}</strong></span></div>
-    <div className="payment-entries">{payments.map(payment => <article className="card" key={payment.id}>
-      <h2>{formatInr(Number(payment.amount_paise))} · {formatPaymentMethod(payment.method)}</h2>
-      <p>{payment.receipt_number} · {formatDisplayDate(payment.paid_on)}</p>
-      {payment.reference && <p className="muted">Reference: {payment.reference}</p>}
-      {handlerName(payment.handled_by) && <p className="muted">Collected by {handlerName(payment.handled_by)}</p>}
-      {net(payment) !== Number(payment.amount_paise) && <p className="alert">Reversal recorded. Net payment: {formatInr(net(payment))}.</p>}
-      <Link className="button secondary" href={`/receipts/${payment.id}`}>View & share receipt</Link>
-    </article>)}</div>
+    <div className="page-header"><div><p className="eyebrow">Payment collection</p><h1>{member.name}</h1><p className="muted">{member.member_code} · One receipt includes every payment method from this checkout.</p></div></div>
+    <div className="payment-entry-totals card"><span>Net collected <strong>{formatInr(totalCollected, currencyCode)}</strong></span><span>Current membership balance <strong>{formatInr(Number(balance.balance_paise), currencyCode)}</strong></span></div>
+    {primaryPayment && <article className="card">
+      <h2>{formatInr(totalCollected, currencyCode)}</h2>
+      <p>{primaryPayment.receipt_number} · {formatDisplayDate(primaryPayment.paid_on)}</p>
+      <p className="muted">{methodSummary}</p>
+      {[...new Set((payments ?? []).map(payment => handlerName(payment.handled_by)).filter(Boolean))].length > 0 && <p className="muted">Collected by {[...new Set((payments ?? []).map(payment => handlerName(payment.handled_by)).filter(Boolean))].join(", ")}</p>}
+      {(payments ?? []).some(payment => net(payment) !== Number(payment.amount_paise)) && <p className="alert">Reversal recorded. Net receipt amount: {formatInr(totalCollected, currencyCode)}.</p>}
+      <Link className="button secondary" href={`/receipts/${primaryPayment.id}`}>View & share receipt</Link>
+    </article>}
     <div className="inline-actions"><Link className="button" href={`/members/${result.member_id}/qr`}>Open QR pass</Link><Link className="button secondary" href={`/members/${result.member_id}?view=membership`}>Back to membership</Link></div>
   </div>;
 }
