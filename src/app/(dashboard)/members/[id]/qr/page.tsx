@@ -20,6 +20,7 @@ type Query = { success?: string; error?: string; receipts?: string };
 type Credential = { public_code: string; version: number; enabled: boolean; issued_at: string; rotated_at: string | null; shared_at: string | null };
 type MemberPayment = {
   id: string;
+  operation_id: string | null;
   receipt_number: string;
   amount_paise: number;
   paid_on: string;
@@ -36,7 +37,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
   const receiptPage = Number.isSafeInteger(requestedPage) && requestedPage > 0 && requestedPage <= 100000 ? requestedPage : 1;
   const pageSize = 8;
   const paymentQuery = () => supabase.from("payments")
-    .select("id,receipt_number,amount_paise,paid_on,method,voided_at,payment_reversals(amount_paise),charges!inner(memberships!inner(member_id,plan_name,starts_on,expires_on,reverted_at))", { count: "exact" })
+    .select("id,operation_id,receipt_number,amount_paise,paid_on,method,voided_at,payment_reversals(amount_paise),charges!inner(memberships!inner(member_id,plan_name,starts_on,expires_on,reverted_at))", { count: "exact" })
     .eq("gym_id", gym.id).eq("charges.memberships.member_id", id)
     .order("created_at", { ascending: false }).order("id", { ascending: false });
   const [{ data: member }, { data: credentialData }, { data: attendance }, { data: paymentData, error: paymentError, count: receiptCount }, { data: latestData, error: latestError }] = await Promise.all([
@@ -51,6 +52,21 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
   const credential = credentialData as Credential | null;
   const payments = paymentData ?? [];
   const latestPayment = latestData?.[0] ?? null;
+  const { data: latestOperationPayments, error: latestOperationError } = latestPayment?.operation_id
+    ? await supabase.from("payments")
+      .select("id,operation_id,receipt_number,amount_paise,paid_on,method,voided_at,payment_reversals(amount_paise),charges!inner(memberships!inner(member_id,plan_name,starts_on,expires_on,reverted_at))")
+      .eq("gym_id", gym.id).eq("operation_id", latestPayment.operation_id).eq("charges.memberships.member_id", id).order("created_at", { ascending: true }).returns<MemberPayment[]>()
+    : { data: null, error: null };
+  if (latestOperationError) throw latestOperationError;
+  const latestReceiptPayments = latestOperationPayments?.length ? latestOperationPayments : latestPayment ? [latestPayment] : [];
+  const latestPrimaryPayment = latestReceiptPayments[0] ?? null;
+  const receiptGroups = [...payments.reduce((groups, payment) => {
+    const key = payment.operation_id ?? payment.id;
+    const current = groups.get(key) ?? [];
+    current.push(payment);
+    groups.set(key, current);
+    return groups;
+  }, new Map<string, MemberPayment[]>()).values()];
   const token = credential?.enabled ? credential.public_code : null;
   const urls = token ? qrUrls(token, origin) : null;
   const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91";
@@ -58,11 +74,14 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
   const qrPng = urls ? await qrPngDataUrl(urls.scanUrl) : null;
   const memberNameSlug = member.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   const qrFilename = `${memberNameSlug || "member"}-${member.member_code.toLowerCase()}-gym-pass.png`;
-  const reversedPaise = latestPayment?.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0) ?? 0;
-  const receiptAmount = latestPayment ? formatInr(Number(latestPayment.amount_paise) - reversedPaise) : "";
-  const receiptPaidOn = latestPayment ? formatDisplayDate(latestPayment.paid_on) : "";
-  const receiptUrl = latestPayment ? `${origin}/r/${createReceiptToken(latestPayment.id)}` : "";
-  const receiptShare = latestPayment ? { amount: receiptAmount, paidOn: receiptPaidOn, receiptNumber: latestPayment.receipt_number, url: receiptUrl } : null;
+  const receiptAmountPaise = latestReceiptPayments.reduce((sum, payment) => {
+    const reversed = payment.payment_reversals.reduce((total, reversal) => total + Number(reversal.amount_paise), 0);
+    return sum + (payment.voided_at ? 0 : Number(payment.amount_paise) - reversed);
+  }, 0);
+  const receiptAmount = latestPrimaryPayment ? formatInr(receiptAmountPaise) : "";
+  const receiptPaidOn = latestPrimaryPayment ? formatDisplayDate(latestPrimaryPayment.paid_on) : "";
+  const receiptUrl = latestPrimaryPayment ? `${origin}/r/${createReceiptToken(latestPrimaryPayment.id)}` : "";
+  const receiptShare = latestPrimaryPayment ? { amount: receiptAmount, paidOn: receiptPaidOn, receiptNumber: latestPrimaryPayment.receipt_number, url: receiptUrl } : null;
   function receiptWhatsappUrl(payment: MemberPayment, amount: string, url: string) {
     try {
       return whatsappClickToChatUrl(member!.phone, defaultCountryCode, `Hi ${member!.name}, payment receipt ${payment.receipt_number} for ${amount}, paid on ${formatDisplayDate(payment.paid_on)} to ${gym.name}: ${url}`);
@@ -89,10 +108,10 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
             <div className="qr-control-panel">
               <div className="qr-handoff-heading"><h2>{receiptShare ? "QR pass & latest receipt" : "QR pass"}</h2></div>
               {latestError && <div className="alert error">The latest receipt could not be loaded. Refresh before sharing.</div>}
-              {latestPayment && <div className="qr-included-receipt">
+              {latestPrimaryPayment && <div className="qr-included-receipt">
                 <ReceiptText size={20} aria-hidden="true"/>
-                <div><strong>{receiptAmount}</strong><span className="muted">{latestPayment.receipt_number} · {receiptPaidOn}</span><small className="muted">{latestPayment.charges.memberships.plan_name}</small></div>
-                <Link href={`/receipts/${latestPayment.id}`} className="qr-receipt-preview">View receipt</Link>
+                <div><strong>{receiptAmount}</strong><span className="muted">{latestPrimaryPayment.receipt_number} · {receiptPaidOn}</span><small className="muted">{latestPrimaryPayment.charges.memberships.plan_name}</small></div>
+                <Link href={`/receipts/${latestPrimaryPayment.id}`} className="qr-receipt-preview">View receipt</Link>
               </div>}
               {qrPng && <QrShareActions defaultCountryCode={defaultCountryCode} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} phone={member.phone} qrPngDataUrl={qrPng} receipt={receiptShare}/>}
               {sharedAt
@@ -112,16 +131,22 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
       </section>
       <div className="qr-sharing-history">
         <details className="qr-history-disclosure" id="receipts" open={receiptPage > 1 || Boolean(paymentError)}>
-          <summary><span>Receipt history <small className="muted">({receiptCount ?? 0})</small></span><ChevronDown size={18} aria-hidden="true"/></summary>
+          <summary><span>Receipt history <small className="muted">({receiptGroups.length}{(receiptCount ?? 0) > payments.length ? "+" : ""})</small></span><ChevronDown size={18} aria-hidden="true"/></summary>
           <div className="qr-history-body">
           {paymentError || latestError ? <div className="alert error">Receipts could not be loaded. Please refresh this page.</div> : <>
-            <div className="qr-receipt-list">{payments.map((payment) => {
-              const reversed = payment.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
-              const amount = formatInr(payment.voided_at ? 0 : Number(payment.amount_paise) - reversed);
+            <div className="qr-receipt-list">{receiptGroups.map((group) => {
+              const payment = group[0];
+              const amountPaise = group.reduce((sum, item) => {
+                const reversed = item.payment_reversals.reduce((total, reversal) => total + Number(reversal.amount_paise), 0);
+                return sum + (item.voided_at ? 0 : Number(item.amount_paise) - reversed);
+              }, 0);
+              const amount = formatInr(amountPaise);
               const url = `${origin}/r/${createReceiptToken(payment.id)}`;
               const whatsappUrl = receiptWhatsappUrl(payment, amount, url);
-              return <details className="qr-receipt-record" key={payment.id}>
-                <summary><span><strong>{payment.receipt_number}</strong><small className="muted">{formatDisplayDate(payment.paid_on)} · {formatPaymentMethod(payment.method)}</small></span><span className="qr-receipt-amount"><strong>{amount}</strong>{payment.voided_at || reversed >= Number(payment.amount_paise) ? <small className="badge expired">Reversed</small> : reversed > 0 ? <small className="badge partial">Partially reversed</small> : payment.id === latestPayment?.id ? <small className="muted">Latest</small> : null}</span><ChevronDown size={16} className="receipt-chevron" aria-hidden="true"/></summary>
+              const methodLabel = group.map(item => `${formatPaymentMethod(item.method)} ${formatInr(item.voided_at ? 0 : Number(item.amount_paise) - item.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0))}`).join(" + ");
+              const hasReversal = group.some(item => item.voided_at || item.payment_reversals.length > 0);
+              return <details className="qr-receipt-record" key={payment.operation_id ?? payment.id}>
+                <summary><span><strong>{payment.receipt_number}</strong><small className="muted">{formatDisplayDate(payment.paid_on)} · {methodLabel}</small></span><span className="qr-receipt-amount"><strong>{amount}</strong>{hasReversal ? <small className="badge partial">Adjusted</small> : group.some(item => item.id === latestPrimaryPayment?.id) ? <small className="muted">Latest</small> : null}</span><ChevronDown size={16} className="receipt-chevron" aria-hidden="true"/></summary>
                 <div className="qr-receipt-body">
                   <span className="muted">{payment.charges.memberships.plan_name} · {formatDisplayDate(payment.charges.memberships.starts_on)} - {formatDisplayDate(payment.charges.memberships.expires_on)}</span>
                   <div className="qr-receipt-actions">

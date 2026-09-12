@@ -32,7 +32,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 
 ### Payments and reminders
 
-- Record full or partial manual payments, including up to 10 cash/UPI/card/bank-transfer entries in one activation, enrollment, renewal, or balance collection. Each entry has its own amount, date, optional reference, and receipt.
+- Record full or partial manual payments, including up to 10 cash/UPI/card/bank-transfer entries in one activation, enrollment, renewal, or balance collection. Each entry has its own amount, date, and optional reference; the customer-facing receipt is grouped per payment operation and lists the payment-method breakdown plus paid and due amounts.
 - Show total, paid, outstanding, due date, and payment history.
 - Show partial-payment, overdue, and expiring-soon queues.
 - Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.

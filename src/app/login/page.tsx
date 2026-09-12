@@ -1,5 +1,6 @@
-import { BarChart3, BellRing, Check, Eye, LockKeyhole, Mail, QrCode, ShieldCheck, UserRound, Users, WalletCards } from "lucide-react";
-import { requestPasswordReset, signIn } from "@/app/actions/auth";
+import { BarChart3, BellRing, LockKeyhole, QrCode, ShieldCheck, UserRound, Users, WalletCards } from "lucide-react";
+import { requestPasswordReset } from "@/app/actions/auth";
+import { AuthSignInForm } from "@/components/auth-sign-in-form";
 import { Feedback } from "@/components/feedback";
 import { safeReturnPath } from "@/lib/return-path";
 import { SubmitButton } from "@/components/submit-button";
@@ -66,28 +67,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         </div>
         <Feedback error={resetMode ? undefined : p.error} success={resetMode ? undefined : p.success}/>
 
-        <form className="form auth-signin">
-          <input type="hidden" name="next" value={next}/>
-          <div className="field">
-            <label htmlFor="login-email">Email</label>
-            <div className="auth-input-wrap">
-              <Mail size={18}/>
-              <input id="login-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="Enter your email" required/>
-            </div>
-          </div>
-          <div className="field">
-            <label htmlFor="login-password">Password</label>
-            <div className="auth-input-wrap">
-              <LockKeyhole size={18}/>
-              <input id="login-password" name="password" type="password" autoComplete="current-password" minLength={8} placeholder="Enter your password" required/>
-              <Eye size={18}/>
-            </div>
-          </div>
-          <div className="auth-form-row">
-            <label><input type="checkbox" defaultChecked/> <span><Check size={13}/></span> Remember me</label>
-          </div>
-          <SubmitButton className="button auth-signin-button" formAction={signIn} pendingLabel="Signing in...">Sign in</SubmitButton>
-        </form>
+        <AuthSignInForm next={next}/>
 
         <details className="auth-reset" open={resetMode}>
           <summary>

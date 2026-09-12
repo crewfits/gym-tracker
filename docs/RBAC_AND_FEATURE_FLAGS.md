@@ -31,7 +31,7 @@ Do not create separate role tables for trainers, receptionists, owners, or admin
 | View attendance | Yes | Yes | Yes | Yes |
 | Assign trainer | Yes | No | Yes | Yes |
 
-`admin` is internal FitKiro access. It can manage feature flags, preview admin-enabled features, and is excluded from trainer/receptionist seat limits. Admin users should not be treated as gym staff in owner-facing trainer dropdowns.
+`admin` is internal FitKiro access. It can manage feature flags, preview admin-enabled features, and is excluded from trainer/receptionist seat limits. Admin users should not be treated as gym staff in owner-facing trainer dropdowns or shown in owner-facing staff lists.
 
 ## Feature Flags
 
@@ -42,6 +42,8 @@ show UI = role permission + feature enabled
 admin preview = role is admin + admin_enabled
 server security = route/action/API/database checks
 ```
+
+The feature-flag screen labels this as **Admin preview**. It is not a customer-facing role toggle; it lets internal admins test a disabled feature before enabling it for the gym.
 
 Current flags:
 
@@ -79,9 +81,11 @@ Current flags:
 8. Sign in as owner:
    - Staff management is available.
    - Feature flags are hidden.
+   - Internal admin rows and admin role choices are hidden.
 9. Sign in as admin:
    - Admin-enabled feature flags are visible even when `enabled=false`.
    - Staff and feature flag controls are available.
+   - Internal admin rows and admin role choices are visible.
 10. Turn on `trainer_assignment` in Settings -> Staff.
 11. Confirm owner/receptionist see trainer dropdowns on add member, enroll, and renew.
 12. Turn off `trainer_assignment` and leave admin preview on.
