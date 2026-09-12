@@ -1359,3 +1359,6 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
   border-radius: 999px;
 }
 .qr-share-modal-ok { margin-top: 4px; }
+.qr-share-modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
+.qr-share-modal-actions .button { min-height: 42px; }
+@media (max-width: 520px) { .qr-share-modal-actions { display: grid; width: 100%; } .qr-share-modal-actions .button { width: 100%; } }

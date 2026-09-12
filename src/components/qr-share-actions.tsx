@@ -2,7 +2,7 @@
 
 import { CheckCircle2, Download, Share2, X } from "lucide-react";
 import { useState } from "react";
-import { whatsappClickToChatUrl } from "@/lib/reminders";
+import { whatsappAppUrl, whatsappClickToChatUrl } from "@/lib/reminders";
 
 type Props = {
   defaultCountryCode: string;
@@ -96,8 +96,10 @@ export function QrShareActions({ defaultCountryCode, filename, gymName, memberCo
     ? `Hi ${memberName}, please save the QR pass image I am sending. Use it at the gym for Check-in and Check-out. Your payment receipt ${receipt.receiptNumber} for ${receipt.amount}, paid on ${receipt.paidOn}: ${receipt.url}`
     : `Hi ${memberName}, please save the QR pass image I am sending. Use it at the gym for Check-in and Check-out.`;
   let whatsappUrl: string | null = null;
+  let whatsappDesktopUrl: string | null = null;
   try {
     whatsappUrl = whatsappClickToChatUrl(phone, defaultCountryCode, message);
+    whatsappDesktopUrl = whatsappAppUrl(phone, defaultCountryCode, message);
   } catch {
     // Older imported members may not yet have a WhatsApp-routable phone number.
   }
@@ -122,9 +124,13 @@ export function QrShareActions({ defaultCountryCode, filename, gymName, memberCo
     }
   }
 
-  function openWhatsApp() {
+  function openWhatsAppApp() {
+    if (!whatsappDesktopUrl) return;
+    window.location.href = whatsappDesktopUrl;
+  }
+
+  function openWhatsAppWeb() {
     if (!whatsappUrl) return;
-    setConfirmOpen(false);
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   }
 
@@ -158,7 +164,10 @@ export function QrShareActions({ defaultCountryCode, filename, gymName, memberCo
         <div className="qr-share-modal-icon"><CheckCircle2 size={30} aria-hidden="true"/></div>
         <h3 id="qr-share-modal-title">QR image copied</h3>
         <p>Paste the copied QR image in the WhatsApp chat, then send it to the member.</p>
-        <button className="button success qr-share-modal-ok" type="button" onClick={openWhatsApp}><CheckCircle2 size={18}/> OK, open WhatsApp</button>
+        <div className="qr-share-modal-actions">
+          <button className="button success qr-share-modal-ok" type="button" onClick={openWhatsAppApp}><CheckCircle2 size={18}/> Open WhatsApp app</button>
+          <button className="button secondary qr-share-modal-ok" type="button" onClick={openWhatsAppWeb}>Open WhatsApp Web</button>
+        </div>
       </div>
     </div>}
   </div>;
