@@ -27,7 +27,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 1. An owner signs in and creates a member with contact details.
 2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and optional initial payment entries. New-member validation appears under the relevant field, and activation is disabled until required inputs are valid. Failed enrollment keeps the entered data and selected photo. Intentional shared phones require confirmation and allow up to three member records; archived duplicates offer reactivation.
 3. The database creates the member, membership, charge, optional QR, and all initial payment entries transactionally. Photo storage is handled afterward; a failed photo upload does not undo or repeat the financial operation.
-4. QR issuance is optional. It may happen immediately or later from the member list. After recording payments, a collection summary lists every receipt and links to the QR pass. Each receipt can be opened and shared individually.
+4. QR issuance is optional. When the activation creates a QR, the operator lands on the QR handoff screen immediately; otherwise payment-capable roles see the collection summary. Each receipt can be opened and shared individually.
 
 ### QR access and attendance
 
