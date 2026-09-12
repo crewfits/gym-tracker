@@ -2,7 +2,7 @@ import Link from "next/link";
 import { activateWithPayments } from "@/app/actions/split-payments";
 import { NewMemberForm } from "@/components/new-member-form";
 import { requirePermission } from "@/lib/auth";
-import { businessDate } from "@/lib/domain";
+import { businessDate, normalizeCurrencyCode } from "@/lib/domain";
 import { canAccess } from "@/lib/permissions";
 import { loadStaffHandlers } from "@/lib/staff-handlers";
 import type { Plan, TrainerOption } from "@/lib/types";
@@ -17,5 +17,5 @@ export default async function NewMember({ searchParams }: PageProps<"/members/ne
   ]);
   const today = businessDate(gym.timezone);
   const error = typeof params.error === "string" ? params.error : undefined;
-  return <><div className="page-head"><div><p className="eyebrow">New member</p><h1>Add and enroll member</h1><p className="muted">Create their profile, activate a membership plan, and record the first payment.</p></div><Link className="button secondary" href="/members">Cancel</Link></div><NewMemberForm plans={(data ?? []) as Plan[]} trainers={(trainers ?? []) as TrainerOption[]} showTrainerAssignment={showTrainerAssignment} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} today={today} error={error} action={activateWithPayments}/></>;
+  return <><div className="page-head"><div><p className="eyebrow">New member</p><h1>Add and enroll member</h1><p className="muted">Create their profile, activate a membership plan, and record the first payment.</p></div><Link className="button secondary" href="/members">Cancel</Link></div><NewMemberForm plans={(data ?? []) as Plan[]} trainers={(trainers ?? []) as TrainerOption[]} showTrainerAssignment={showTrainerAssignment} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} today={today} currencyCode={normalizeCurrencyCode(gym.currency_code)} error={error} action={activateWithPayments}/></>;
 }

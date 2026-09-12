@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
+import { canAccess } from "@/lib/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const staffRole = z.enum(["receptionist", "trainer", "admin"]);
@@ -35,7 +36,8 @@ export async function createStaffUser(formData: FormData) {
       phone: z.string().trim().max(30).optional(),
       role: staffRole,
     }).parse(Object.fromEntries(formData));
-    const { gym } = await requirePermission("staff.manage");
+    const { gym, viewer } = await requirePermission("staff.manage");
+    if (input.role === "admin" && !canAccess(viewer, "feature_flags.manage")) throw new Error("Admin access is restricted to internal FitKiro admins.");
     const admin = createAdminClient();
     const { data: flag, error: flagError } = await admin.from("gym_feature_flags").select("config_json").eq("gym_id", gym.id).eq("key", "staff_roles").maybeSingle();
     if (flagError) throw flagError;
@@ -84,7 +86,13 @@ export async function updateStaffUser(formData: FormData) {
       role: staffRole,
       status: staffStatus,
     }).parse(Object.fromEntries(formData));
-    const { supabase, gym } = await requirePermission("staff.manage");
+    const { supabase, gym, viewer } = await requirePermission("staff.manage");
+    const canManageAdmins = canAccess(viewer, "feature_flags.manage");
+    const { data: existing, error: existingError } = await supabase.from("gym_users").select("role").eq("id", input.id).eq("gym_id", gym.id).maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) throw new Error("Staff access row not found");
+    if (existing.role === "owner") throw new Error("Owner access is protected");
+    if (!canManageAdmins && (existing.role === "admin" || input.role === "admin")) throw new Error("Admin access is restricted to internal FitKiro admins.");
     const { error } = await supabase.from("gym_users").update({
       display_name: input.display_name,
       phone: input.phone || null,

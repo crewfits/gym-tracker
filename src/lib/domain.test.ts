@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attendanceLabel, businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatDisplayDate, formatDisplayDateTime, memberOperationalView, membershipStatus, nextAttendanceDirection, paymentStatus, planDurationDays, selectEffectiveMembership } from "./domain";
+import { attendanceLabel, businessDate, calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatCompactMoney, formatDisplayDate, formatDisplayDateTime, formatInr, memberOperationalView, membershipStatus, nextAttendanceDirection, normalizeCurrencyCode, paymentStatus, planDurationDays, selectEffectiveMembership } from "./domain";
 
 describe("membership dates", () => {
   it("uses inclusive expiry dates", () => expect(calculateExpiry("2026-01-15", 1, "months")).toBe("2026-02-14"));
@@ -20,6 +20,16 @@ describe("plans", () => {
 describe("finance", () => {
   it("applies discount before GST with integer rounding", () => expect(calculateCharge(100_00, 10_00, 1800)).toEqual({ subtotalPaise: 10000, discountPaise: 1000, gstRateBasisPoints: 1800, taxPaise: 1620, totalPaise: 10620 }));
   it("derives balance states", () => { expect(paymentStatus(1000, 0)).toBe("unpaid"); expect(paymentStatus(1000, 400)).toBe("partial"); expect(paymentStatus(1000, 1000)).toBe("paid"); });
+  it("formats configured currencies", () => {
+    expect(formatInr(1180000, "INR")).toBe("₹11,800.00");
+    expect(formatInr(1180000, "USD")).toBe("$11,800.00");
+    expect(normalizeCurrencyCode("BOGUS")).toBe("INR");
+  });
+  it("compacts financial cards with Indian scale suffixes", () => {
+    expect(formatCompactMoney(87_783_00, "INR")).toBe("₹87.8K");
+    expect(formatCompactMoney(12_50_000_00, "INR")).toBe("₹12.5L");
+    expect(formatCompactMoney(2_40_00_000_00, "INR")).toBe("₹2.4Cr");
+  });
 });
 
 describe("status", () => {

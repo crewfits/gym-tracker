@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth";
-import { businessDate, formatDisplayDate, formatInr } from "@/lib/domain";
+import { businessDate, formatDisplayDate, formatInr, normalizeCurrencyCode } from "@/lib/domain";
 import { collectPayments } from "@/app/actions/split-payments";
 import { CollectPaymentForm } from "@/components/collect-payment-form";
 import { Feedback } from "@/components/feedback";
@@ -12,6 +12,7 @@ export default async function Pay({ params, searchParams }: PageProps<"/members/
   if (!p.charge || typeof p.charge !== "string") notFound();
 
   const { supabase, gym, user } = await requirePermission("payments.manage");
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const error = typeof p.error === "string" ? p.error : undefined;
   const [{ data: charge, error: chargeError }, { data: member, error: memberError }, handlerData] = await Promise.all([
     supabase.from("charges")
@@ -46,11 +47,11 @@ export default async function Pay({ params, searchParams }: PageProps<"/members/
       <h2>{charge.memberships.plan_name}</h2>
       <p className="muted">{formatDisplayDate(charge.memberships.starts_on)} - {formatDisplayDate(charge.memberships.expires_on)}</p>
       <dl className="member-summary-strip">
-        <div><dt>Plan total</dt><dd>{formatInr(Number(charge.total_paise))}</dd></div>
-        <div><dt>Already paid</dt><dd>{formatInr(paid)}</dd></div>
-        <div><dt>Outstanding</dt><dd className={balance > 0 ? "member-balance-due" : "member-balance-settled"}>{formatInr(balance)}</dd></div>
+        <div><dt>Plan total</dt><dd>{formatInr(Number(charge.total_paise), currencyCode)}</dd></div>
+        <div><dt>Already paid</dt><dd>{formatInr(paid, currencyCode)}</dd></div>
+        <div><dt>Outstanding</dt><dd className={balance > 0 ? "member-balance-due" : "member-balance-settled"}>{formatInr(balance, currencyCode)}</dd></div>
       </dl>
     </section>
-    {balance > 0 ? <CollectPaymentForm memberId={id} chargeId={charge.id} balancePaise={balance} today={today} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} action={collectPayments}/> : <div className="collection-settled"><strong>This membership is fully paid.</strong><Link className="button secondary small" href={`/members/${id}/qr`}>View receipts</Link></div>}
+    {balance > 0 ? <CollectPaymentForm memberId={id} chargeId={charge.id} balancePaise={balance} today={today} currencyCode={currencyCode} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} action={collectPayments}/> : <div className="collection-settled"><strong>This membership is fully paid.</strong><Link className="button secondary small" href={`/members/${id}/qr`}>View receipts</Link></div>}
   </div>;
 }

@@ -10,7 +10,7 @@ import { MemberWorkspace } from "@/components/member-workspace";
 import { RemoveRenewalButton } from "@/components/remove-renewal-button";
 import { SubmitButton } from "@/components/submit-button";
 import { requirePermission } from "@/lib/auth";
-import { businessDate, formatDisplayDate, formatInr, memberOperationalView, membershipStatus, paymentStatus } from "@/lib/domain";
+import { businessDate, formatDisplayDate, formatInr, memberOperationalView, membershipStatus, normalizeCurrencyCode, paymentStatus } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import { canAccess } from "@/lib/permissions";
 import { loadStaffHandlers, roleLabel } from "@/lib/staff-handlers";
@@ -30,6 +30,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { supabase, gym, user, viewer } = await requirePermission("members.view");
   const showTrainerAssignment = canAccess(viewer, "trainer.assign", "trainer_assignment");
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const [{ data }, { data: plans }, { data: trainers }, handlerData] = await Promise.all([
     supabase.from("members").select("*, memberships(*, handled_by:gym_users!memberships_handled_by_gym_user_fk(display_name,role), charges(*, payments(*, handled_by:gym_users!payments_handled_by_gym_user_fk(display_name,role), payment_reversals(*))))").eq("id", id).eq("gym_id", gym.id).single(),
     supabase.from("plans").select("*").eq("gym_id", gym.id).eq("is_active", true).order("name"),
@@ -81,21 +82,21 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
       <dl className="member-summary-strip">
         <div><dt>Current plan</dt><dd>{effective.membership?.plan_name ?? "No active plan"}</dd></div>
         <div><dt>Latest expiry</dt><dd>{latest ? formatDisplayDate(latest.expires_on) : "-"}</dd>{!member.is_archived && <dd className="member-summary-action"><Link className="button secondary small" href={latest ? `/members/${id}/renew` : `/members/${id}/enroll`}>{latest ? <RefreshCw size={14}/> : <Plus size={14}/>}{latest ? "Renew membership" : "Start membership"}</Link></dd>}</div>
-        <div><dt>Outstanding balance</dt><dd className={totalOutstanding > 0 ? "member-balance-due" : "member-balance-settled"}>{formatInr(totalOutstanding)}</dd>{unpaidMemberships.length > 0 && <dd className="member-summary-action"><Link className="button small" href={collectHref}><CreditCard size={14}/>{unpaidMemberships.length === 1 ? "Collect payment" : "View unpaid plans"}</Link></dd>}</div>
+        <div><dt>Outstanding balance</dt><dd className={totalOutstanding > 0 ? "member-balance-due" : "member-balance-settled"}>{formatInr(totalOutstanding, currencyCode)}</dd>{unpaidMemberships.length > 0 && <dd className="member-summary-action"><Link className="button small" href={collectHref}><CreditCard size={14}/>{unpaidMemberships.length === 1 ? "Collect payment" : "View unpaid plans"}</Link></dd>}</div>
       </dl>
       {unpaidMemberships.length > 0 && <section className="member-outstanding-section" id="outstanding-payments" aria-labelledby="outstanding-heading">
         <h2 id="outstanding-heading">Outstanding payments</h2>
         <div className="member-outstanding-list">{unpaidMemberships.map((membership) => <div className="member-outstanding-row" key={membership.id}>
-          <div className="member-outstanding-plan"><strong>{membership.plan_name}</strong><span className="muted">{formatDisplayDate(membership.starts_on)} - {formatDisplayDate(membership.expires_on)}</span><small className="muted">Paid {formatInr(membership.paid)} of {formatInr(Number(membership.charge!.total_paise))}</small></div>
-          <div className="member-outstanding-amount"><span className="muted">Remaining</span><strong>{formatInr(membership.balance)}</strong></div>
-          <Link className="button secondary small" href={`/members/${id}/pay?charge=${membership.charge!.id}`} aria-label={`Collect ${formatInr(membership.balance)} for ${membership.plan_name}, ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}`}><CreditCard size={14}/> Collect payment</Link>
+          <div className="member-outstanding-plan"><strong>{membership.plan_name}</strong><span className="muted">{formatDisplayDate(membership.starts_on)} - {formatDisplayDate(membership.expires_on)}</span><small className="muted">Paid {formatInr(membership.paid, currencyCode)} of {formatInr(Number(membership.charge!.total_paise), currencyCode)}</small></div>
+          <div className="member-outstanding-amount"><span className="muted">Remaining</span><strong>{formatInr(membership.balance, currencyCode)}</strong></div>
+          <Link className="button secondary small" href={`/members/${id}/pay?charge=${membership.charge!.id}`} aria-label={`Collect ${formatInr(membership.balance, currencyCode)} for ${membership.plan_name}, ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}`}><CreditCard size={14}/> Collect payment</Link>
         </div>)}</div>
       </section>}
       <MemberWorkspace key={query.view === "membership" ? "membership" : "profile"} initialView={query.view === "membership" ? "membership" : "profile"} membership={<>
         <section className="member-renewal-section">
           <h2>{latest ? "Renew membership" : "Start membership"}</h2>
-          {unpaidMemberships.length > 0 && !member.is_archived && <p className="member-renewal-balance-note">Previous balance: {formatInr(totalOutstanding)}. Renewal payments apply to the new membership period.</p>}
-          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} trainers={(trainers ?? []) as TrainerOption[]} showTrainerAssignment={showTrainerAssignment} action={renewWithPayments} today={today} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} defaultTrainerId={member.assigned_trainer_user_id ?? null} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} returnPath={`/members/${id}?view=membership`}/>}
+          {unpaidMemberships.length > 0 && !member.is_archived && <p className="member-renewal-balance-note">Previous balance: {formatInr(totalOutstanding, currencyCode)}. Renewal payments apply to the new membership period.</p>}
+          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} trainers={(trainers ?? []) as TrainerOption[]} showTrainerAssignment={showTrainerAssignment} action={renewWithPayments} today={today} currencyCode={currencyCode} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} defaultTrainerId={member.assigned_trainer_user_id ?? null} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} returnPath={`/members/${id}?view=membership`}/>}
           {!member.is_archived && !latest && <Link className="button" href={`/members/${id}/enroll`}><Plus size={16}/> Start plan</Link>}
           {member.is_archived && <p className="muted">Reactivate this member before renewing their membership.</p>}
         </section>
@@ -120,12 +121,12 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                 </summary>
                 <div className={`membership-record-body ${membership.balance > 0 ? "" : "compact"}`}>
                   {charge && <div className="charge-breakdown">
-                    <span>Base price<strong>{formatInr(Number(charge.subtotal_paise))}</strong></span>
-                    <span>Discount<strong>- {formatInr(Number(charge.discount_paise))}</strong></span>
-                    <span>GST ({Number(charge.gst_rate_basis_points) / 100}%)<strong>{formatInr(Number(charge.tax_paise))}</strong></span>
-                    <span className="charge-total">Total price<strong>{formatInr(Number(charge.total_paise))}</strong></span>
-                    <span>Collected<strong>{formatInr(membership.paid)}</strong></span>
-                    <span>Balance<strong>{formatInr(membership.balance)}</strong></span>
+                    <span>Base price<strong>{formatInr(Number(charge.subtotal_paise), currencyCode)}</strong></span>
+                    <span>Discount<strong>- {formatInr(Number(charge.discount_paise), currencyCode)}</strong></span>
+                    <span>GST ({Number(charge.gst_rate_basis_points) / 100}%)<strong>{formatInr(Number(charge.tax_paise), currencyCode)}</strong></span>
+                    <span className="charge-total">Total price<strong>{formatInr(Number(charge.total_paise), currencyCode)}</strong></span>
+                    <span>Collected<strong>{formatInr(membership.paid, currencyCode)}</strong></span>
+                    <span>Balance<strong>{formatInr(membership.balance, currencyCode)}</strong></span>
                     <form action={updateChargeDueDate} className="inline-date-form">
                       <input type="hidden" name="member_id" value={id}/>
                       <input type="hidden" name="charge_id" value={charge.id}/>
@@ -135,7 +136,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                   </div>}
                   {charge && charge.payments.length > 0 && <div className="membership-payment-audit">{charge.payments.map((payment: PaymentRow) => handlerName(payment.handled_by) && <small className="muted" key={payment.id}>{payment.receipt_number} collected by {handlerName(payment.handled_by)}</small>)}</div>}
                   {charge && membership.balance > 0 && <div className="membership-actions">
-                    <Link className="button small collect-button" href={`/members/${id}/pay?charge=${charge.id}`}><CreditCard size={14}/> Collect {formatInr(membership.balance)}</Link>
+                    <Link className="button small collect-button" href={`/members/${id}/pay?charge=${charge.id}`}><CreditCard size={14}/> Collect {formatInr(membership.balance, currencyCode)}</Link>
                   </div>}
                 </div>
               </details>;

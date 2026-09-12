@@ -5,13 +5,14 @@ import { Feedback } from "@/components/feedback";
 import { SortableTableHeader, type SortOrder } from "@/components/sortable-table-header";
 import { SubmitButton } from "@/components/submit-button";
 import { requirePermission } from "@/lib/auth";
-import { formatInr, planDurationDays } from "@/lib/domain";
+import { formatInr, normalizeCurrencyCode, planDurationDays } from "@/lib/domain";
 
 const planSorts = new Set(["default", "name", "duration", "fee", "status"]);
 
 export default async function Plans({ searchParams }: PageProps<"/plans">) {
   const params = await searchParams;
   const { supabase, gym } = await requirePermission("plans.manage");
+  const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const { data: plans } = await supabase.from("plans").select("*").eq("gym_id", gym.id).order("is_active", { ascending: false }).order("name");
   const sort = typeof params.sort === "string" && planSorts.has(params.sort) ? params.sort : "default";
   const order: SortOrder = params.order === "asc" || params.order === "desc" ? params.order : "asc";
@@ -60,7 +61,7 @@ export default async function Plans({ searchParams }: PageProps<"/plans">) {
             <tbody>{sortedPlans.map((plan) => <tr key={plan.id}>
               <td><strong>{plan.name}</strong></td>
               <td>{plan.duration_value} {plan.duration_unit}</td>
-              <td><strong>{formatInr(Number(plan.default_fee_paise))}</strong></td>
+              <td><strong>{formatInr(Number(plan.default_fee_paise), currencyCode)}</strong></td>
               <td><span className={`badge ${plan.is_active ? "active" : ""}`}>{plan.is_active ? "Active" : "Archived"}</span></td>
               <td><div className="inline-actions">
                 <Link className="button secondary small" href={`/plans/${plan.id}/edit`}><Pencil size={14}/> Edit</Link>
@@ -86,7 +87,7 @@ export default async function Plans({ searchParams }: PageProps<"/plans">) {
           <div className="field"><label>Duration</label><input type="number" name="duration_value" min="1" defaultValue="1" required/></div>
           <div className="field"><label>Unit</label><select name="duration_unit"><option value="months">Months</option><option value="days">Days</option></select></div>
         </div>
-        <div className="field"><label>Standard fee (₹)</label><input type="number" name="fee" min="0" step="0.01" required/></div>
+        <div className="field"><label>Standard fee ({currencyCode})</label><input type="number" name="fee" min="0" step="0.01" required/></div>
         <SubmitButton className="button" pendingLabel="Creating plan...">Create plan</SubmitButton>
       </form>
     </div>

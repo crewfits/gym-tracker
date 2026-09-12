@@ -1,0 +1,46 @@
+{
+  "report_file": "tmp/scanner-load-client-v1-admin-2-1789215298109.json",
+  "gym_id": "6a092cd7-6e3e-400a-acf7-2234011e69aa",
+  "gym_name": "FitKiro Load Test client-v1-admin-2",
+  "started_at": "2026-09-12T11:10:09.913Z",
+  "ended_at": "2026-09-12T12:14:58.104Z",
+  "scanner_report": {
+    "planned_scans": 1200,
+    "active_members_sampled": 600,
+    "counts": {
+      "recorded": 1170,
+      "denied": 30,
+      "failed": 0,
+      "duplicates": 17
+    },
+    "latency_ms": {
+      "min": 170,
+      "p50": 196,
+      "p95": 482,
+      "p99": 842,
+      "max": 3829
+    },
+    "expired_mid_run": 30
+  },
+  "db": {
+    "members": 1500,
+    "memberships": 1500,
+    "active_memberships_today": 570,
+    "qr_credentials": 1095,
+    "attendance_events_total": 1713,
+    "denied_attempts_total": 150,
+    "attendance_events_during_run": 1153,
+    "denied_attempts_during_run": 30,
+    "attendance_directions": {
+      "entry": 600,
+      "exit": 553
+    },
+    "denied_reasons": {
+      "membership_expired": 30
+    }
+  },
+  "notes": {
+    "recent_failures": 0,
+    "duplicate_meaning": "Duplicate count means process_qr_access returned an existing cooldown-protected attendance event for a fresh request rather than creating a new row."
+  }
+}

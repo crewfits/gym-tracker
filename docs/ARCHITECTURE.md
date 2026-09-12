@@ -132,15 +132,16 @@ gyms
 
 ### Charges and payments
 
-- Money is stored as integer paise.
+- Money is stored as integer minor units.
+- `gyms.currency_code` controls display currency across owner screens, receipts, reminders, and exports. Stored integer amounts remain minor-unit values; changing the display currency does not perform exchange-rate conversion or rewrite historical payment amounts.
 - Each membership has a charge with subtotal, discount, tax, total, paid, and outstanding values.
 - Payments are manual records tied to a charge.
 - Incorrect payments are voided with a reason instead of deleted.
 - Each charge keeps an internal follow-up date for reminder queries. The owner is not asked to choose this during normal enrollment; new memberships and renewals default it to seven days after the membership start.
 
-- `20260911100000_atomic_split_payments.sql` adds `submit_payment_operation` and owner-readable `payment_operations`. The RPC derives the active gym from authentication, locks its counter row, validates member/charge ownership, and saves zero to ten payments (at least one for collection) with membership creation in one transaction. Each row uses the existing receipt counter and `record_payment` outstanding-balance checks.
+- `20260911100000_atomic_split_payments.sql` adds `submit_payment_operation` and owner-readable `payment_operations`. The RPC derives the active gym from authentication, locks its counter row, validates member/charge ownership, and saves zero to ten payments (at least one for collection) with membership creation in one transaction. Each stored payment row keeps its method/date/reference audit detail and uses `record_payment` outstanding-balance checks.
 - The client preserves a request UUID across failures. The database returns the stored result for an identical retry and rejects changed payloads under an already committed UUID. Receipt IDs remain stable; retries do not extend membership or rotate QR again. A fresh page starts a new operation, so owners should review history before manually repeating an uncertain collection after reloading.
-- Each payment links to its operation using a composite `(gym_id, operation_id)` foreign key. Existing payments remain valid with a null operation. Owner-only `/payments/[id]` lists all receipts, net amounts after reversals, and the current charge balance. Public receipt links remain individual signed links.
+- Each payment links to its operation using a composite `(gym_id, operation_id)` foreign key. Existing payments remain valid with a null operation. Owner-facing and public receipt pages group sibling payments from the same operation into one customer receipt, using the first payment row as the signed receipt anchor while showing method-level payment lines, total paid, and balance due. Owner-only `/payments/[id]` summarizes one receipt per operation, net amounts after reversals, and the current charge balance. Public receipt links remain signed bearer links.
 - Optional activation QR issuance occurs in the transaction. Photo upload follows the successful financial save; storage failure returns a completed enrollment with a warning and must never invite another activation. Backups include the operation ledger.
 
 ### Reminder activity
@@ -236,6 +237,6 @@ Migration changes additionally require Supabase linting and tenant-isolation che
 
 ## Expired-membership access attempts (2026-09-10)
 
-Expired members with a current, enabled QR remain denied, but the owner scanner now logs their attempted visit. Repeat scans within 30 seconds are suppressed. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
+Expired members with a current, enabled QR remain denied, but the owner scanner logs every attempted visit. Reusing the same request ID stays idempotent, but separate scans are persisted without the normal attendance cooldown so owners can see repeated expired-membership access attempts. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
 
 The separate `denied_access_attempts` ledger never contributes to attendance or occupancy. Attendance → Denied attempts provides search, date filters, pagination and CSV; backups include the ledger. Direct scan-page visits remain read-only until the owner confirms **Log denied attempt**. Apply migration `20260910100000_expired_qr_access_attempts.sql` before deploying. See [QR attendance architecture](qr-attendance-architecture.md#expired-membership-access-attempts-2026-09-10) for database guarantees and verification.
