@@ -1,19 +1,9 @@
 "use server";
 
-// import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
 import { formatDisplayDate, formatInr, normalizeCurrencyCode } from "@/lib/domain";
 import { renderReminderTemplate, whatsappNumber } from "@/lib/reminders";
-// import { processAutomaticMembershipReminders, processAutomaticPaymentReminders } from "@/lib/automatic-reminders";
-
-/* Automation-only helper paused.
-function fail(error: unknown): never {
-  const message = error instanceof Error ? error.message : String(error);
-  redirect(`/reminders?error=${encodeURIComponent(message)}`);
-}
-
-*/
 
 type OpenReminderResult = { ok: true; url: string } | { ok: false; error: string };
 
@@ -79,29 +69,3 @@ export async function openWhatsAppReminder(formData: FormData): Promise<OpenRemi
   }
 }
 
-/* Automated send actions are not exposed while manual-only mode is enabled.
-export async function runAutomaticPaymentReminders() {
-  let message = "";
-  try {
-    const { gym } = await requirePermission("reminders.manage");
-    const result = await processAutomaticPaymentReminders(gym.id);
-    message = `WhatsApp run complete: ${result.sent} submitted, ${result.skipped} skipped, ${result.failed} failed.`;
-  } catch (error) {
-    fail(error);
-  }
-  redirect(`/reminders?success=${encodeURIComponent(message)}`);
-}
-
-export async function runAutomaticMembershipReminders() {
-  let message = "";
-  try {
-    const { gym } = await requirePermission("reminders.manage");
-    const result = await processAutomaticMembershipReminders(gym.id);
-    message = `WhatsApp run complete: ${result.sent} submitted, ${result.skipped} skipped, ${result.failed} failed.`;
-  } catch (error) {
-    fail(error);
-  }
-  redirect(`/reminders?success=${encodeURIComponent(message)}`);
-}
-
-*/

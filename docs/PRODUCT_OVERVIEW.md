@@ -1,6 +1,6 @@
 # FitKiro product overview
 
-> Current operating mode (2026-09-05): WhatsApp reminders are owner-triggered only. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
+> Current operating mode (2026-09-13): WhatsApp reminders are owner-triggered only. Automated WhatsApp reminder code, scheduler routes, delivery tables, and Meta Cloud API settings have been removed from V1.
 
 Last reviewed: 2026-08-23
 
@@ -50,7 +50,6 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 - Reverse incorrect payments with a reason from the authenticated receipt page instead of deleting them. Renewal creation and all payment rows commit together; a failure rolls back the entire operation.
 - Open owner-reviewed WhatsApp payment/renewal reminders and record only that the handoff was opened.
 - Reminders separates All renewals, Expiring, Expired, and Payment follow-ups. Payment follow-ups defaults to positive balances with a follow-up date today or earlier; Upcoming shows the next seven days. Each unpaid period remains eligible even after renewal, with direct WhatsApp, collection, and follow-up rescheduling actions. Settled balances, archived members, and reverted periods are excluded. Payment filtering and pagination run in PostgreSQL using the existing charge balance view; no new migration is required.
-- Optionally submit an idempotent WhatsApp Utility template 7 days before membership expiry and on expiry day for opted-in members without a future renewal, recording submitted, skipped, or failed attempts.
 
 ### Daily operations and reporting
 
@@ -67,7 +66,7 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 - Money is stored as integer minor units; the gym currency setting controls display labels and symbols but does not convert historical values.
 - Applied plans, prices, and membership terms are snapshotted for historical accuracy.
 - Attendance and financial activity are append-only or corrected through audited actions. An undone attendance event remains stored but is excluded from operational status, totals, and exports.
-- Manual WhatsApp handoffs are never represented as sent or delivered, and QR share tracking records only owner confirmation; automated Cloud API records are labelled submitted until webhook delivery tracking is added.
+- Manual WhatsApp handoffs are never represented as sent or delivered, and QR share tracking records only owner confirmation.
 - Public QR pages expose the minimum information required for the pass.
 - Frontend visibility is never the authorization boundary.
 

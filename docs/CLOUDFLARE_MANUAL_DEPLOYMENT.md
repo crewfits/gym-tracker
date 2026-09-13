@@ -1,6 +1,6 @@
 # Cloudflare manual deployment
 
-> Current operating mode (2026-09-05): WhatsApp reminders are owner-triggered only. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
+> Current operating mode (2026-09-13): WhatsApp reminders are owner-triggered only. Automated WhatsApp reminder code, scheduler routes, delivery tables, and Meta Cloud API settings have been removed from V1.
 
 Last reviewed: 2026-08-28
 
@@ -48,15 +48,6 @@ These should already be done for the current deployment:
    ```env
    RESEND_API_KEY=...
    RESEND_FROM_EMAIL=...
-   ```
-
-   Automated WhatsApp reminder variables:
-
-   ```env
-   WHATSAPP_ACCESS_TOKEN=...
-   WHATSAPP_PHONE_NUMBER_ID=...
-   WHATSAPP_GRAPH_API_VERSION=v25.0
-   CRON_SECRET=...
    ```
 
 4. Upload or update Cloudflare Worker secrets when a value changes:
@@ -116,8 +107,6 @@ This command:
 1. builds the Next.js app;
 2. generates the OpenNext Cloudflare Worker bundle;
 3. deploys the Worker with existing Cloudflare secrets preserved.
-
-Automated reminder scheduling is owned by Supabase `pg_cron`, not Cloudflare Cron Triggers. Keep `CRON_SECRET` in Cloudflare because the secured route validates it, and store the same value in Supabase Vault as `fitkiro_cron_secret`.
 
 ## After deployment
 

@@ -6,7 +6,7 @@ export const newMemberSchema = z.object({
   name: required("Full name"),
   phone: required("Phone number").refine(v => /^\+?[\d\s()-]+$/.test(v) && (v.startsWith("+") ? v.replace(/\D/g, "").length >= 10 && v.replace(/\D/g, "").length <= 15 : /^\d{10}$/.test(v.replace(/\D/g, ""))), "Enter a 10-digit phone number, or include + and the country code for an international number."),
   email: z.email("Enter a valid email address.").or(z.literal("")), notes: z.string(),
-  generate_qr: z.string().optional(), whatsapp_reminders_enabled: z.string().optional(), shared_phone: z.string().optional(),
+  generate_qr: z.string().optional(), shared_phone: z.string().optional(),
   assigned_trainer_user_id: z.uuid("Select an active trainer.").or(z.literal("")).optional(),
   plan_id: z.uuid("Select a membership plan."),
   starts_on: z.iso.date("Enter a valid start date."), expires_on: z.iso.date("Enter a valid end date."),

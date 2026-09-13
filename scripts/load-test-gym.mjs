@@ -136,8 +136,6 @@ async function seed() {
       { id: randomUUID(), gym_id: gymId, name: "Annual Elite", duration_value: 12, duration_unit: "months", default_fee_paise: paise(14000), is_active: true },
     ];
     await insertMany("plans", plans);
-    await insertMany("reminder_rules", [7, 3, 1].map((days_before) => ({ gym_id: gymId, days_before, enabled: true })));
-
     const { data: gymUsers, error: gymUsersError } = await admin.from("gym_users").select("id,user_id,role,display_name").eq("gym_id", gymId);
     if (gymUsersError) throw gymUsersError;
     const trainerAccessRows = gymUsers.filter((row) => row.role === "trainer");
@@ -150,7 +148,6 @@ async function seed() {
     const qrRows = [];
     const attendanceRows = [];
     const deniedRows = [];
-    const reminderRows = [];
     let receipt = 1;
 
     const expiredCount = Math.floor((membersTarget - activeTarget) * 0.55);
@@ -176,7 +173,6 @@ async function seed() {
         notes: index % 10 === 0 ? "Synthetic load-test member with longer notes for layout testing." : null,
         is_archived: isArchived,
         assigned_trainer_user_id: trainer?.id ?? null,
-        whatsapp_reminders_enabled: index % 3 !== 0,
         created_at: `${addDays(today, -Math.min(730, index))}T09:00:00.000Z`,
         updated_at: `${addDays(today, -Math.min(30, index % 30))}T09:00:00.000Z`,
       });
@@ -265,9 +261,6 @@ async function seed() {
       if (index >= activeTarget && index < activeTarget + Math.min(expiredCount, 120)) {
         deniedRows.push({ id: randomUUID(), gym_id: gymId, member_id: memberId, membership_id: membershipId, qr_version: qrVersion, reason: "membership_expired", expires_on: expiresOn, scanned_by: ownerId(createdUsers), request_id: randomUUID(), occurred_at: `${addDays(today, -(index % 14))}T05:${String(index % 60).padStart(2, "0")}:00.000Z` });
       }
-      if (index < activeTarget && index % 5 === 0) {
-        reminderRows.push({ id: randomUUID(), gym_id: gymId, membership_id: membershipId, rule_id: null, scheduled_for: addDays(expiresOn, -7), status: index % 10 === 0 ? "failed" : "skipped", error: index % 10 === 0 ? "Synthetic failed reminder" : null });
-      }
     }
 
     await insertMany("members", members);
@@ -277,12 +270,6 @@ async function seed() {
     await upsertMany("member_qr_credentials", qrRows, "member_id");
     await insertMany("attendance_events", attendanceRows);
     await insertMany("denied_access_attempts", deniedRows);
-
-    // Link reminder deliveries to the 7-day rule after it exists.
-    const { data: ruleRows, error: rulesError } = await admin.from("reminder_rules").select("id,days_before").eq("gym_id", gymId);
-    if (rulesError) throw rulesError;
-    const sevenDayRule = ruleRows.find((row) => row.days_before === 7);
-    if (sevenDayRule) await insertMany("reminder_deliveries", reminderRows.map((row) => ({ ...row, rule_id: sevenDayRule.id })));
 
     await admin.from("gyms").update({ next_member_number: membersTarget + 1, next_receipt_number: receipt }).eq("id", gymId);
     const manifest = {
@@ -328,13 +315,11 @@ async function cleanup() {
     "denied_access_attempts",
     "attendance_corrections",
     "attendance_events",
-    "reminder_deliveries",
     "payments",
     "charges",
     "member_qr_credentials",
     "memberships",
     "members",
-    "reminder_rules",
     "plans",
     "gym_feature_flags",
     "gym_users",

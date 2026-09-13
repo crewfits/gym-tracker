@@ -1,6 +1,6 @@
 # FitKiro V1 architecture
 
-> Current operating mode (2026-09-05): WhatsApp reminders are owner-triggered only. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
+> Current operating mode (2026-09-13): WhatsApp reminders are owner-triggered only. Automated WhatsApp reminder code, scheduler routes, delivery tables, and Meta Cloud API settings have been removed from V1.
 
 Last reviewed: 2026-08-23
 
@@ -65,8 +65,8 @@ Important modules:
 - `supabase/migrations/017_qr_share_tracking.sql` adds manual QR share tracking and member-list QR share filters.
 - `supabase/migrations/20260902090000_atomic_scanner_attendance.sql` atomically selects scanner direction and suppresses any rapid member rescan for 30 seconds.
 - `supabase/migrations/20260902103000_attendance_event_corrections.sql` adds audited latest-event undo and sequence-safe manual replacement.
-- `supabase/migrations/20260829120000_dashboard_monthly_trends.sql` adds month-level dashboard aggregates and reminder delivery metadata.
-- `supabase/migrations/20260829112945_automated_whatsapp_reminders.sql` adds member opt-in and Meta WhatsApp automation settings.
+- `supabase/migrations/20260829120000_dashboard_monthly_trends.sql` adds month-level dashboard aggregates.
+- `supabase/migrations/20260913150000_remove_automated_whatsapp_reminders.sql` removes the automated WhatsApp scheduler, delivery ledger, and Meta Cloud API settings while keeping manual reminder handoffs.
 
 ## Authentication and data isolation
 
@@ -146,15 +146,14 @@ gyms
 
 ### Reminder activity
 
-V1 reminders combine owner-initiated WhatsApp click-to-chat with opt-in automated payment follow-up through Meta WhatsApp Cloud API.
+V1 reminders are owner-initiated WhatsApp click-to-chat handoffs.
 
-- The application prepares a message and opens WhatsApp.
+- The application prepares a payment or renewal message and opens WhatsApp.
 - The owner reviews and sends it from their own account.
 - Manual handoffs record `opened` or `prepared`, never `sent` or `delivered`.
-- Supabase `pg_cron` invokes a secured daily endpoint through `pg_net`. The app submits an approved Utility template only for opted-in active members whose membership expires in 7 days or on the run date and who do not already have a future renewal. A unique database key plus a claim token prevents duplicate membership/rule/date/channel submission.
-- Invalid numbers and missing consent are recorded as skipped. Provider failures are recorded as failed and may be retried on the same scheduled date. A successful Graph API response is recorded as submitted with the Meta message ID; delivered/read tracking requires a future webhook.
 - Archived members are excluded.
 - Renewal reminders use membership expiry; partial-payment and overdue reminders use the charge follow-up date.
+- There is no cron route, scheduled job, delivery ledger, Meta Cloud API token, or member opt-in column for automated WhatsApp sending in V1.
 
 ## QR access and attendance
 
