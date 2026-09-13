@@ -144,7 +144,7 @@ Before giving the build to the client, also complete:
 - Confirm Cloudflare environment variables match `.env.local` names without exposing service-role keys to the browser.
 - Verify mobile layout for login, add member, member profile, scanner, dashboard, and receipt share.
 - Verify empty states by creating a second small disposable gym or using filters that return no rows.
-- Verify cleanup by running the cleanup command and confirming the load-test gym, members, memberships, payments, QR credentials, attendance, denied attempts, reminder deliveries, and generated auth users are gone.
+- Verify cleanup by running the cleanup command and confirming the load-test gym, members, memberships, payments, QR credentials, attendance, denied attempts and generated auth users are gone.
 
 ## Scanner endpoint load run
 

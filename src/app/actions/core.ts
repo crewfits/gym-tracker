@@ -94,8 +94,6 @@ export async function createMember(formData: FormData): Promise<CreateMemberResu
         photoWarning = ` Photo upload failed: ${photoError instanceof Error ? photoError.message : String(photoError)}`;
       }
     }
-    const { error: reminderPreferenceError } = await supabase.from("members").update({ whatsapp_reminders_enabled: input.whatsapp_reminders_enabled === "on" }).eq("id", result.member_id).eq("gym_id", gym.id);
-    if (reminderPreferenceError) throw reminderPreferenceError;
     if (input.generate_qr === "on") {
       const { error: qrError } = await supabase.rpc("issue_member_qr", { p_member_id: result.member_id });
       if (qrError) return { ok: true, location: `/members/${result.member_id}?error=${encodeURIComponent(`Member created, but QR generation failed: ${qrError.message}`)}` };
@@ -114,7 +112,7 @@ export async function createMember(formData: FormData): Promise<CreateMemberResu
 export async function updateMember(formData: FormData) {
   const id = String(formData.get("id"));
   try {
-    const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), is_archived: z.string().optional(), whatsapp_reminders_enabled: z.string().optional() }).parse(Object.fromEntries(formData));
+    const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), is_archived: z.string().optional() }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requirePermission("members.manage");
     const selectedPhoto = photoInput(formData);
     const { data: existing, error: existingError } = await supabase.from("members").select("profile_photo_path").eq("id", id).eq("gym_id", gym.id).maybeSingle();
@@ -126,7 +124,7 @@ export async function updateMember(formData: FormData) {
       await removeMemberPhoto(supabase, existing.profile_photo_path);
       profilePhotoPath = null;
     }
-    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", whatsapp_reminders_enabled: input.whatsapp_reminders_enabled === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
+    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
     if (error) throw error; done(`/members/${id}`, "Member updated");
   } catch (e) { fail(`/members/${id}`, e); }
 }
@@ -251,7 +249,6 @@ export async function removeMistakenRenewal(formData: FormData) {
         if (reversalError) throw reversalError;
       }
     }
-    await supabase.from("reminder_deliveries").delete().eq("membership_id", membershipId).eq("gym_id", gym.id);
     const { error: membershipError } = await supabase.from("memberships").update({ reverted_at: new Date().toISOString(), reverted_reason: "Mistaken renewal reverted", reverted_by: user.id }).eq("id", membershipId).eq("member_id", memberId).eq("gym_id", gym.id).is("reverted_at", null);
     if (membershipError) throw membershipError;
     done(`/members/${memberId}`, "Mistaken renewal reverted. Any recorded payment was fully reversed.");
@@ -306,14 +303,6 @@ export async function updateSettings(formData: FormData) {
       timezone: text,
       receipt_prefix: z.string().trim().min(1).max(8),
       currency_code: z.enum(["INR", "USD", "EUR", "GBP", "AED", "SGD"]),
-      // Reminder settings are preserved in Supabase; the UI cannot change them.
-/*
-      payment_reminder_template: text,
-      renewal_reminder_template: text,
-      automatic_payment_whatsapp_enabled: z.string().optional(),
-      whatsapp_payment_template_name: z.string().trim().min(1).regex(/^[a-z0-9_]+$/),
-      whatsapp_template_language: z.string().trim().min(2),
-*/
     }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requirePermission("settings.manage");
     const { error } = await supabase.from("gyms").update({ ...input, email: input.email || null }).eq("id", gym.id); if (error) throw error;

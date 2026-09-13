@@ -32,7 +32,17 @@
     "prepare": "node scripts/install-git-hooks.mjs",
     "testdata:load:seed": "node --env-file=.env.local scripts/load-test-gym.mjs seed",
     "testdata:load:cleanup": "node --env-file=.env.local scripts/load-test-gym.mjs cleanup",
-    "testdata:scanner-load": "node --env-file=.env.local scripts/scanner-load-test.mjs"
+    "testdata:scanner-load": "node --env-file=.env.local scripts/scanner-load-test.mjs",
+    "deploy:dev:preflight": "node scripts/deploy-env.mjs dev preflight",
+    "deploy:dev:check": "node scripts/deploy-env.mjs dev supabase:check",
+    "deploy:dev:supabase": "node scripts/deploy-env.mjs dev supabase",
+    "deploy:dev:cloudflare": "node scripts/deploy-env.mjs dev cloudflare",
+    "deploy:dev": "node scripts/deploy-env.mjs dev all",
+    "deploy:prod:preflight": "node scripts/deploy-env.mjs prod preflight",
+    "deploy:prod:check": "node scripts/deploy-env.mjs prod supabase:check",
+    "deploy:prod:supabase": "node scripts/deploy-env.mjs prod supabase",
+    "deploy:prod:cloudflare": "node scripts/deploy-env.mjs prod cloudflare",
+    "deploy:prod": "node scripts/deploy-env.mjs prod all"
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
