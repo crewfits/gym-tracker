@@ -10,11 +10,8 @@
   },
   "vars": {
     "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com",
-    "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91",
-    "WHATSAPP_GRAPH_API_VERSION": "v25.0"
+    "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91"
   },
-  // WhatsApp scheduling is paused; retain the trigger configuration for later.
-  // "triggers": { "crons": ["0 3 * * *"] },
   "routes": [
     {
       "pattern": "musclefitness.fitkiro.com",
@@ -23,5 +20,39 @@
   ],
   "observability": {
     "enabled": true
+  },
+  "env": {
+    "dev": {
+      "name": "fitkiro-dev",
+      "vars": {
+        "NEXT_PUBLIC_APP_URL": "https://dev.fitkiro.com",
+        "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91"
+      },
+      "routes": [
+        {
+          "pattern": "dev.fitkiro.com",
+          "custom_domain": true
+        }
+      ],
+      "observability": {
+        "enabled": true
+      }
+    },
+    "prod": {
+      "name": "fitkiro",
+      "vars": {
+        "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com",
+        "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91"
+      },
+      "routes": [
+        {
+          "pattern": "musclefitness.fitkiro.com",
+          "custom_domain": true
+        }
+      ],
+      "observability": {
+        "enabled": true
+      }
+    }
   }
 }

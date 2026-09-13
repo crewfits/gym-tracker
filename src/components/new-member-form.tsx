@@ -179,7 +179,6 @@ export function NewMemberForm({ plans, trainers = [], showTrainerAssignment = fa
         </div>
         <div className="form-options enrollment-options">
           <label className="form-option"><input type="checkbox" name="generate_qr" defaultChecked/><span><strong>Generate QR pass</strong><small>Open the new member QR after activation.</small></span></label>
-          <label className="form-option"><input type="checkbox" name="whatsapp_reminders_enabled"/><span><strong>WhatsApp reminder consent</strong><small>Enable only after the member agrees to receive automated payment reminders.</small></span></label>
           <div><label className="form-option"><input type="checkbox" name="shared_phone" {...fieldProps("shared_phone")}/><span><strong>Shared phone number</strong><small>Confirm this number is shared by up to 3 members.</small></span></label>{fieldError("shared_phone")}</div>
         </div>
         {reactivateUrl && <Link href={reactivateUrl} className="button secondary small">Open archived member to reactivate</Link>}

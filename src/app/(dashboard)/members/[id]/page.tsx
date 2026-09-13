@@ -155,7 +155,6 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
             <div className="field member-field-wide"><label htmlFor="member-notes">Coach notes</label><textarea id="member-notes" name="notes" rows={3} defaultValue={member.notes ?? ""}/></div>
           </div>
           <div className="member-preferences">
-            <label><input type="checkbox" name="whatsapp_reminders_enabled" defaultChecked={Boolean(member.whatsapp_reminders_enabled)}/> WhatsApp payment reminder consent</label>
             <label><input type="checkbox" name="is_archived" defaultChecked={member.is_archived}/> Archive member</label>
           </div>
           <div><SubmitButton className="button" pendingLabel="Saving details...">Save member details</SubmitButton></div>

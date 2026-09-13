@@ -12,8 +12,6 @@ const gymTables = [
   "attendance_events",
   "denied_access_attempts",
   "manual_reminder_events",
-  "reminder_rules",
-  "reminder_deliveries",
 ];
 
 async function allRows(client, table, column, value) {

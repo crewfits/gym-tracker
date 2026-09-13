@@ -1,6 +1,6 @@
 # First-client V1 scope
 
-> Current operating mode (2026-09-05): WhatsApp reminders are owner-triggered only. The cron endpoint is disabled, Cloudflare triggers are commented out, and migration `20260905093000_pause_whatsapp_reminder_cron.sql` removes the Supabase daily job. The scheduling implementation is retained for later; scheduling instructions below describe the paused capability. Deploy the app change and apply the pause migration to pause an existing hosted schedule.
+> Current operating mode (2026-09-13): WhatsApp reminders are owner-triggered only. Automated WhatsApp reminder code, scheduler routes, delivery tables, and Meta Cloud API settings have been removed from V1.
 
 Last reviewed: 2026-08-23
 
@@ -37,9 +37,8 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Show partial-payment, overdue, and expiring-soon queues.
 - Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.
 - Open an individual prefilled WhatsApp reminder for the owner to review and send.
-- Optionally submit an approved WhatsApp Utility template 7 days before membership expiry and on expiry day when the member has explicitly opted in, has no future renewal, and Meta Cloud API is configured.
 - Share a payment receipt through a signed, member-readable WhatsApp link.
-- Record manual WhatsApp reminders as opened/prepared. Record automated Cloud API attempts as submitted, skipped, or failed with the Meta message ID when accepted.
+- Record manual WhatsApp reminders as opened/prepared; FitKiro does not represent them as sent or delivered.
 - Correct payments through a void/reason flow instead of deletion.
 
 ### QR attendance
