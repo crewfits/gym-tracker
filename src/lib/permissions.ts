@@ -29,7 +29,7 @@ const rolePermissions: Record<GymRole, ReadonlySet<Permission>> = {
   ]),
   trainer: new Set([
     "attendance.scan", "attendance.view", "members.create", "members.manage", "members.view",
-    "payments.manage", "payments.view", "reminders.manage", "trainer.assign",
+    "payments.manage", "payments.view", "plans.manage", "reminders.manage", "trainer.assign",
   ]),
   admin: new Set([
     "attendance.scan", "attendance.view", "exports.attendance", "exports.members", "exports.payments",

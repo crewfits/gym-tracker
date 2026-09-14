@@ -23,7 +23,7 @@ Do not create separate role tables for trainers, receptionists, owners, or admin
 | Collect payments | Yes | No | Yes | Yes |
 | View transactions and receipts | Yes | No | Yes | Yes |
 | Export CSV | Yes | No | No | Yes |
-| Manage plans | Yes | No | No | Yes |
+| Manage plans | Yes | No | Yes | Yes |
 | Manage settings | Yes | No | No | Yes |
 | Manage staff | Yes | No | No | Yes |
 | Manage feature flags | No | No | No | Yes |
@@ -77,7 +77,7 @@ Current flags:
 7. Sign in as trainer:
    - Dashboard financial cards, Members, Add member, Reminders, Transactions, Scanner, and Attendance are visible.
    - Activation, renewal, collection, trainer assignment, and receipt review are available.
-   - Staff, Settings, Plans, and CSV exports are unavailable.
+   - Staff, Settings, and CSV exports are unavailable; Plans is available.
 8. Sign in as owner:
    - Staff management is available.
    - Feature flags are hidden.

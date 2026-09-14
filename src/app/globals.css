@@ -118,6 +118,15 @@ h2 { margin: 0; font-size: 19px; letter-spacing: -.02em; }
 .button-stack { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .form-error { color: var(--danger); font-size: 12px; }
 .auth-page { height: 100dvh; display: grid; place-items: center; overflow: hidden; padding: clamp(18px, 3.2vw, 42px); background: radial-gradient(circle at 9% 6%, rgba(163,230,53,.16), transparent 24%), radial-gradient(circle at 86% 12%, rgba(37,99,235,.1), transparent 26%), #eef4fb; }
+.auth-complete-page { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 12% 8%, rgba(184,237,88,.24), transparent 26%), radial-gradient(circle at 88% 88%, rgba(59,130,246,.14), transparent 28%), #eef4fb; }
+.auth-complete-card { width: min(540px, 100%); padding: clamp(32px, 6vw, 52px); background: rgba(255,255,255,.96); border: 1px solid #d8e4f3; border-radius: 24px; box-shadow: 0 28px 72px rgba(16,42,86,.16); animation: rise-in .3s ease both; }
+.auth-complete-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-size: 20px; }
+.auth-complete-brand .brand-mark { width: 42px; height: 42px; border-radius: 12px; }
+.auth-complete-icon { width: 58px; height: 58px; display: grid; place-items: center; margin: 34px 0 22px; color: #23714d; background: #e7f7ed; border: 1px solid #c6ebd4; border-radius: 18px; }
+.auth-complete-card h1 { margin: 6px 0 12px; font-size: clamp(29px, 5vw, 39px); line-height: 1.07; letter-spacing: -.055em; }
+.auth-complete-card > .muted { max-width: 44ch; margin: 0; font-size: 16px; line-height: 1.55; }
+.auth-complete-button { width: 100%; min-height: 52px; margin-top: 28px; justify-content: center; }
+.auth-complete-help { margin: 18px 0 0; color: #65748a; font-size: 13px; line-height: 1.5; }
 .auth-shell { width: min(1640px, calc(100vw - clamp(40px, 7vw, 116px))); height: min(840px, calc(100dvh - clamp(36px, 6.4vw, 84px))); display: grid; grid-template-columns: minmax(0, 1.95fr) minmax(420px, .82fr); overflow: hidden; background: #fff; border: 1px solid rgba(207,224,247,.9); border-radius: 28px; box-shadow: 0 28px 88px rgba(8, 20, 43, .18); animation: rise-in .38s ease both; }
 .auth-showcase { position: relative; isolation: isolate; min-height: 0; display: grid; grid-template-rows: auto auto auto auto; align-content: start; gap: clamp(15px, 1.8vw, 23px); padding: clamp(34px, 3vw, 52px); color: white; background-image: linear-gradient(90deg, rgba(1, 6, 10, .72), rgba(4, 12, 18, .47) 45%, rgba(4, 10, 14, .08) 100%), linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.48)), url("/ChatGPT Image Sep 1, 2026, 09_08_02 PM.png"), url("/fitkiro-gym-bg.png"), linear-gradient(135deg, #071017 0%, #0c1a24 58%, #101820 100%); background-size: cover; background-position: center; }
 .auth-showcase::before { content: ""; position: absolute; z-index: -1; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 1px, transparent 1px 150px), repeating-linear-gradient(0deg, rgba(255,255,255,.028) 0 1px, transparent 1px 118px); opacity: .55; }
@@ -895,6 +904,11 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .alert { margin-bottom: 18px; padding: 12px 15px; color: #155c3c; background: #e7f5ed; border: 1px solid #bfe3ce; border-radius: 10px; animation: rise-in .25s ease both; }
 .alert.warning { color: var(--warning); background: #fff7e6; border-color: #f1d49a; }
 .alert.error { color: #9c3232; background: #fff0f0; border-color: #efc8c8; }
+.feedback-stack { position: fixed; z-index: 100; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); display: grid; gap: 10px; width: min(440px, calc(100vw - 32px)); }
+.feedback-toast { display: flex; align-items: flex-start; gap: 12px; margin: 0; box-shadow: 0 12px 32px rgba(16, 42, 86, .18); }
+.feedback-toast > span { flex: 1; }
+.feedback-dismiss { display: grid; flex: 0 0 auto; place-items: center; width: 26px; height: 26px; margin: -4px -7px -4px 0; padding: 0; color: currentColor; background: transparent; border: 0; border-radius: 6px; cursor: pointer; }
+.feedback-dismiss:hover, .feedback-dismiss:focus-visible { background: color-mix(in srgb, currentColor 10%, transparent); }
 .reactivation-alert { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .reactivation-alert form { flex: 0 0 auto; }
 .toolbar { display: flex; gap: 10px; margin-bottom: 16px; }

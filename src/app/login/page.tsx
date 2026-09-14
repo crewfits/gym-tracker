@@ -62,8 +62,8 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         </div>
         <div className="auth-intro auth-intro-reset">
           <p className="eyebrow">Password reset</p>
-          <h1>Reset owner access.</h1>
-          <p className="muted">Enter the owner email and we will send a secure reset link if the account exists.</p>
+          <h1>Reset your password.</h1>
+          <p className="muted">Enter your email and we will send a secure reset link if the account exists.</p>
         </div>
         <Feedback error={resetMode ? undefined : p.error} success={resetMode ? undefined : p.success}/>
 
@@ -78,7 +78,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <form className="form">
             <input type="hidden" name="next" value={next}/>
             <div className="field">
-              <label htmlFor="reset-email">Owner email</label>
+              <label htmlFor="reset-email">Email address</label>
               <input id="reset-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required/>
             </div>
             <SubmitButton className="button" formAction={requestPasswordReset} pendingLabel="Sending reset link...">Send reset link</SubmitButton>

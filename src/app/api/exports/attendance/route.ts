@@ -10,7 +10,7 @@ const sorts = new Set(["occurred_at", "member_name"]);
 
 export async function GET(request: NextRequest) {
   const { supabase, gym, viewer } = await requireGym();
-  if (!canAccess(viewer, "exports.attendance", "csv_exports")) return Response.json({ error: "CSV export is restricted to owner access." }, { status: 403 });
+  if (!canAccess(viewer, "exports.attendance", "csv_exports")) return Response.json({ error: "CSV export is restricted for this account." }, { status: 403 });
   const params = request.nextUrl.searchParams;
   const view = ["today", "inside", "missed", "history", "denied"].includes(params.get("view") ?? "") ? params.get("view")! : "today";
   const direction = params.get("direction") === "entry" || params.get("direction") === "exit" ? params.get("direction") as AttendanceDirection : null;

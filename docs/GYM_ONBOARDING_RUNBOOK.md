@@ -240,6 +240,20 @@ The UI creates the Supabase Auth account through an invitation and then creates 
 ## Offboarding and recovery
 
 - Disable a trainer or receptionist in **Settings -> Staff**; do not delete their Auth account. Their historical actions remain attributable.
+- To completely remove an incorrectly created or test user from the current environment, run this from the repository root:
+
+  ```bash
+  npm run user:remove -- --email=user@example.com --confirm
+  ```
+
+  For the explicitly selected environment, use one of these commands instead of relying on `.env.local`:
+
+  ```bash
+  npm run user:remove:dev -- --email=user@example.com --confirm
+  npm run user:remove:prod -- --email=user@example.com --confirm
+  ```
+
+  The script deletes the Supabase Auth identity and every `gym_users` mapping for that email. It also clears that person's trainer assignments and membership/payment handler references before deletion, so the user can no longer sign in or appear as staff. It refuses to remove a gym owner because deleting that Auth identity would cascade-delete the gym and its client data. Transfer ownership first. Use **Disable** in the Staff screen for normal staff offboarding so past activity continues to identify the staff member.
 - Do not remove all three internal admins at once. Keep at least two active internal admins mapped to every production gym.
 - To disable a whole client gym, use the controlled owner-access procedure rather than deleting its data.
 - Never delete a gym as part of normal offboarding. Back up and follow the agreed retention process first.

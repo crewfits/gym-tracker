@@ -28,7 +28,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <section className="card form settings-card settings-business-card">
           <div className="settings-section-head">
             <span><Building2 size={18}/></span>
-            <div><h2>Business profile</h2><p className="muted">Used across receipts and owner screens.</p></div>
+            <div><h2>Business profile</h2><p className="muted">Used across receipts and the dashboard.</p></div>
           </div>
           <div className="field"><label>Gym name</label><input name="name" defaultValue={gym.name} required/></div>
           <div className="form-grid">

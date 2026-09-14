@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import { ArrowRight, Dumbbell, ShieldCheck } from "lucide-react";
 
 type InvitationSession = { accessToken: string; refreshToken: string };
 
@@ -51,11 +52,11 @@ export default function AuthCompletePage() {
       const { data, error } = await supabase.auth.getSession();
       if (cancelled) return;
       if (error) {
-        setMessage("Unable to check the current sign-in session. Please try the link again in a private window.");
+        setMessage("We could not check this browser session. Ask an administrator to send a fresh invitation link.");
         return;
       }
       if (data.session) {
-        setMessage("This browser is already signed in. Open the invitation in an incognito/private window to keep that session, or continue to switch this browser to the invited account.");
+        setMessage("This browser is already signed in. This secure link has now been opened and cannot be copied to another browser. Continue here to set up the invited account.");
         setContinueSetup(() => () => { void activateInvitation(); });
         return;
       }
@@ -66,5 +67,18 @@ export default function AuthCompletePage() {
     return () => { cancelled = true; };
   }, []);
 
-  return <main className="auth-page"><div className="card auth-card"><h1>Setting up your account</h1><p className="muted">{message}</p>{continueSetup && <button className="button" type="button" onClick={continueSetup}>Continue and switch account</button>}</div></main>;
+  return <main className="auth-complete-page">
+    <section className="auth-complete-card">
+      <div className="auth-complete-brand"><span className="brand-mark"><Dumbbell size={21}/></span><strong>FitKiro</strong></div>
+      <div className="auth-complete-icon"><ShieldCheck size={28}/></div>
+      <p className="eyebrow">Secure account setup</p>
+      <h1>{continueSetup ? "Finish setting up your account" : "Verifying your invitation"}</h1>
+      <p className="muted">{message}</p>
+      {continueSetup && <>
+        <button className="button auth-complete-button" type="button" onClick={continueSetup}>Set up account in this browser <ArrowRight size={18}/></button>
+        <p className="auth-complete-help">To keep another account signed in, ask an administrator to send a fresh invitation and open that new link in a private window first.</p>
+      </>}
+      {!continueSetup && message !== "Verifying your secure link…" && <p className="auth-complete-help">Invitation links are single-use for your security.</p>}
+    </section>
+  </main>;
 }
