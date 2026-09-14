@@ -22,8 +22,10 @@ FitKiro is the minimal owner-operated application for the first contracted gym c
 5. Provision the owner account:
 
 ```bash
-FITKIRO_OWNER_PASSWORD='<temporary-strong-password>' npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
+npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
 ```
+
+The command sends the owner a password-setup email; no temporary password is displayed or shared.
 
 6. Start with `npm run dev`. For mobile QR testing through ngrok, use `npm run dev:tunnel`.
 
@@ -46,6 +48,7 @@ The import command is a dry run unless `--apply` is explicitly supplied. See [co
 - [First-client V1 scope](docs/CLIENT_V1_SCOPE.md)
 - [Product overview](docs/PRODUCT_OVERVIEW.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Gym onboarding runbook](docs/GYM_ONBOARDING_RUNBOOK.md)
 - [QR attendance architecture](docs/qr-attendance-architecture.md)
 - [Development workflow](docs/DEVELOPMENT.md)
 - [Production runbook](docs/PRODUCTION_RUNBOOK.md)

@@ -21,9 +21,11 @@ Do not create separate role tables for trainers, receptionists, owners, or admin
 | Edit member details / share member QR | Yes | Yes | Yes | Yes |
 | Renew membership | Yes | No | Yes | Yes |
 | Collect payments | Yes | No | Yes | Yes |
-| View transactions and receipts | Yes | No | Yes | Yes |
+| View transactions | Yes | No | Yes | Yes |
+| View individual receipts shared from a member | Yes | Yes | Yes | Yes |
+| View and prepare member follow-ups | Yes | Yes | Yes | Yes |
 | Export CSV | Yes | No | No | Yes |
-| Manage plans | Yes | No | No | Yes |
+| Manage plans | Yes | No | Yes | Yes |
 | Manage settings | Yes | No | No | Yes |
 | Manage staff | Yes | No | No | Yes |
 | Manage feature flags | No | No | No | Yes |
@@ -32,6 +34,8 @@ Do not create separate role tables for trainers, receptionists, owners, or admin
 | Assign trainer | Yes | No | Yes | Yes |
 
 `admin` is internal FitKiro access. It can manage feature flags, preview admin-enabled features, and is excluded from trainer/receptionist seat limits. Admin users should not be treated as gym staff in owner-facing trainer dropdowns or shown in owner-facing staff lists.
+
+An Admin may activate, renew, or collect a membership. If the Admin selects a receptionist, trainer, or owner in **Handled by**, that staff member is recorded on the membership and payments. If no gym-floor staff account is available, the operation is still permitted and the handler is left blank; the Admin remains recorded in the payment operation audit.
 
 ## Feature Flags
 
@@ -72,12 +76,14 @@ Current flags:
 6. Sign in as receptionist:
    - Dashboard shows member/attendance counts without financial cards or trend selector.
    - Members, Add member, Scanner, and Attendance are visible.
-   - Transactions, Reminders, Plans, Settings, Staff, payment collection, renewal, and CSV exports are unavailable.
+   - Reminders are available for call and manual follow-up work.
+   - Transactions, Plans, Settings, Staff, payment collection, renewal, and CSV exports are unavailable.
+   - A receipt opened from a member's QR pass or receipt history is available for verification and sharing.
    - Direct export URLs return `403`.
 7. Sign in as trainer:
    - Dashboard financial cards, Members, Add member, Reminders, Transactions, Scanner, and Attendance are visible.
    - Activation, renewal, collection, trainer assignment, and receipt review are available.
-   - Staff, Settings, Plans, and CSV exports are unavailable.
+   - Staff, Settings, and CSV exports are unavailable; Plans is available.
 8. Sign in as owner:
    - Staff management is available.
    - Feature flags are hidden.
@@ -93,6 +99,8 @@ Current flags:
 
 ## Operational Notes
 
-Staff login creation uses a service-role server action. The temporary password is shown once in the success message and must be shared securely. Staff access can be disabled without deleting the Supabase Auth user.
+Staff login creation uses a service-role server action. It sends the new staff member a Supabase invitation email; the user chooses their own password before signing in. Staff access can be disabled without deleting the Supabase Auth user.
+
+The first client owner and internal admin mappings for a new gym are provisioned through the [gym onboarding runbook](GYM_ONBOARDING_RUNBOOK.md). After that bootstrap step, use **Settings -> Staff** for all routine staff onboarding.
 
 UI hiding is not the authorization boundary. Server Actions, API routes, route pages, RLS, and database functions must continue to enforce role and gym access for every sensitive operation.

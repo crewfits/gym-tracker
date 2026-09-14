@@ -13,7 +13,7 @@ Last reviewed: 2026-08-22
 1. Run `npm run check:release` on the exact commit.
 2. Run `supabase migration list --linked`; stop if local and remote history diverge unexpectedly.
 3. Review `supabase db push --linked --dry-run`, take a backup, then apply the pending append-only migrations during the agreed window.
-4. Configure production variables from `.env.example`. Do not deploy `FITKIRO_OWNER_PASSWORD`; it is only for the provisioning command.
+4. Configure production variables from `.env.example`.
 5. Run `npm run ops:preflight` in the production environment.
 6. Deploy the Next.js application, then verify `/api/health` returns HTTP 200.
 7. Complete every item in [V1_ROLLOUT_CHECKLIST.md](V1_ROLLOUT_CHECKLIST.md).
@@ -26,15 +26,20 @@ Last reviewed: 2026-08-22
 
 ```text
 https://musclefitness.fitkiro.com/auth/callback
+https://musclefitness.fitkiro.com/auth/complete
 ```
+
+- Confirm Supabase Auth has a working SMTP provider and Invite user email template before provisioning any owner or staff account. FitKiro sends an invitation email through Supabase; no temporary password is displayed or shared.
+- Keep `{{ .ConfirmationURL }}` in the Supabase **Invite user** email template. It carries the one-time token and redirects the invited user to FitKiro's `/auth/complete` page.
+- Ask an invited user to open the link in an incognito/private window or a separate browser profile when an Admin is already signed in on the same device. A browser profile holds one FitKiro session at a time; continuing in the existing profile switches it to the invited user.
 
 - Provision the single confirmed owner with:
 
 ```bash
-FITKIRO_OWNER_PASSWORD='<temporary-strong-password>' npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
+npm run owner:provision -- --email=owner@example.com --gym-name="Client Gym"
 ```
 
-- Share the temporary password separately and rotate it after handoff.
+- The command sends the owner a password-setup email. Confirm the link reaches the FitKiro password page and the owner can sign in before handoff.
 - Disable or restore owner access with `npm run owner:access -- --email=owner@example.com --active=false|true`.
 
 ## Secrets

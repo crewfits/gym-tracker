@@ -190,7 +190,9 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
     revalidatePath("/attendance");
     return {
       status: "recorded",
-      message: `${attendanceLabel(direction)} ${duplicateSuppressed ? "already recorded" : "recorded"}`,
+      message: duplicateSuppressed
+        ? `Scanned again within 30 seconds. ${attendanceLabel(direction)} remains recorded; no additional attendance was created.`
+        : `${attendanceLabel(direction)} recorded`,
       token,
       direction,
       memberName: member.name,

@@ -47,24 +47,24 @@ async function submit(kind: "activate" | "enroll" | "renew" | "collect", form: F
     }
     const result = z.object({ member_id: z.uuid(), operation_id: z.uuid(), payment_ids: z.array(z.uuid()) }).parse(data);
     completedMember = result.member_id;
-    let warning = "";
+    const completionNotices = ["Saved successfully."];
     const assignedTrainer = typeof details.assigned_trainer_user_id === "string" && details.assigned_trainer_user_id ? details.assigned_trainer_user_id : null;
     if (kind !== "collect" && Object.prototype.hasOwnProperty.call(details, "assigned_trainer_user_id")) {
       const { error: trainerError } = await supabase.rpc("assign_member_trainer", { p_member_id: result.member_id, p_trainer_user_id: assignedTrainer });
-      if (trainerError) warning += " Membership saved, but trainer assignment failed. Choose the trainer again from the member profile.";
+      if (trainerError) completionNotices.push("Trainer assignment was not saved. Choose the trainer again from the member profile.");
     }
     if (kind === "activate" && form.get("profile_photo_data_url")) {
       try {
         const path = await saveMemberPhoto(supabase, gym.id, result.member_id, String(form.get("profile_photo_data_url")));
         const { error: photoError } = await supabase.from("members").update({ profile_photo_path: path }).eq("id", result.member_id).eq("gym_id", gym.id);
         if (photoError) throw photoError;
-      } catch { warning = " Membership saved, but photo upload failed. Add the photo from the member profile."; }
+      } catch { completionNotices.push("The member was created, but photo upload failed. Add the photo from the member profile."); }
     }
     revalidatePath("/", "layout");
     const generatedQr = kind === "activate" && details.generate_qr === true;
     const canReviewPayments = canAccess(viewer, "payments.view");
     const path = generatedQr ? `/members/${result.member_id}/qr` : result.payment_ids.length && canReviewPayments ? `/payments/${result.operation_id}` : `/members/${result.member_id}`;
-    return { ok: true, location: `${path}?success=${encodeURIComponent(`Saved successfully.${warning}`)}` };
+    return { ok: true, location: `${path}?success=${encodeURIComponent(completionNotices.join(" "))}` };
   } catch (error) {
     if (completedMember) return { ok: true, location: `/members/${completedMember}?error=${encodeURIComponent("Saved successfully. Open membership history to review payments.")}` };
     if (error instanceof z.ZodError) return { ok: false, fieldErrors: Object.fromEntries(error.issues.map(issue => [String(issue.path[0]), issue.message])) };

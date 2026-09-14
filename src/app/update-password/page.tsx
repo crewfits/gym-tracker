@@ -12,9 +12,9 @@ export default async function UpdatePassword({ searchParams }: { searchParams: P
         <div className="brand auth-brand">
           <span className="brand-mark"><Dumbbell size={20} /></span> FitKiro
         </div>
-        <p className="eyebrow">Owner password reset</p>
+        <p className="eyebrow">Account password</p>
         <h1>Set a new password.</h1>
-        <p className="muted" style={{ marginBottom: 24 }}>Choose the password the gym owner will use from now on.</p>
+        <p className="muted" style={{ marginBottom: 24 }}>Choose the password you will use to sign in to FitKiro.</p>
         <Feedback error={p.error} />
 
         <form className="form">

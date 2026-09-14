@@ -66,7 +66,6 @@ function preflight() {
 
   if (targetEnv === "prod") {
     if (appUrl.protocol !== "https:" || ["localhost", "127.0.0.1"].includes(appUrl.hostname)) throw new Error("Prod NEXT_PUBLIC_APP_URL must be HTTPS and non-localhost");
-    if (commandEnv.FITKIRO_OWNER_PASSWORD) throw new Error("Remove FITKIRO_OWNER_PASSWORD from prod env file before deploying");
     if (commandEnv.ALLOW_PROD_DEPLOY !== "yes") throw new Error("Set ALLOW_PROD_DEPLOY=yes in .env.prod.local to make prod deployment intentional");
   } else {
     if (appUrl.hostname === "musclefitness.fitkiro.com") throw new Error("Dev deploy must not use the production app URL");

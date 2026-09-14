@@ -11,6 +11,7 @@ export type Permission =
   | "members.view"
   | "payments.manage"
   | "payments.view"
+  | "receipts.view"
   | "plans.manage"
   | "reminders.manage"
   | "settings.manage"
@@ -21,19 +22,19 @@ export type Permission =
 const rolePermissions: Record<GymRole, ReadonlySet<Permission>> = {
   owner: new Set([
     "attendance.scan", "attendance.view", "exports.attendance", "exports.members", "exports.payments",
-    "members.create", "members.manage", "members.view", "payments.manage", "payments.view",
+    "members.create", "members.manage", "members.view", "payments.manage", "payments.view", "receipts.view",
     "plans.manage", "reminders.manage", "settings.manage", "staff.manage", "trainer.assign",
   ]),
   receptionist: new Set([
-    "attendance.scan", "attendance.view", "members.create", "members.manage", "members.view",
+    "attendance.scan", "attendance.view", "members.create", "members.manage", "members.view", "receipts.view", "reminders.manage",
   ]),
   trainer: new Set([
     "attendance.scan", "attendance.view", "members.create", "members.manage", "members.view",
-    "payments.manage", "payments.view", "reminders.manage", "trainer.assign",
+    "payments.manage", "payments.view", "receipts.view", "plans.manage", "reminders.manage", "trainer.assign",
   ]),
   admin: new Set([
     "attendance.scan", "attendance.view", "exports.attendance", "exports.members", "exports.payments",
-    "members.create", "members.manage", "members.view", "payments.manage", "payments.view",
+    "members.create", "members.manage", "members.view", "payments.manage", "payments.view", "receipts.view",
     "plans.manage", "reminders.manage", "settings.manage", "staff.manage", "feature_flags.manage", "trainer.assign",
   ]),
 };

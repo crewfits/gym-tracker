@@ -10,7 +10,7 @@ const sorts = new Set(["paid_on", "member_name", "amount"]);
 
 export async function GET(request: NextRequest) {
   const { supabase, gym, viewer } = await requireGym();
-  if (!canAccess(viewer, "exports.payments", "csv_exports")) return Response.json({ error: "CSV export is restricted to owner access." }, { status: 403 });
+  if (!canAccess(viewer, "exports.payments", "csv_exports")) return Response.json({ error: "CSV export is restricted for this account." }, { status: 403 });
   const params = request.nextUrl.searchParams;
   const q = (params.get("q") ?? "").trim().slice(0, 100) || null;
   const method = ["cash", "upi", "card", "bank_transfer"].includes(params.get("method") ?? "") ? params.get("method") as PaymentMethod : null;

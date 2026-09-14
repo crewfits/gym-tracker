@@ -37,13 +37,13 @@ export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const next = safeReturnPath(formData.get("next"));
 
-  if (!email) redirect(`/login?mode=reset&error=${encodeURIComponent("Enter the owner email to send a reset link.")}&next=${encodeURIComponent(next)}`);
+  if (!email) redirect(`/login?mode=reset&error=${encodeURIComponent("Enter your email to send a reset link.")}&next=${encodeURIComponent(next)}`);
 
   const redirectTo = `${await appOrigin()}/auth/callback?next=${encodeURIComponent("/update-password")}`;
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) redirect(`/login?mode=reset&error=${encodeURIComponent(passwordResetErrorMessage(error.message))}&next=${encodeURIComponent(next)}`);
 
-  redirect(`/login?mode=reset&reset=sent&success=${encodeURIComponent("If this email belongs to a FitKiro owner account, a reset link will be sent.")}&next=${encodeURIComponent(next)}`);
+  redirect(`/login?mode=reset&reset=sent&success=${encodeURIComponent("If this email belongs to a FitKiro account, a reset link will be sent.")}&next=${encodeURIComponent(next)}`);
 }
 
 export async function updatePassword(formData: FormData) {
