@@ -21,7 +21,9 @@ Do not create separate role tables for trainers, receptionists, owners, or admin
 | Edit member details / share member QR | Yes | Yes | Yes | Yes |
 | Renew membership | Yes | No | Yes | Yes |
 | Collect payments | Yes | No | Yes | Yes |
-| View transactions and receipts | Yes | No | Yes | Yes |
+| View transactions | Yes | No | Yes | Yes |
+| View individual receipts shared from a member | Yes | Yes | Yes | Yes |
+| View and prepare member follow-ups | Yes | Yes | Yes | Yes |
 | Export CSV | Yes | No | No | Yes |
 | Manage plans | Yes | No | Yes | Yes |
 | Manage settings | Yes | No | No | Yes |
@@ -74,7 +76,9 @@ Current flags:
 6. Sign in as receptionist:
    - Dashboard shows member/attendance counts without financial cards or trend selector.
    - Members, Add member, Scanner, and Attendance are visible.
-   - Transactions, Reminders, Plans, Settings, Staff, payment collection, renewal, and CSV exports are unavailable.
+   - Reminders are available for call and manual follow-up work.
+   - Transactions, Plans, Settings, Staff, payment collection, renewal, and CSV exports are unavailable.
+   - A receipt opened from a member's QR pass or receipt history is available for verification and sharing.
    - Direct export URLs return `403`.
 7. Sign in as trainer:
    - Dashboard financial cards, Members, Add member, Reminders, Transactions, Scanner, and Attendance are visible.
