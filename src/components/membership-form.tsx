@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CurrencyCode, Plan, StaffHandlerOption, TrainerOption } from "@/lib/types";
 import { calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatDisplayDate, formatInr } from "@/lib/domain";
 import { PaymentEntries } from "@/components/payment-entries";
+import { Feedback } from "@/components/feedback";
 import { usePaymentRows } from "@/components/use-payment-rows";
 import { usePaymentSubmit } from "@/components/use-payment-submit";
 import { paymentRowsErrors, type SplitPaymentResult } from "@/lib/split-payments";
@@ -54,14 +55,14 @@ export function MembershipForm({ memberId, plans, trainers = [], showTrainerAssi
     <input type="hidden" name="member_id" value={memberId}/>
     {returnPath && <input type="hidden" name="return_path" value={returnPath}/>}
     <input type="hidden" name="due_on" value={followUpDate}/>
-    {(submissionError || error) && <div className="alert error" role="alert">{submissionError || error}</div>}
+    <Feedback key={submissionError || error || "membership-feedback"} error={submissionError || error}/>
     <div className="form-grid">
       <div className="field"><label htmlFor="membership-plan">Plan *</label><select id="membership-plan" name="plan_id" value={planId} onChange={(event) => selectPlan(event.target.value)} required>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {plan.duration_value} {plan.duration_unit}</option>)}</select></div>
       <div className="field"><label htmlFor="membership-price">Plan price ({currencyCode}) *</label><input id="membership-price" type="number" name="subtotal" min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)} required/></div>
       <div className="field"><label htmlFor="membership-start">{renew ? "Renewal date" : "Start date"} *</label><input id="membership-start" type="date" name={renew ? "renewal_date" : "starts_on"} value={startDate} onChange={(event) => changeStartDate(event.target.value)} required/>{renew && effectiveStartDate !== startDate && <small>Membership starts {formatDisplayDate(effectiveStartDate)} after the current plan ends.</small>}</div>
       <div className="field"><label htmlFor="membership-end">Plan end date *</label><input id="membership-end" type="date" name="expires_on" min={effectiveStartDate} value={endDate} onChange={(event) => setEndDate(event.target.value)} required/></div>
       {showTrainerAssignment && <div className="field"><label htmlFor="membership-trainer">Trainer</label><select id="membership-trainer" name="assigned_trainer_user_id" value={trainerId} onChange={(event) => setTrainerId(event.target.value)}><option value="">No trainer assigned</option>{trainers.map((trainer) => <option key={trainer.id} value={trainer.id}>{trainer.display_name}</option>)}</select></div>}
-      {handlers.length > 0 && <div className="field"><label htmlFor="membership-handler">Handled by *</label><select id="membership-handler" name="handled_by_gym_user_id" value={handlerId} onChange={(event) => setHandlerId(event.target.value)} required>{handlers.map((handler) => <option key={handler.id} value={handler.id}>{handler.display_name} · {handler.role}</option>)}</select><small>Who is handling this {renew ? "renewal" : "enrollment"}.</small></div>}
+      {handlers.length > 0 && <div className="field"><label htmlFor="membership-handler">Handled by *</label><select id="membership-handler" name="handled_by_gym_user_id" value={handlerId} onChange={(event) => setHandlerId(event.target.value)} required>{handlers.map((handler) => <option key={handler.id} value={handler.id}>{handler.display_name}</option>)}</select><small>Who is handling this {renew ? "renewal" : "enrollment"}.</small></div>}
     </div>
     <details className="membership-adjustments">
       <summary>Discount & tax{Number(discount) > 0 || Number(gstRate) > 0 ? ` · ${formatInr(toPaise(discount), currencyCode)} discount · ${gstRate}% GST` : ""}</summary>

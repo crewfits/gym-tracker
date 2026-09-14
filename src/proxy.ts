@@ -17,6 +17,7 @@ export async function proxy(request: NextRequest) {
     || pathname === "/sw.js"
     || pathname.startsWith("/icons/")
     || pathname.startsWith("/auth/callback")
+    || pathname.startsWith("/auth/complete")
     || pathname.startsWith("/pass/")
     || pathname.startsWith("/p/")
     || pathname.startsWith("/r/");

@@ -39,12 +39,11 @@ export default async function StaffSettingsPage({ searchParams }: PageProps<"/se
       <div><p className="eyebrow">Access control</p><h1>{showFeatureFlags ? "Staff and feature flags" : "Staff access"}</h1><p className="muted">{showFeatureFlags ? "Create staff logins, disable access, and preview feature-gated UI before enabling it for the gym." : "Create staff logins and disable staff access for this gym."}</p></div>
       <Link className="button secondary" href="/settings">Back to settings</Link>
     </div>
-    <Feedback success={success} error={error}/>
-    {success?.includes("Temporary password:") && <div className="alert warning">Share the temporary password securely and ask the staff user to change it after first sign-in.</div>}
+    <Feedback success={success} error={error} warning={success?.includes("password setup email") ? "The staff member must use the link in the email to choose a password before signing in. The link expires according to the Supabase Auth email-link settings." : undefined}/>
 
     <div className="staff-settings-grid">
       <section className="card form settings-card">
-        <div className="settings-section-head"><span><UserPlus size={18}/></span><div><h2>Create staff login</h2><p className="muted">Owner-facing roles are receptionist and trainer. Admin is for internal FitKiro access.</p></div></div>
+        <div className="settings-section-head"><span><UserPlus size={18}/></span><div><h2>Create staff login</h2><p className="muted">A password setup email is sent immediately. Owner-facing roles are receptionist and trainer; Admin is for internal FitKiro access.</p></div></div>
         <form action={createStaffUser} className="staff-create-form">
           <div className="form-grid">
             <div className="field"><label>Email</label><input type="email" name="email" required placeholder="staff@example.com"/></div>

@@ -93,8 +93,9 @@ export function QrShareActions({ defaultCountryCode, filename, gymName, memberCo
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const message = receipt
-    ? `Hi ${memberName}, please save the QR pass image I am sending. Use it at the gym for Check-in and Check-out. Your payment receipt ${receipt.receiptNumber} for ${receipt.amount}, paid on ${receipt.paidOn}: ${receipt.url}`
-    : `Hi ${memberName}, please save the QR pass image I am sending. Use it at the gym for Check-in and Check-out.`;
+    ? `Hi ${memberName}, please save the QR pass image. Use it at the gym for Entry and Exit. 
+    Your payment receipt ${receipt.receiptNumber} for ${receipt.amount}, paid on ${receipt.paidOn}: ${receipt.url}`
+    : `Hi ${memberName}, please save the QR pass image. Use it at the gym for Entry and Exit.`;
   let whatsappUrl: string | null = null;
   let whatsappDesktopUrl: string | null = null;
   try {

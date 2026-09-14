@@ -69,7 +69,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
 
   return <>
     <div className="page-head reminder-page-head">
-      <div><p className="eyebrow">Owner follow-up</p><h1>Reminders</h1><p className="muted">Membership renewals and outstanding payment follow-ups.</p></div>
+      <div><p className="eyebrow">Member follow-up</p><h1>Reminders</h1><p className="muted">Membership renewals and outstanding payment follow-ups.</p></div>
       <div className="reminder-actions">{/* Automation paused: <form action={runAutomaticMembershipReminders}><SubmitButton className="button small" pendingLabel="Sending reminders..."><Send size={15}/> Send due WhatsApp reminders</SubmitButton></form> */}<RefreshButton/></div>
     </div>
     <Feedback success={params.success} error={params.error}/>

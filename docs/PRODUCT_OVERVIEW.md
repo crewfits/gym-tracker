@@ -15,7 +15,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 ## Primary actors
 
 - **Gym owner** — the provisioned administrator who manages members, packages, payments, reminders, attendance, exports, settings, staff access, and feature flags.
-- **Receptionist** — an optional front-desk user who can handle daily member, payment, reminder, and attendance operations without CSV export or settings access.
+- **Receptionist** — an optional front-desk user who can handle daily member, reminder, receipt-sharing, and attendance operations without transaction, payment-collection, CSV-export, or settings access.
 - **Trainer** — an optional staff user who can scan attendance and view member access allowed by the enabled role model.
 - **Admin** — an internal support role used by FitKiro to preview admin-enabled feature flags and test role-gated flows before the gym receives them.
 - **Member** — a gym customer managed by the owner; members do not sign in to V1.

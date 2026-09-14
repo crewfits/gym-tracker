@@ -8,6 +8,7 @@ import { MemberPhotoField } from "@/components/member-photo-field";
 import { memberValidationErrors, type CreateMemberResult, type MemberFieldErrors } from "@/lib/new-member-validation";
 import { calculateExpiry, calculatePaymentFollowUpDate, formatDisplayDate, formatInr } from "@/lib/domain";
 import { PaymentEntries } from "@/components/payment-entries";
+import { Feedback } from "@/components/feedback";
 import { usePaymentRows } from "@/components/use-payment-rows";
 import { paymentRowsErrors, paymentRowsTotal } from "@/lib/split-payments";
 import type { CurrencyCode, Plan, StaffHandlerOption, TrainerOption } from "@/lib/types";
@@ -157,8 +158,8 @@ export function NewMemberForm({ plans, trainers = [], showTrainerAssignment = fa
   }} noValidate className="enrollment-grid" aria-busy={pending}>
     <input type="hidden" name="due_on" value={followUpDate}/>
     <input type="hidden" name="amount_paid" value={amountPaid}/><input type="hidden" name="paid_on" value={today}/><input type="hidden" name="method" value="cash"/><input type="hidden" name="reference" value=""/>
+    <Feedback key={formError ?? "new-member-feedback"} error={formError}/>
     <div className="enrollment-main">
-      {formError && <div className="alert error" role="alert">{formError}</div>}
       <nav className="enrollment-steps" aria-label="New member sections">
         <button type="button" className={activeSection === "profile" ? "active" : ""} aria-current={activeSection === "profile" ? "step" : undefined} onClick={() => setActiveSection("profile")}><span>1</span><strong>Profile</strong><small>Name, contact and photo</small></button>
         <button type="button" className={activeSection === "plan" ? "active" : ""} aria-current={activeSection === "plan" ? "step" : undefined} onClick={() => setActiveSection("plan")}><span>2</span><strong>Membership</strong><small>Plan, dates and total</small></button>
@@ -201,7 +202,7 @@ export function NewMemberForm({ plans, trainers = [], showTrainerAssignment = fa
 
       <section className="form-section enrollment-panel" id="member-payment" hidden={activeSection !== "payment"}>
         <div className="form-section-head"><span className="form-step"><BadgeIndianRupee size={17}/></span><div><p className="eyebrow">Opening collection</p><h2>Initial payment</h2></div></div>
-        {handlers.length > 0 && <div className="field"><label htmlFor="member-handled_by_gym_user_id">Handled by <span className="required-marker" aria-hidden="true">*</span></label><select id="member-handled_by_gym_user_id" name="handled_by_gym_user_id" value={handlerId} onChange={(event) => setHandlerId(event.target.value)} required>{handlers.map((handler) => <option key={handler.id} value={handler.id}>{handler.display_name} · {handler.role}</option>)}</select><small>Who is handling this activation and opening collection.</small></div>}
+        {handlers.length > 0 && <div className="field"><label htmlFor="member-handled_by_gym_user_id">Handled by <span className="required-marker" aria-hidden="true">*</span></label><select id="member-handled_by_gym_user_id" name="handled_by_gym_user_id" value={handlerId} onChange={(event) => setHandlerId(event.target.value)} required>{handlers.map((handler) => <option key={handler.id} value={handler.id}>{handler.display_name}</option>)}</select><small>Who is handling this activation and opening collection.</small></div>}
         <PaymentEntries rows={rows} onChange={next => { changeRows(next); setServerErrors(previous => { const updated = { ...previous }; delete updated.payments; delete updated.amount_paid; return updated; }); }} balancePaise={totals.total} today={today} currencyCode={currencyCode} disabled={pending}/>
         {fieldError("payments")}{fieldError("amount_paid")}
         <div className="enrollment-panel-actions"><button type="button" className="button secondary" onClick={() => setActiveSection("plan")}>Back to membership</button><button type="submit" className="button" disabled={pending || Object.keys(paymentErrors).length > 0 || !plans.length || Object.keys(validationErrors).length > 0 || Object.keys(serverErrors).length > 0}>{pending ? "Activating membership…" : "Activate membership"}</button></div>

@@ -1,10 +1,10 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
+import { requestAppOrigin } from "@/lib/app-origin";
 import { canAccess } from "@/lib/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -22,10 +22,6 @@ function isRedirect(error: unknown): boolean {
 function fail(error: unknown): never {
   const message = error instanceof Error ? error.message : typeof error === "object" && error && "message" in error ? String(error.message) : "Unable to update staff access";
   redirect(feedbackPath("error", message));
-}
-
-function temporaryPassword() {
-  return `${randomBytes(9).toString("base64url")}Aa1!`;
 }
 
 export async function createStaffUser(formData: FormData) {
@@ -48,12 +44,9 @@ export async function createStaffUser(formData: FormData) {
       if (countError) throw countError;
       if ((count ?? 0) >= limit) throw new Error(`This gym already has the allowed ${limit} active ${input.role}${limit === 1 ? "" : "s"}. Disable an existing user before adding another.`);
     }
-    const password = temporaryPassword();
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email: input.email,
-      password,
-      email_confirm: true,
-      user_metadata: { fitkiro_role: input.role, display_name: input.display_name },
+    const { data: created, error: createError } = await admin.auth.admin.inviteUserByEmail(input.email, {
+      data: { fitkiro_role: input.role, display_name: input.display_name },
+      redirectTo: `${await requestAppOrigin()}/auth/complete`,
     });
     if (createError) throw createError;
     if (!created.user) throw new Error("Auth user was not created");
@@ -70,7 +63,7 @@ export async function createStaffUser(formData: FormData) {
       throw accessError;
     }
     revalidatePath("/settings/staff");
-    redirect(feedbackPath("success", `Created ${input.display_name}. Temporary password: ${password}`));
+    redirect(feedbackPath("success", `Created ${input.display_name}. A password setup email was sent to ${input.email}.`));
   } catch (error) {
     if (isRedirect(error)) throw error;
     fail(error);

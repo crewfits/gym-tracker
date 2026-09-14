@@ -18,12 +18,12 @@ async function findUserByEmail(admin, email) {
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 const email = argument("email").trim().toLowerCase();
 const gymName = argument("gym-name").trim();
 const timezone = argument("timezone", "Asia/Kolkata").trim();
-const password = process.env.FITKIRO_OWNER_PASSWORD;
 
-if (!url || !serviceRoleKey) throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");
+if (!url || !serviceRoleKey || !appUrl) throw new Error("NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and NEXT_PUBLIC_APP_URL are required");
 if (!email || !email.includes("@")) throw new Error("Pass a valid --email=owner@example.com");
 if (!gymName) throw new Error("Pass --gym-name=\"Example Gym\"");
 
@@ -32,12 +32,9 @@ let user = await findUserByEmail(admin, email);
 let createdUser = false;
 
 if (!user) {
-  if (!password || password.length < 12) throw new Error("Set FITKIRO_OWNER_PASSWORD to a temporary password of at least 12 characters");
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { role: "gym_owner" },
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: { role: "gym_owner" },
+    redirectTo: new URL("/auth/complete", appUrl).toString(),
   });
   if (error) throw error;
   user = data.user;
@@ -57,5 +54,23 @@ if (gymError) {
   throw gymError;
 }
 
+const { error: ownerAccessError } = await admin.from("gym_users").insert({ gym_id: gym.id, user_id: user.id, role: "owner", status: "active", display_name: "Owner" });
+if (ownerAccessError) {
+  await admin.from("gyms").delete().eq("id", gym.id);
+  if (createdUser) await admin.auth.admin.deleteUser(user.id);
+  throw ownerAccessError;
+}
+
+const { error: flagError } = await admin.from("gym_feature_flags").insert([
+  { gym_id: gym.id, key: "staff_roles", enabled: true, admin_enabled: true, config_json: { trainerLimit: 5, receptionistLimit: 1 } },
+  { gym_id: gym.id, key: "trainer_assignment", enabled: true, admin_enabled: true, config_json: {} },
+  { gym_id: gym.id, key: "csv_exports", enabled: true, admin_enabled: true, config_json: {} },
+]);
+if (flagError) {
+  await admin.from("gyms").delete().eq("id", gym.id);
+  if (createdUser) await admin.auth.admin.deleteUser(user.id);
+  throw flagError;
+}
+
 console.log(`Provisioned ${gym.name} (${gym.id}) for ${email}`);
-console.log(createdUser ? "The temporary password was accepted; share it securely and rotate it after handoff." : "The existing authentication user was assigned to the gym.");
+console.log(createdUser ? "An invitation email was sent. The owner must choose a password through that link before signing in." : "The existing authentication user was assigned to the gym. Use Forgot password if they need a new password.");

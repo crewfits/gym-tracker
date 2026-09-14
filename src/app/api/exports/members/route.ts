@@ -10,7 +10,7 @@ const sorts = new Set(["created_at", "member_code", "name", "expires_on", "balan
 
 export async function GET(request: NextRequest) {
   const { supabase, gym, viewer } = await requireGym();
-  if (!canAccess(viewer, "exports.members", "csv_exports")) return Response.json({ error: "CSV export is restricted to owner access." }, { status: 403 });
+  if (!canAccess(viewer, "exports.members", "csv_exports")) return Response.json({ error: "CSV export is restricted for this account." }, { status: 403 });
   const today = businessDate(gym.timezone);
   const params = request.nextUrl.searchParams;
   const q = (params.get("q") ?? "").trim().slice(0, 100) || null;

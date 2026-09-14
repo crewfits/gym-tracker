@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Building2, ReceiptText } from "lucide-react";
 import { updateSettings } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
@@ -28,7 +27,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <section className="card form settings-card settings-business-card">
           <div className="settings-section-head">
             <span><Building2 size={18}/></span>
-            <div><h2>Business profile</h2><p className="muted">Used across receipts and owner screens.</p></div>
+            <div><h2>Business profile</h2><p className="muted">Used across receipts and the dashboard.</p></div>
           </div>
           <div className="field"><label>Gym name</label><input name="name" defaultValue={gym.name} required/></div>
           <div className="form-grid">
@@ -52,6 +51,5 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
       <div className="settings-save"><SubmitButton className="button" pendingLabel="Saving settings...">Save settings</SubmitButton></div>
     </form>
-    <div className="settings-save"><Link className="button secondary" href="/settings/staff">Manage staff and feature flags</Link></div>
   </>;
 }

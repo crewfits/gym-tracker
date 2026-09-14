@@ -19,7 +19,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         </div>
         <div className="auth-showcase-copy">
           <h1>Make fitness <span>happen.</span></h1>
-          <p>Everything you need to manage members, track attendance, payments and automated reminders all in one place.</p>
+          <p>Everything you need to manage members, track attendance, payments and member follow-ups all in one place.</p>
         </div>
         <div className="auth-overview-panel" aria-hidden="true">
           <div className="auth-overview-head">
@@ -50,7 +50,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <div><UserRound size={20}/><span>Membership lifecycle</span><small>Plans, renewals and history</small></div>
           <div><QrCode size={20}/><span>QR check-ins</span><small>Fast attendance tracking</small></div>
           <div><BarChart3 size={20}/><span>Reports & insights</span><small>Know what needs action</small></div>
-          <div><WalletCards size={20}/><span>Automated payment reminders</span><small>Recover dues on time</small></div>
+          <div><BellRing size={20}/><span>Member follow-ups</span><small>Stay ahead of renewals due</small></div>
         </div>
       </div>
 
@@ -62,8 +62,8 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         </div>
         <div className="auth-intro auth-intro-reset">
           <p className="eyebrow">Password reset</p>
-          <h1>Reset owner access.</h1>
-          <p className="muted">Enter the owner email and we will send a secure reset link if the account exists.</p>
+          <h1>Reset your password.</h1>
+          <p className="muted">Enter your email and we will send a secure reset link if the account exists.</p>
         </div>
         <Feedback error={resetMode ? undefined : p.error} success={resetMode ? undefined : p.success}/>
 
@@ -78,7 +78,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <form className="form">
             <input type="hidden" name="next" value={next}/>
             <div className="field">
-              <label htmlFor="reset-email">Owner email</label>
+              <label htmlFor="reset-email">Email address</label>
               <input id="reset-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required/>
             </div>
             <SubmitButton className="button" formAction={requestPasswordReset} pendingLabel="Sending reset link...">Send reset link</SubmitButton>

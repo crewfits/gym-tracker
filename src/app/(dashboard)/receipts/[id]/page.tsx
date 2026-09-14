@@ -7,6 +7,7 @@ import { PrintButton, ShareReceiptButton, WhatsAppReceiptButton } from "@/compon
 import { requestAppOrigin } from "@/lib/app-origin";
 import { requirePermission } from "@/lib/auth";
 import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
+import { canAccess } from "@/lib/permissions";
 
 type HandlerRelation = { display_name: string | null; role: string } | Array<{ display_name: string | null; role: string }> | null;
 type ReceiptPayment = {
@@ -31,7 +32,7 @@ import { whatsappClickToChatUrl } from "@/lib/reminders";
 
 export default async function ReceiptPage({ params, searchParams }: PageProps<"/receipts/[id]">) {
   const [{ id }, query, origin] = await Promise.all([params, searchParams, requestAppOrigin()]);
-  const { supabase, gym } = await requirePermission("payments.view");
+  const { supabase, gym, viewer } = await requirePermission("receipts.view");
   const currencyCode = normalizeCurrencyCode(gym.currency_code);
   const { data: payment } = await supabase.from("payments").select("*, handled_by:gym_users!payments_handled_by_gym_user_fk(display_name,role), payment_reversals(amount_paise,reason,created_at), charges!inner(*, memberships!inner(*, handled_by:gym_users!memberships_handled_by_gym_user_fk(display_name,role), members!inner(*)))").eq("id", id).eq("gym_id", gym.id).single();
   if (!payment) notFound();
@@ -72,6 +73,6 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
       return <tr key={item.id}><td><strong>Payment received via {formatPaymentMethod(item.method)}</strong>{item.reference && <><br/><small className="muted">Reference: {item.reference}</small></>}{reversed > 0 && <><br/><small className="muted">Reversed: {formatInr(reversed, currencyCode)}</small></>}</td><td><strong>{formatInr(paymentNet(item), currencyCode)}</strong></td></tr>;
     })}<tr><td><strong>Paid on this receipt</strong></td><td><strong>{formatInr(totalReceivedPaise, currencyCode)}</strong></td></tr>{balanceDuePaise > 0 && <tr><td><strong>Balance due</strong></td><td><strong>{formatInr(balanceDuePaise, currencyCode)}</strong></td></tr>}</tbody></table>
     <div className="receipt-actions no-print"><PrintButton/>{whatsappUrl && <WhatsAppReceiptButton url={whatsappUrl}/>}<ShareReceiptButton receiptNumber={primaryPayment.receipt_number} url={publicUrl}/><Link className="button success" href={`/members/${member.id}`}>Done, back to member</Link></div>
-    {receiptPayments.length === 1 && remainingPaise > 0 && <div className="no-print"><ReversePaymentForm paymentId={payment.id} memberId={member.id} remainingPaise={remainingPaise} currencyCode={currencyCode} action={reversePayment}/></div>}
+    {canAccess(viewer, "payments.manage") && receiptPayments.length === 1 && remainingPaise > 0 && <div className="no-print"><ReversePaymentForm paymentId={payment.id} memberId={member.id} remainingPaise={remainingPaise} currencyCode={currencyCode} action={reversePayment}/></div>}
   </div>;
 }
