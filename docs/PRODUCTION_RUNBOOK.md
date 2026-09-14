@@ -31,6 +31,7 @@ https://musclefitness.fitkiro.com/auth/complete
 
 - Confirm Supabase Auth has a working SMTP provider and Invite user email template before provisioning any owner or staff account. FitKiro sends an invitation email through Supabase; no temporary password is displayed or shared.
 - Keep `{{ .ConfirmationURL }}` in the Supabase **Invite user** email template. It carries the one-time token and redirects the invited user to FitKiro's `/auth/complete` page.
+- Ask an invited user to open the link in an incognito/private window or a separate browser profile when an Admin is already signed in on the same device. A browser profile holds one FitKiro session at a time; continuing in the existing profile switches it to the invited user.
 
 - Provision the single confirmed owner with:
 
