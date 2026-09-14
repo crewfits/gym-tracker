@@ -8,6 +8,7 @@ import { MemberPhotoField } from "@/components/member-photo-field";
 import { memberValidationErrors, type CreateMemberResult, type MemberFieldErrors } from "@/lib/new-member-validation";
 import { calculateExpiry, calculatePaymentFollowUpDate, formatDisplayDate, formatInr } from "@/lib/domain";
 import { PaymentEntries } from "@/components/payment-entries";
+import { Feedback } from "@/components/feedback";
 import { usePaymentRows } from "@/components/use-payment-rows";
 import { paymentRowsErrors, paymentRowsTotal } from "@/lib/split-payments";
 import type { CurrencyCode, Plan, StaffHandlerOption, TrainerOption } from "@/lib/types";
@@ -157,8 +158,8 @@ export function NewMemberForm({ plans, trainers = [], showTrainerAssignment = fa
   }} noValidate className="enrollment-grid" aria-busy={pending}>
     <input type="hidden" name="due_on" value={followUpDate}/>
     <input type="hidden" name="amount_paid" value={amountPaid}/><input type="hidden" name="paid_on" value={today}/><input type="hidden" name="method" value="cash"/><input type="hidden" name="reference" value=""/>
+    <Feedback key={formError ?? "new-member-feedback"} error={formError}/>
     <div className="enrollment-main">
-      {formError && <div className="alert error" role="alert">{formError}</div>}
       <nav className="enrollment-steps" aria-label="New member sections">
         <button type="button" className={activeSection === "profile" ? "active" : ""} aria-current={activeSection === "profile" ? "step" : undefined} onClick={() => setActiveSection("profile")}><span>1</span><strong>Profile</strong><small>Name, contact and photo</small></button>
         <button type="button" className={activeSection === "plan" ? "active" : ""} aria-current={activeSection === "plan" ? "step" : undefined} onClick={() => setActiveSection("plan")}><span>2</span><strong>Membership</strong><small>Plan, dates and total</small></button>

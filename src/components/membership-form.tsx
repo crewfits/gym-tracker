@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CurrencyCode, Plan, StaffHandlerOption, TrainerOption } from "@/lib/types";
 import { calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatDisplayDate, formatInr } from "@/lib/domain";
 import { PaymentEntries } from "@/components/payment-entries";
+import { Feedback } from "@/components/feedback";
 import { usePaymentRows } from "@/components/use-payment-rows";
 import { usePaymentSubmit } from "@/components/use-payment-submit";
 import { paymentRowsErrors, type SplitPaymentResult } from "@/lib/split-payments";
@@ -54,7 +55,7 @@ export function MembershipForm({ memberId, plans, trainers = [], showTrainerAssi
     <input type="hidden" name="member_id" value={memberId}/>
     {returnPath && <input type="hidden" name="return_path" value={returnPath}/>}
     <input type="hidden" name="due_on" value={followUpDate}/>
-    {(submissionError || error) && <div className="alert error" role="alert">{submissionError || error}</div>}
+    <Feedback key={submissionError || error || "membership-feedback"} error={submissionError || error}/>
     <div className="form-grid">
       <div className="field"><label htmlFor="membership-plan">Plan *</label><select id="membership-plan" name="plan_id" value={planId} onChange={(event) => selectPlan(event.target.value)} required>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {plan.duration_value} {plan.duration_unit}</option>)}</select></div>
       <div className="field"><label htmlFor="membership-price">Plan price ({currencyCode}) *</label><input id="membership-price" type="number" name="subtotal" min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)} required/></div>

@@ -30,6 +30,7 @@
     "user:remove:dev": "node --env-file=.env.dev.local scripts/remove-user.mjs",
     "user:remove:prod": "node --env-file=.env.prod.local scripts/remove-user.mjs",
     "data:backup": "node --env-file=.env.local scripts/backup-gym.mjs",
+    "data:members:clear:prod": "node --env-file=.env.prod.local scripts/clear-member-data.mjs",
     "data:import": "node --env-file=.env.local scripts/import-members.mjs",
     "ops:preflight": "node scripts/check-production-env.mjs",
     "prepare": "node scripts/install-git-hooks.mjs",

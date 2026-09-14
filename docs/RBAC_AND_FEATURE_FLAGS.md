@@ -33,6 +33,8 @@ Do not create separate role tables for trainers, receptionists, owners, or admin
 
 `admin` is internal FitKiro access. It can manage feature flags, preview admin-enabled features, and is excluded from trainer/receptionist seat limits. Admin users should not be treated as gym staff in owner-facing trainer dropdowns or shown in owner-facing staff lists.
 
+An Admin may activate, renew, or collect a membership. If the Admin selects a receptionist, trainer, or owner in **Handled by**, that staff member is recorded on the membership and payments. If no gym-floor staff account is available, the operation is still permitted and the handler is left blank; the Admin remains recorded in the payment operation audit.
+
 ## Feature Flags
 
 Feature flags answer whether a feature is available for a gym. Role permissions answer whether the signed-in user may use it.
