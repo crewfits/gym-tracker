@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Building2, ReceiptText } from "lucide-react";
 import { updateSettings } from "@/app/actions/core";
 import { Feedback } from "@/components/feedback";
@@ -52,6 +51,5 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
       <div className="settings-save"><SubmitButton className="button" pendingLabel="Saving settings...">Save settings</SubmitButton></div>
     </form>
-    <div className="settings-save"><Link className="button secondary" href="/settings/staff">Manage staff and feature flags</Link></div>
   </>;
 }
