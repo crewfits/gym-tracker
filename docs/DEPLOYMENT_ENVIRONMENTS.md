@@ -68,6 +68,19 @@ Cloudflare environments are defined in `wrangler.jsonc`:
 
 Dev is configured for `https://dev.fitkiro.com`. Keep the same URL in `.env.dev.local` as `NEXT_PUBLIC_APP_URL` so build-time and runtime values agree. Production remains the first-client URL `https://musclefitness.fitkiro.com`.
 
+## Supabase Auth URLs and invitation email
+
+In each Supabase project, add these exact URLs to **Authentication -> URL Configuration -> Redirect URLs**:
+
+```text
+https://dev.fitkiro.com/auth/callback
+https://dev.fitkiro.com/auth/complete
+https://musclefitness.fitkiro.com/auth/callback
+https://musclefitness.fitkiro.com/auth/complete
+```
+
+Set the Site URL to the matching environment's app URL. The first URL completes a user-requested password reset; the second completes the staff or owner invitation before showing the password form. In the Supabase **Invite user** email template, preserve `{{ .ConfirmationURL }}` so the one-time invitation token reaches that page.
+
 ## Recommended V1 release flow
 
 For now, deploy from local using explicit commands:

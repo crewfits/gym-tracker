@@ -93,6 +93,8 @@ Current flags:
 
 ## Operational Notes
 
-Staff login creation uses a service-role server action. The temporary password is shown once in the success message and must be shared securely. Staff access can be disabled without deleting the Supabase Auth user.
+Staff login creation uses a service-role server action. It sends the new staff member a Supabase invitation email; the user chooses their own password before signing in. Staff access can be disabled without deleting the Supabase Auth user.
+
+The first client owner and internal admin mappings for a new gym are provisioned through the [gym onboarding runbook](GYM_ONBOARDING_RUNBOOK.md). After that bootstrap step, use **Settings -> Staff** for all routine staff onboarding.
 
 UI hiding is not the authorization boundary. Server Actions, API routes, route pages, RLS, and database functions must continue to enforce role and gym access for every sensitive operation.
