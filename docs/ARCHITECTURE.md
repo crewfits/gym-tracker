@@ -92,8 +92,6 @@ auth.users
 
 Roles are `owner`, `receptionist`, `trainer`, and internal `admin`. `gym_feature_flags` stores per-gym feature availability plus `admin_enabled` preview access. Application UI visibility is derived from the viewer role and feature flags; protected server routes still enforce permissions directly. CSV exports are owner/admin-only even if a receptionist or trainer reaches the URL manually.
 
-Trainer assignment is stored on `members.assigned_trainer_user_id`, pointing to an active trainer row in `gym_users`. This represents the member's current trainer for V1. Historical trainer assignment can be added later if the client needs per-membership assignment history.
-
 Required authentication states:
 
 - valid provisioned owner → dashboard;
@@ -169,7 +167,7 @@ Current QR links use a first-party short code instead of exposing member IDs or 
 
 Attendance rules:
 
-- Opening a QR URL with GET never records attendance by itself. The authenticated `/scanner` PWA reads the code locally and invokes a server-side POST action that records the suggested movement without opening a new tab.
+- Opening a QR URL with GET never records attendance by itself. The authenticated `/scanner` PWA reads the code locally and invokes a server-side POST action that records the suggested movement without opening a new tab. It prefers the native `BarcodeDetector` API and falls back to the bundled ZXing decoder where that browser API is unavailable, such as Windows Chrome and Edge.
 - The scanner shows the member identity and recorded result after the write. The direct `/s/{code}` route retains explicit movement confirmation as a fallback.
 - The write transaction revalidates the gym, member, QR version, archive state, and active membership.
 - First recorded movement in a business day is Check-in; the next is Check-out (`entry`/`exit` in storage).

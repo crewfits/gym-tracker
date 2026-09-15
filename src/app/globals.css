@@ -690,6 +690,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .members-table-card { padding: 0; overflow-x: auto; border-radius: 18px; }
 .members-table-card .table { min-width: 1080px; table-layout: fixed; }
 .member-column-id { width: 118px; }
+.member-column-old-id { width: 130px; }
 .member-column-contact { width: 150px; }
 .member-column-plan { width: 12%; }
 .member-column-expiry { width: 110px; }
@@ -708,7 +709,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .members-table-card .member-cell { gap: 8px; }
 .members-table-card .member-avatar.small { width: 32px; height: 32px; }
 .members-table-card .badge { white-space: nowrap; font-size: 10px; }
-.members-table-card td:nth-child(5), .members-table-card td:nth-child(6) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.members-table-card td:nth-child(6), .members-table-card td:nth-child(7) { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .members-table-card .table th { background: #f7faff; }
 .members-table-card .table th, .members-table-card .table td { vertical-align: middle; }
 .members-table-card .table tbody tr { border-bottom: 1px solid #edf2f8; }

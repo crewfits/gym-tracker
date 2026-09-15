@@ -34,6 +34,13 @@ describe("atomic split-payment actions", () => {
   it("opens the QR handoff after activation when QR generation is selected", async () => {
     expect(await activateWithPayments(form({ generate_qr: "on" }))).toEqual({ ok: true, location: `/members/${member}/qr?success=Saved%20successfully.` });
   });
+  it("includes the optional old member ID in a new-member operation", async () => {
+    await activateWithPayments(form({ old_member_id: "REGISTER-104" }));
+    expect(mocks.rpc).toHaveBeenCalledWith("submit_payment_operation", expect.objectContaining({
+      p_kind: "activate",
+      p_details: expect.objectContaining({ old_member_id: "REGISTER-104" }),
+    }));
+  });
   it("keeps receptionist activation away from the restricted payment summary", async () => {
     mocks.requirePermission.mockResolvedValue({ supabase: { rpc: mocks.rpc, from: mocks.from }, gym: { id: member }, viewer: { role: "receptionist", features: {}, adminFeatures: {} } });
     expect(await activateWithPayments(form())).toEqual({ ok: true, location: `/members/${member}?success=Saved%20successfully.` });

@@ -11,12 +11,12 @@ import { PaymentEntries } from "@/components/payment-entries";
 import { Feedback } from "@/components/feedback";
 import { usePaymentRows } from "@/components/use-payment-rows";
 import { paymentRowsErrors, paymentRowsTotal } from "@/lib/split-payments";
-import type { CurrencyCode, Plan, StaffHandlerOption, TrainerOption } from "@/lib/types";
+import type { CurrencyCode, Plan, StaffHandlerOption } from "@/lib/types";
 
-type Props = { plans: Plan[]; trainers?: TrainerOption[]; showTrainerAssignment?: boolean; handlers?: StaffHandlerOption[]; defaultHandlerId?: string; today: string; currencyCode?: CurrencyCode; error?: string; action: (formData: FormData) => Promise<CreateMemberResult> };
+type Props = { plans: Plan[]; handlers?: StaffHandlerOption[]; defaultHandlerId?: string; today: string; currencyCode?: CurrencyCode; error?: string; action: (formData: FormData) => Promise<CreateMemberResult> };
 type EnrollmentSection = "profile" | "plan" | "payment";
 const sectionFields: Record<EnrollmentSection, string[]> = {
-  profile: ["name", "phone", "email", "notes", "shared_phone", "profile_photo_data_url"],
+  profile: ["name", "phone", "email", "old_member_id", "notes", "shared_phone", "profile_photo_data_url"],
   plan: ["plan_id", "starts_on", "expires_on", "subtotal", "discount", "gst_rate"],
   payment: ["amount_paid", "paid_on", "method", "reference"],
 };
@@ -30,19 +30,18 @@ function sectionForField(name: string): EnrollmentSection {
   return "profile";
 }
 
-export function NewMemberForm({ plans, trainers = [], showTrainerAssignment = false, handlers = [], defaultHandlerId = "", today, currencyCode = "INR", error, action }: Props) {
+export function NewMemberForm({ plans, handlers = [], defaultHandlerId = "", today, currencyCode = "INR", error, action }: Props) {
   const router = useRouter();
   const submitting = useRef(false);
   const requestId = useRef("");
   const [pending, setPending] = useState(false);
-  const [values, setValues] = useState<Record<string, unknown>>({ name: "", phone: "", email: "", notes: "", reference: "", paid_on: today, method: "cash" });
+  const [values, setValues] = useState<Record<string, unknown>>({ name: "", phone: "", email: "", old_member_id: "", notes: "", reference: "", paid_on: today, method: "cash" });
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [serverErrors, setServerErrors] = useState<MemberFieldErrors>({});
   const [formError, setFormError] = useState(error);
   const [reactivateUrl, setReactivateUrl] = useState<string>();
   const [activeSection, setActiveSection] = useState<EnrollmentSection>("profile");
   const [planId, setPlanId] = useState(plans[0]?.id ?? "");
-  const [trainerId, setTrainerId] = useState("");
   const [handlerId, setHandlerId] = useState(defaultHandlerId);
   const initialFee = plans[0] ? (plans[0].default_fee_paise / 100).toFixed(2) : "0.00";
   const [subtotal, setSubtotal] = useState(initialFee);
@@ -176,7 +175,8 @@ export function NewMemberForm({ plans, trainers = [], showTrainerAssignment = fa
           <div className="field"><label htmlFor="member-name">Full name <span className="required-marker" aria-hidden="true">*</span></label><input name="name" {...fieldProps("name")} required autoFocus placeholder="Member name"/>{fieldError("name")}</div>
           <div className="field"><label htmlFor="member-phone">Phone <span className="required-marker" aria-hidden="true">*</span></label><input name="phone" {...fieldProps("phone")} type="tel" autoComplete="tel" required placeholder="Contact number with country code when outside India"/>{fieldError("phone")}</div>
           <div className="field"><label htmlFor="member-email">Email</label><input name="email" {...fieldProps("email")} type="email" placeholder="Optional, for receipts"/>{fieldError("email")}</div>
-          <div className="field"><label htmlFor="member-notes">Coach notes</label><input name="notes" {...fieldProps("notes")} placeholder="Goals, preferences, or notes"/>{fieldError("notes")}</div>
+          <div className="field"><label htmlFor="member-old_member_id">Member ID</label><input name="old_member_id" {...fieldProps("old_member_id")} maxLength={100} placeholder="From the existing register or system"/>{fieldError("old_member_id")}</div>
+          <div className="field"><label htmlFor="member-notes">Remarks</label><input name="notes" {...fieldProps("notes")} placeholder="Optional remarks"/>{fieldError("notes")}</div>
         </div>
         <div className="form-options enrollment-options">
           <label className="form-option"><input type="checkbox" name="generate_qr" defaultChecked/><span><strong>Generate QR pass</strong><small>Open the new member QR after activation.</small></span></label>
@@ -195,7 +195,6 @@ export function NewMemberForm({ plans, trainers = [], showTrainerAssignment = fa
           <div className="field"><label htmlFor="member-subtotal">Base plan price ({currencyCode}) <span className="required-marker" aria-hidden="true">*</span></label><input type="number" name="subtotal" {...fieldProps("subtotal")} min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)} required/>{fieldError("subtotal")}</div>
           <div className="field"><label htmlFor="member-discount">Member discount ({currencyCode})</label><input type="number" name="discount" {...fieldProps("discount")} min="0" max={subtotal} step="0.01" value={discount} onChange={(event) => setDiscount(event.target.value)}/>{fieldError("discount")}</div>
           <div className="field"><label htmlFor="member-gst_rate">GST rate (%)</label><input type="number" name="gst_rate" {...fieldProps("gst_rate")} min="0" max="100" step="0.01" value={gstRate} onChange={(event) => setGstRate(event.target.value)}/>{fieldError("gst_rate")}<small>Tax is calculated after the discount.</small></div>
-          {showTrainerAssignment && <div className="field"><label htmlFor="member-assigned_trainer_user_id">Trainer</label><select id="member-assigned_trainer_user_id" name="assigned_trainer_user_id" value={trainerId} onChange={(event) => setTrainerId(event.target.value)}><option value="">No trainer assigned</option>{trainers.map((trainer) => <option key={trainer.id} value={trainer.id}>{trainer.display_name}</option>)}</select><small>Optional. Trainers are managed through staff access.</small></div>}
         </div>
         <div className="enrollment-panel-actions"><button type="button" className="button secondary" onClick={() => setActiveSection("profile")}>Back to profile</button><button type="button" className="button" onClick={() => goToNextSection("plan", "payment")}>Continue to payment</button></div>
       </section>

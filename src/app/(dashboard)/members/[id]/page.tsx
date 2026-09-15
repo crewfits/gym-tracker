@@ -12,9 +12,8 @@ import { SubmitButton } from "@/components/submit-button";
 import { requirePermission } from "@/lib/auth";
 import { businessDate, formatDisplayDate, formatInr, memberOperationalView, membershipStatus, normalizeCurrencyCode, paymentStatus } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
-import { canAccess } from "@/lib/permissions";
 import { loadStaffHandlers, roleLabel } from "@/lib/staff-handlers";
-import type { Plan, TrainerOption } from "@/lib/types";
+import type { Plan } from "@/lib/types";
 
 type PaymentReversalRow = { id: string; amount_paise: number; reason: string; created_at: string };
 type HandlerRow = { display_name: string | null; role: string };
@@ -28,13 +27,11 @@ type MembershipRow = { id: string; plan_id: string | null; plan_name: string; st
 
 export default async function MemberDetail({ params, searchParams }: PageProps<"/members/[id]">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const { supabase, gym, user, viewer } = await requirePermission("members.view");
-  const showTrainerAssignment = canAccess(viewer, "trainer.assign", "trainer_assignment");
+  const { supabase, gym, user } = await requirePermission("members.view");
   const currencyCode = normalizeCurrencyCode(gym.currency_code);
-  const [{ data }, { data: plans }, { data: trainers }, handlerData] = await Promise.all([
+  const [{ data }, { data: plans }, handlerData] = await Promise.all([
     supabase.from("members").select("*, memberships(*, handled_by:gym_users!memberships_handled_by_gym_user_fk(display_name,role), charges(*, payments(*, handled_by:gym_users!payments_handled_by_gym_user_fk(display_name,role), payment_reversals(*))))").eq("id", id).eq("gym_id", gym.id).single(),
     supabase.from("plans").select("*").eq("gym_id", gym.id).eq("is_active", true).order("name"),
-    showTrainerAssignment ? supabase.from("gym_users").select("id,display_name").eq("gym_id", gym.id).eq("role", "trainer").eq("status", "active").order("display_name") : Promise.resolve({ data: [] }),
     loadStaffHandlers(supabase, gym.id, user.id),
   ]);
   if (!data) notFound();
@@ -96,7 +93,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
         <section className="member-renewal-section">
           <h2>{latest ? "Renew membership" : "Start membership"}</h2>
           {unpaidMemberships.length > 0 && !member.is_archived && <p className="member-renewal-balance-note">Previous balance: {formatInr(totalOutstanding, currencyCode)}. Renewal payments apply to the new membership period.</p>}
-          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} trainers={(trainers ?? []) as TrainerOption[]} showTrainerAssignment={showTrainerAssignment} action={renewWithPayments} today={today} currencyCode={currencyCode} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} defaultTrainerId={member.assigned_trainer_user_id ?? null} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} returnPath={`/members/${id}?view=membership`}/>}
+          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} action={renewWithPayments} today={today} currencyCode={currencyCode} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} returnPath={`/members/${id}?view=membership`}/>}
           {!member.is_archived && !latest && <Link className="button" href={`/members/${id}/enroll`}><Plus size={16}/> Start plan</Link>}
           {member.is_archived && <p className="muted">Reactivate this member before renewing their membership.</p>}
         </section>
@@ -152,7 +149,8 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
             <div className="field"><label htmlFor="member-name">Full name</label><input id="member-name" name="name" defaultValue={member.name} required/></div>
             <div className="field"><label htmlFor="member-phone">Phone number</label><input id="member-phone" name="phone" type="tel" defaultValue={member.phone} required/></div>
             <div className="field member-field-wide"><label htmlFor="member-email">Email address</label><input id="member-email" type="email" name="email" defaultValue={member.email ?? ""}/></div>
-            <div className="field member-field-wide"><label htmlFor="member-notes">Coach notes</label><textarea id="member-notes" name="notes" rows={3} defaultValue={member.notes ?? ""}/></div>
+            <div className="field"><label htmlFor="member-old-member-id">Member ID</label><input id="member-old-member-id" name="old_member_id" maxLength={100} defaultValue={member.old_member_id ?? ""} placeholder="From the existing register or system"/></div>
+            <div className="field member-field-wide"><label htmlFor="member-notes">Remarks</label><textarea id="member-notes" name="notes" rows={3} defaultValue={member.notes ?? ""}/></div>
           </div>
           <div className="member-preferences">
             <label><input type="checkbox" name="is_archived" defaultChecked={member.is_archived}/> Archive member</label>

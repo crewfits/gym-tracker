@@ -24,7 +24,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 
 ### Member onboarding
 
-1. An owner signs in and creates a member with contact details.
+1. An owner signs in and creates a member with contact details, optional remarks, and an optional Member ID from a physical register or previous system. The Member ID remains visible beside the generated FitKiro ID and is included in member-directory search.
 2. The owner selects a plan, start date, calculated editable end date, charge, discount/tax, and optional initial payment entries. New-member validation appears under the relevant field, and activation is disabled until required inputs are valid. Failed enrollment keeps the entered data and selected photo. Intentional shared phones require confirmation and allow up to three member records; archived duplicates offer reactivation.
 3. The database creates the member, membership, charge, optional QR, and all initial payment entries transactionally. Photo storage is handled afterward; a failed photo upload does not undo or repeat the financial operation.
 4. QR issuance is optional. When the activation creates a QR, the operator lands on the QR handoff screen immediately; otherwise payment-capable roles see the collection summary. Mixed payment entries are presented as one customer receipt with method-level payment lines.

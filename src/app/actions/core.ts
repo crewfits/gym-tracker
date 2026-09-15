@@ -84,6 +84,10 @@ export async function createMember(formData: FormData): Promise<CreateMemberResu
     const result = data as { member_id?: string; payment_id?: string } | null;
     if (!result?.member_id) throw new Error("Member was created but the result could not be loaded");
     createdMemberId = result.member_id;
+    if (input.old_member_id) {
+      const { error: oldMemberIdError } = await supabase.from("members").update({ old_member_id: input.old_member_id, updated_at: new Date().toISOString() }).eq("id", result.member_id).eq("gym_id", gym.id);
+      if (oldMemberIdError) throw oldMemberIdError;
+    }
     let photoWarning = "";
     if (selectedPhoto.dataUrl) {
       try {
@@ -112,7 +116,7 @@ export async function createMember(formData: FormData): Promise<CreateMemberResu
 export async function updateMember(formData: FormData) {
   const id = String(formData.get("id"));
   try {
-    const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), is_archived: z.string().optional() }).parse(Object.fromEntries(formData));
+    const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), old_member_id: z.string().trim().max(100), notes: z.string(), is_archived: z.string().optional() }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requirePermission("members.manage");
     const selectedPhoto = photoInput(formData);
     const { data: existing, error: existingError } = await supabase.from("members").select("profile_photo_path").eq("id", id).eq("gym_id", gym.id).maybeSingle();
@@ -124,7 +128,7 @@ export async function updateMember(formData: FormData) {
       await removeMemberPhoto(supabase, existing.profile_photo_path);
       profilePhotoPath = null;
     }
-    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
+    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, old_member_id: input.old_member_id || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
     if (error) throw error; done(`/members/${id}`, "Member updated");
   } catch (e) { fail(`/members/${id}`, e); }
 }

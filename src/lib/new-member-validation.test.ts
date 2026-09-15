@@ -4,6 +4,10 @@ import { memberValidationErrors, newMemberSchema } from "./new-member-validation
 const valid = { name: "Mira", phone: "9876543210", email: "", notes: "", plan_id: "cfc70c70-d76e-4788-af97-6a2d97479436", starts_on: "2026-09-05", expires_on: "2026-10-04", subtotal: "1000.00", discount: "0", gst_rate: "0", amount_paid: "500", method: "cash", reference: "", paid_on: "2026-09-05" };
 describe("new member inline validation", () => {
   it("accepts partial payment and intentional shared phones", () => expect(newMemberSchema.parse({ ...valid, shared_phone: "on" }).amount_paid).toBe(50000));
+  it("accepts an optional old member ID and limits it to 100 characters", () => {
+    expect(newMemberSchema.parse({ ...valid, old_member_id: "REGISTER-104" }).old_member_id).toBe("REGISTER-104");
+    expect(memberValidationErrors({ ...valid, old_member_id: "x".repeat(101) }).old_member_id).toContain("100");
+  });
   it.each(["1234567", "98765abc210", "", "+1234"])("rejects invalid phone %s before enrollment", phone => expect(memberValidationErrors({ ...valid, phone }).phone).toBeTruthy());
   it.each(["98765 43210", "+91 98765 43210", "+1 (212) 555-0123"])("accepts formatted phone %s", phone => expect(memberValidationErrors({ ...valid, phone })).toEqual({}));
   it("reports errors against individual required fields", () => {

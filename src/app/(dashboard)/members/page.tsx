@@ -14,11 +14,12 @@ import { canAccess } from "@/lib/permissions";
 const pageSize = 10;
 const allowedStatuses = new Set(["active", "expiring", "expired", "upcoming", "not_enrolled", "outstanding", "qr_not_generated", "qr_not_shared", "qr_shared", "qr_disabled", "archived", "all", "visited_this_week", "slipping", "visited_last_week"]);
 const engagementStatuses = new Set(["visited_this_week", "slipping", "visited_last_week"]);
-const memberSorts = new Set(["created_at", "member_code", "name", "expires_on", "balance", "status"]);
+const memberSorts = new Set(["created_at", "member_code", "old_member_id", "name", "expires_on", "balance", "status"]);
 
 type MemberDirectoryRow = {
   id: string;
   member_code: string;
+  old_member_id: string | null;
   name: string;
   phone: string;
   email: string | null;
@@ -128,7 +129,7 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
     <form className="toolbar members-toolbar">
       {sort !== "created_at" && <input type="hidden" name="sort" value={sort}/>}
       {(sort !== "created_at" || order !== "desc") && <input type="hidden" name="order" value={order}/>}
-      <input className="search" name="q" defaultValue={q} maxLength={100} placeholder="Search name, phone or member ID"/>
+      <input className="search" name="q" defaultValue={q} maxLength={100} placeholder="Search name, phone, FitKiro ID or member ID"/>
       <select className="search" name="status" defaultValue={status}>
         <option value="">Current roster</option><option value="active">Active</option><option value="expiring">Expiring</option><option value="expired">Expired</option><option value="upcoming">Upcoming</option><option value="not_enrolled">Not enrolled</option><option value="outstanding">Outstanding</option><option value="visited_this_week">Visited this week</option><option value="slipping">Slipping this week</option><option value="visited_last_week">Visited last week</option><option value="qr_not_generated">QR not generated</option><option value="qr_not_shared">QR not shared</option><option value="qr_shared">QR shared</option><option value="qr_disabled">QR disabled</option><option value="archived">Archived members</option><option value="all">All current and archived</option>
       </select>
@@ -136,8 +137,8 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
     </form>
     <div className="card table-wrap members-table-card">
       <table className="table">
-        <colgroup><col className="member-column-id"/><col className="member-column-name"/><col className="member-column-contact"/><col className="member-column-plan"/><col className="member-column-expiry"/><col className="member-column-balance"/><col className="member-column-status"/><col className="member-column-qr"/><col className="member-column-actions"/></colgroup>
-        <thead><tr><SortableTableHeader label="Member ID" href={hrefForSort("member_code", "asc")} active={sort === "member_code"} order={order}/><SortableTableHeader label="Member" href={hrefForSort("name", "asc")} active={sort === "name"} order={order}/><th>Contact</th><th>Plan</th><SortableTableHeader label="Plan end" href={hrefForSort("expires_on", "asc")} active={sort === "expires_on"} order={order}/><SortableTableHeader label="Balance" href={hrefForSort("balance", "desc")} active={sort === "balance"} order={order}/><SortableTableHeader label="Status" href={hrefForSort("status", "asc")} active={sort === "status"} order={order}/><th>QR</th><th>Actions</th></tr></thead>
+        <colgroup><col className="member-column-id"/><col className="member-column-old-id"/><col className="member-column-name"/><col className="member-column-contact"/><col className="member-column-plan"/><col className="member-column-expiry"/><col className="member-column-balance"/><col className="member-column-status"/><col className="member-column-qr"/><col className="member-column-actions"/></colgroup>
+        <thead><tr><SortableTableHeader label="FitKiro ID" href={hrefForSort("member_code", "asc")} active={sort === "member_code"} order={order}/><SortableTableHeader label="Member ID" href={hrefForSort("old_member_id", "asc")} active={sort === "old_member_id"} order={order}/><SortableTableHeader label="Member" href={hrefForSort("name", "asc")} active={sort === "name"} order={order}/><th>Contact</th><th>Plan</th><SortableTableHeader label="Plan end" href={hrefForSort("expires_on", "asc")} active={sort === "expires_on"} order={order}/><SortableTableHeader label="Balance" href={hrefForSort("balance", "desc")} active={sort === "balance"} order={order}/><SortableTableHeader label="Status" href={hrefForSort("status", "asc")} active={sort === "status"} order={order}/><th>QR</th><th>Actions</th></tr></thead>
         <tbody>{rows.map((member) => {
           const effectiveView = effectiveByMember.get(member.id);
           const effectiveMembership = effectiveView?.membership;
@@ -147,6 +148,7 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
           const qrBadgeClass = !member.qr_version || !member.qr_enabled ? "expired" : member.qr_shared_at ? "active" : "expiring";
           return <tr key={member.id}>
             <td><Link href={`/members/${member.id}`}><strong>{member.member_code}</strong></Link></td>
+            <td>{member.old_member_id || "—"}</td>
             <td><Link className="member-cell" href={`/members/${member.id}`}><span className="member-avatar small">{photoUrl ? <Image src={photoUrl} alt="" width={38} height={38} unoptimized/> : member.name.slice(0, 1).toUpperCase()}</span><span className="member-name-copy"><strong title={member.name}>{member.name}</strong></span></Link></td>
             <td><span className="member-contact-phone">{member.phone}</span>{member.email && <small className="muted member-contact-email" title={member.email}>{member.email}</small>}</td>
             <td><span className="member-plan-name" title={effectiveMembership?.plan_name ?? member.plan_name ?? undefined}>{effectiveMembership?.plan_name ?? member.plan_name ?? "—"}</span></td>
@@ -201,6 +203,7 @@ function sortMembers(rows: MemberDirectoryRow[], sort: string, order: SortOrder)
 
 function compareMember(left: MemberDirectoryRow, right: MemberDirectoryRow, sort: string) {
   if (sort === "member_code") return left.member_code.localeCompare(right.member_code);
+  if (sort === "old_member_id") return (left.old_member_id ?? "").localeCompare(right.old_member_id ?? "");
   if (sort === "name") return left.name.localeCompare(right.name);
   if (sort === "expires_on") return (left.expires_on ?? "").localeCompare(right.expires_on ?? "");
   if (sort === "balance") return Number(left.balance_paise) - Number(right.balance_paise);

@@ -54,7 +54,6 @@ Current flags:
 | Key | Purpose | Initial state |
 |---|---|---|
 | `staff_roles` | Staff-role access model and staff management configuration | `enabled=false`, `admin_enabled=true` |
-| `trainer_assignment` | Trainer dropdowns on activation/enrollment/renewal | `enabled=false`, `admin_enabled=true` |
 | `csv_exports` | CSV export capability for permitted roles | `enabled=true`, `admin_enabled=true` |
 
 `staff_roles.config_json` stores the current staff limits:
@@ -82,7 +81,7 @@ Current flags:
    - Direct export URLs return `403`.
 7. Sign in as trainer:
    - Dashboard financial cards, Members, Add member, Reminders, Transactions, Scanner, and Attendance are visible.
-   - Activation, renewal, collection, trainer assignment, and receipt review are available.
+   - Activation, renewal, collection, and receipt review are available.
    - Staff, Settings, and CSV exports are unavailable; Plans is available.
 8. Sign in as owner:
    - Staff management is available.
@@ -92,10 +91,6 @@ Current flags:
    - Admin-enabled feature flags are visible even when `enabled=false`.
    - Staff and feature flag controls are available.
    - Internal admin rows and admin role choices are visible.
-10. Turn on `trainer_assignment` in Settings -> Staff.
-11. Confirm owner/receptionist see trainer dropdowns on add member, enroll, and renew.
-12. Turn off `trainer_assignment` and leave admin preview on.
-13. Confirm only admin sees trainer dropdowns.
 
 ## Operational Notes
 
