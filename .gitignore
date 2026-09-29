@@ -46,6 +46,7 @@ yarn-error.log*
 # cloudflare
 .wrangler/
 .dev.vars
+.cf-token.local
 
 # typescript
 *.tsbuildinfo

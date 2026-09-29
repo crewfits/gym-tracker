@@ -13,7 +13,12 @@ export function configuredAppOrigin(): string {
 }
 
 export async function requestAppOrigin(): Promise<string> {
-  const headerStore = await headers();
+  let headerStore: Awaited<ReturnType<typeof headers>>;
+  try {
+    headerStore = await headers();
+  } catch {
+    return configuredAppOrigin();
+  }
   const forwardedHost = headerStore.get("x-forwarded-host")?.split(",")[0]?.trim();
   const host = forwardedHost || headerStore.get("host")?.split(",")[0]?.trim();
 

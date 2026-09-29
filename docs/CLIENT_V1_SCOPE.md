@@ -1,6 +1,6 @@
 # First-client V1 scope
 
-> Current operating mode (2026-09-13): WhatsApp reminders are owner-triggered only. Automated WhatsApp reminder code, scheduler routes, delivery tables, and Meta Cloud API settings have been removed from V1.
+> Current operating mode (2026-09-22): WhatsApp reminders are owner-triggered only. Transactional email uses Cloudflare Email Sending for QR/receipt delivery and membership-expiry email reminders.
 
 Last reviewed: 2026-08-23
 
@@ -37,7 +37,9 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Show partial-payment, overdue, and expiring-soon queues.
 - Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.
 - Open an individual prefilled WhatsApp reminder for the owner to review and send.
-- Share a payment receipt through a signed, member-readable WhatsApp link.
+- Share a payment receipt through the owner UI; email delivery sends the generated receipt PDF as an attachment rather than relying on a member-facing link.
+- Email the member's QR pass and send the activation or renewal receipt/QR email automatically after activation or paid renewal when the member has an email address.
+- Automatically email renewal reminders once inside the seven-day expiry window and once on the first day after expiry; manual resends require owner confirmation.
 - Record manual WhatsApp reminders as opened/prepared; FitKiro does not represent them as sent or delivered.
 - Correct payments through a void/reason flow instead of deletion.
 
@@ -93,7 +95,7 @@ A reusable customer-facing import UI is not required for V1.
 1. Owner signs in to the provisioned gym account.
 2. Owner finds an existing member or creates a new one and assigns a package.
 3. Owner records a full or partial payment and sees the correct balance/history.
-4. Owner finds due/expiring members and opens a prefilled WhatsApp reminder.
+4. Owner finds expiring/expired members and sends an email reminder manually, or lets the configured Cloudflare cron job send deduplicated email reminders automatically.
 5. Owner generates and shares a QR, marks it shared after the manual handoff, then records entry and exit through automatic PWA scans or the confirmation-based URL fallback.
 6. Expired, archived, disabled, replaced, or invalid QR passes are denied.
 7. A missed prior-day exit does not make the next day's first scan an exit.

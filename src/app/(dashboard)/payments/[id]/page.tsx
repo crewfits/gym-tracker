@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CheckCircle2, QrCode, ReceiptText, UserRound } from "lucide-react";
 import { z } from "zod";
+import { Feedback } from "@/components/feedback";
 import { requirePermission } from "@/lib/auth";
 import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { roleLabel } from "@/lib/staff-handlers";
 
 type HandlerRelation = { display_name: string | null; role: string } | Array<{ display_name: string | null; role: string }> | null;
+
 function handlerName(handler: HandlerRelation) {
   const row = Array.isArray(handler) ? handler[0] : handler;
   return row ? row.display_name || roleLabel(row.role) : null;
 }
-import { Feedback } from "@/components/feedback";
 
 export default async function PaymentCollectionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
@@ -31,18 +33,38 @@ export default async function PaymentCollectionPage({ params, searchParams }: { 
   const totalCollected = (payments ?? []).reduce((sum, payment) => sum + net(payment), 0);
   const primaryPayment = payments?.[0] ?? null;
   const methodSummary = (payments ?? []).map(payment => `${formatPaymentMethod(payment.method)} ${formatInr(net(payment), currencyCode)}`).join(" + ");
-  return <div className="page-stack">
+  const handlerSummary = [...new Set((payments ?? []).map(payment => handlerName(payment.handled_by)).filter(Boolean))];
+
+  return <div className="page-stack payment-complete-page">
     <Feedback success={typeof query.success === "string" ? query.success : undefined}/>
-    <div className="page-header"><div><p className="eyebrow">Payment collection</p><h1>{member.name}</h1><p className="muted">{member.member_code} · One receipt includes every payment method from this checkout.</p></div></div>
-    <div className="payment-entry-totals card"><span>Net collected <strong>{formatInr(totalCollected, currencyCode)}</strong></span><span>Current membership balance <strong>{formatInr(Number(balance.balance_paise), currencyCode)}</strong></span></div>
-    {primaryPayment && <article className="card">
-      <h2>{formatInr(totalCollected, currencyCode)}</h2>
-      <p>{primaryPayment.receipt_number} · {formatDisplayDate(primaryPayment.paid_on)}</p>
-      <p className="muted">{methodSummary}</p>
-      {[...new Set((payments ?? []).map(payment => handlerName(payment.handled_by)).filter(Boolean))].length > 0 && <p className="muted">Collected by {[...new Set((payments ?? []).map(payment => handlerName(payment.handled_by)).filter(Boolean))].join(", ")}</p>}
+    <section className="payment-complete-hero card">
+      <div className="payment-complete-icon"><CheckCircle2 size={28}/></div>
+      <div className="payment-complete-copy">
+        <p className="eyebrow">Payment recorded</p>
+        <h1>{formatInr(totalCollected, currencyCode)}</h1>
+        <p className="muted">{member.name} · {member.member_code}</p>
+      </div>
+      <div className="payment-complete-balance">
+        <span>Membership balance</span>
+        <strong>{formatInr(Number(balance.balance_paise), currencyCode)}</strong>
+      </div>
+    </section>
+
+    {primaryPayment && <article className="payment-complete-card card">
+      <div className="payment-complete-card-head">
+        <div><p className="eyebrow">Receipt ready</p><h2>{primaryPayment.receipt_number}</h2><p className="muted">{formatDisplayDate(primaryPayment.paid_on)}</p></div>
+        <ReceiptText size={24} aria-hidden="true"/>
+      </div>
+      <div className="payment-complete-details">
+        <span><strong>Payment mix</strong><small>{methodSummary || "No method details"}</small></span>
+        {handlerSummary.length > 0 && <span><strong>Collected by</strong><small>{handlerSummary.join(", ")}</small></span>}
+      </div>
       {(payments ?? []).some(payment => net(payment) !== Number(payment.amount_paise)) && <p className="alert">Reversal recorded. Net receipt amount: {formatInr(totalCollected, currencyCode)}.</p>}
-      <Link className="button secondary" href={`/receipts/${primaryPayment.id}`}>View & share receipt</Link>
+      <div className="payment-complete-actions">
+        <Link className="button" href={`/members/${result.member_id}/qr`}><QrCode size={16}/> Open QR pass & email</Link>
+        <Link className="button secondary" href={`/receipts/${primaryPayment.id}`}><ReceiptText size={16}/> View receipt</Link>
+        <Link className="button secondary" href={`/members/${result.member_id}?view=membership`}><UserRound size={16}/> Back to membership</Link>
+      </div>
     </article>}
-    <div className="inline-actions"><Link className="button" href={`/members/${result.member_id}/qr`}>Open QR pass</Link><Link className="button secondary" href={`/members/${result.member_id}?view=membership`}>Back to membership</Link></div>
   </div>;
 }

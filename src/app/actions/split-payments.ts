@@ -38,7 +38,7 @@ async function submit(kind: "activate" | "enroll" | "renew" | "collect", form: F
       details = { member_id: input.member_id, plan_id: input.plan_id, starts_on: input.starts_on, expires_on: input.expires_on, subtotal_paise: input.subtotal, discount_paise: input.discount, gst_rate_basis_points: Math.round(input.gst_rate * 100), ...(form.has("handled_by_gym_user_id") ? { handled_by_gym_user_id: handledBy } : {}) };
     }
     const permission = kind === "activate" ? "members.create" : kind === "collect" ? "payments.manage" : "payments.manage";
-    const { supabase, gym, viewer } = await requirePermission(permission);
+    const { supabase, gym, viewer, user } = await requirePermission(permission);
     const { data, error } = await supabase.rpc("submit_payment_operation", { p_request_id: requestId, p_kind: kind, p_details: details, p_payments: payments });
     if (error) {
       const field = ["plan_id", "phone", "shared_phone", "expires_on", "payments", "handled_by_gym_user_id"].includes(error.hint) ? error.hint : undefined;
@@ -53,6 +53,24 @@ async function submit(kind: "activate" | "enroll" | "renew" | "collect", form: F
         const { error: photoError } = await supabase.from("members").update({ profile_photo_path: path }).eq("id", result.member_id).eq("gym_id", gym.id);
         if (photoError) throw photoError;
       } catch { completionNotices.push("The member was created, but photo upload failed. Add the photo from the member profile."); }
+    }
+    if ((kind === "activate" || kind === "renew") && typeof (supabase as { from?: unknown }).from === "function") {
+      try {
+        const [{ requestAppOrigin }, memberEmail] = await Promise.all([
+          import("@/lib/app-origin"),
+          import("@/lib/member-email"),
+        ]);
+        const origin = await requestAppOrigin();
+        if (kind === "activate") {
+          await memberEmail.sendActivationEmail(supabase, gym, result.member_id, result.payment_ids[0] ?? null, { origin, createdBy: user?.id });
+          completionNotices.push("Activation email sent.");
+        } else {
+          await memberEmail.sendQrPassEmail(supabase, gym, result.member_id, { origin, createdBy: user?.id, paymentId: result.payment_ids[0] ?? null });
+          completionNotices.push("Renewal email sent.");
+        }
+      } catch (emailError) {
+        completionNotices.push(`${kind === "renew" ? "Renewal" : "Activation"} email was not sent: ${emailError instanceof Error ? emailError.message : "try manual resend from QR/receipt page."}`);
+      }
     }
     revalidatePath("/", "layout");
     const generatedQr = kind === "activate" && details.generate_qr === true;

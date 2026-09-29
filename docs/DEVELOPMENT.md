@@ -27,6 +27,8 @@ npm run dev:tunnel
 
 Browser sessions are scoped to the website hostname. Restarting on the same stable hostname preserves the Supabase session; using a different ngrok hostname is a different browser origin and requires one new sign-in. Use a stable reserved tunnel domain or the production domain for client demos that must retain sign-in.
 
+Cloudflare Email Sending is available through the `EMAIL` Worker binding in `wrangler.jsonc`. Local `next dev` does not send through this binding unless the app is run through the Cloudflare/OpenNext dev worker. Dev/prod deployments also need `EMAIL_REMINDER_JOB_SECRET` configured as a Worker secret before the scheduled `/api/jobs/email-reminders` job will send expiry emails.
+
 ## Commit checks
 
 The required fast commit gate is:

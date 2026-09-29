@@ -13,6 +13,7 @@ export async function proxy(request: NextRequest) {
 
   const publicPath = pathname === "/login"
     || pathname === "/api/health"
+    || pathname === "/api/jobs/email-reminders"
     || pathname === "/manifest.webmanifest"
     || pathname === "/sw.js"
     || pathname.startsWith("/icons/")

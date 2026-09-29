@@ -8,9 +8,20 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "triggers": {
+    "crons": ["30 3 * * *"]
+  },
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "remote": true
+    }
+  ],
   "vars": {
     "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com",
-    "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91"
+    "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91",
+    "EMAIL_FROM": "FitKiro <notifications@fitkiro.com>",
+    "EMAIL_REPLY_TO": "www.musclefittness@gmail.com"
   },
   "routes": [
     {
@@ -26,8 +37,16 @@
       "name": "fitkiro-dev",
       "vars": {
         "NEXT_PUBLIC_APP_URL": "https://dev.fitkiro.com",
-        "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91"
+        "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91",
+        "EMAIL_FROM": "FitKiro Dev <dev-notifications@fitkiro.com>",
+        "EMAIL_REPLY_TO": "support@fitkiro.com"
       },
+      "send_email": [
+        {
+          "name": "EMAIL",
+          "remote": true
+        }
+      ],
       "routes": [
         {
           "pattern": "dev.fitkiro.com",
@@ -42,8 +61,16 @@
       "name": "fitkiro",
       "vars": {
         "NEXT_PUBLIC_APP_URL": "https://musclefitness.fitkiro.com",
-        "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91"
+        "NEXT_PUBLIC_DEFAULT_COUNTRY_CODE": "91",
+        "EMAIL_FROM": "FitKiro <notifications@fitkiro.com>",
+        "EMAIL_REPLY_TO": "www.musclefittness@gmail.com"
       },
+      "send_email": [
+        {
+          "name": "EMAIL",
+          "remote": true
+        }
+      ],
       "routes": [
         {
           "pattern": "musclefitness.fitkiro.com",

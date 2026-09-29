@@ -60,6 +60,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
   const success = typeof query.success === "string" ? query.success : undefined;
   const error = typeof query.error === "string" ? query.error : undefined;
   const showReactivation = member.is_archived && query.reactivate === "1";
+  const selectedMemberView = query.view === "history" ? "history" : query.view === "membership" || query.view === "renew" ? "renew" : "profile";
 
   return <>
     <Feedback success={success} error={error}/>
@@ -89,14 +90,15 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
           <Link className="button secondary small" href={`/members/${id}/pay?charge=${membership.charge!.id}`} aria-label={`Collect ${formatInr(membership.balance, currencyCode)} for ${membership.plan_name}, ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}`}><CreditCard size={14}/> Collect payment</Link>
         </div>)}</div>
       </section>}
-      <MemberWorkspace key={query.view === "membership" ? "membership" : "profile"} initialView={query.view === "membership" ? "membership" : "profile"} membership={<>
+      <MemberWorkspace key={selectedMemberView} initialView={selectedMemberView} renewal={
         <section className="member-renewal-section">
           <h2>{latest ? "Renew membership" : "Start membership"}</h2>
           {unpaidMemberships.length > 0 && !member.is_archived && <p className="member-renewal-balance-note">Previous balance: {formatInr(totalOutstanding, currencyCode)}. Renewal payments apply to the new membership period.</p>}
-          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} action={renewWithPayments} today={today} currencyCode={currencyCode} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} returnPath={`/members/${id}?view=membership`}/>}
+          {!member.is_archived && latest && <MembershipForm memberId={id} plans={(plans ?? []) as Plan[]} action={renewWithPayments} today={today} currencyCode={currencyCode} renew embedded currentExpiry={latest.expires_on} defaultPlanId={latest.plan_id} handlers={handlerData.handlers} defaultHandlerId={handlerData.defaultHandlerId} returnPath={`/members/${id}?view=renew`}/>}
           {!member.is_archived && !latest && <Link className="button" href={`/members/${id}/enroll`}><Plus size={16}/> Start plan</Link>}
           {member.is_archived && <p className="muted">Reactivate this member before renewing their membership.</p>}
         </section>
+      } history={
         <section className="member-history-section">
           <h2>Membership history <span className="muted">({enriched.length})</span></h2>
           <div className="membership-list">
@@ -141,7 +143,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
             {!enriched.length && <div className="empty">No training plan has been activated yet.</div>}
           </div>
         </section>
-      </>} profile={<form id="member-details" action={updateMember} className="form member-profile-form">
+      } profile={<form id="member-details" action={updateMember} className="form member-profile-form">
           <h2>Member details</h2>
           <input type="hidden" name="id" value={id}/>
           <MemberPhotoField existingUrl={photoUrl} memberName={member.name}/>

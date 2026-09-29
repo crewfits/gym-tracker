@@ -1,6 +1,6 @@
 # FitKiro product overview
 
-> Current operating mode (2026-09-13): WhatsApp reminders are owner-triggered only. Automated WhatsApp reminder code, scheduler routes, delivery tables, and Meta Cloud API settings have been removed from V1.
+> Current operating mode (2026-09-22): WhatsApp reminders are owner-triggered only. Transactional email uses Cloudflare Email Sending for QR/receipt delivery and membership-expiry email reminders.
 
 Last reviewed: 2026-08-23
 
@@ -32,7 +32,7 @@ The V1 client has approximately 300 active members and 1,500 total current/histo
 ### QR access and attendance
 
 1. FitKiro generates a compact first-party QR URL using a short random code stored on the QR credential row. The QR image itself is not stored.
-2. The owner shares the pass PNG manually, including through WhatsApp; one primary action includes the latest payment receipt link with the pass handoff. Receipt history is collapsed below the pass, with pagination and individual sharing for older payments, including clearly labelled reversed receipts. Membership expiry blocks scans without replacing the QR; an enabled pass works again when a renewed membership becomes active and can be reshared with the renewal receipt.
+2. The owner shares the pass PNG manually, including through WhatsApp; email handoffs attach a generated QR pass PDF and, when relevant, the generated receipt PDF. Receipt history is collapsed below the pass, with pagination and individual sharing for older payments, including clearly labelled reversed receipts. Membership expiry blocks scans without replacing the QR; an enabled pass works again when a renewed membership becomes active and can be reshared with the renewal receipt.
 3. An authenticated operator uses the installed Android PWA camera scanner, which reads the QR without navigating to a new browser tab.
 4. FitKiro validates tenant ownership, QR version, member state, and active membership on the server.
 5. A valid camera scan automatically records Check-in or Check-out and shows a colour-coded result for 30 seconds with sound/vibration feedback. The operator can close it sooner after removing the QR from view. A database-enforced 30-second member cooldown prevents an early close, app refresh, or second device from immediately recording the opposite movement. Directly opening a scan URL remains a confirmation-based fallback and never records attendance on GET.
@@ -46,10 +46,11 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 - Manage member details and memberships in separate views of the same member page. Profile editing is the default; the Membership view contains renewal and membership history. The shared summary provides direct renewal and collection actions. Unpaid periods appear above the views with their own remaining balances and collection buttons, oldest first. Collection shows the member, membership period, total, paid amount, and remaining balance after the entered payment; it records another payment against that period and opens receipt sharing. Renewal payments apply only to the new period, leaving previous balances separately collectible.
 - Record up to 10 manual payment entries together, including mixed UPI and cash. Show the summed collection and remaining balance before saving. Remove all rows for an unpaid activation/enrollment/renewal; balance collection requires at least one positive entry. Each row retains its method, date, reference, and independent reversal history; customer-facing receipts are grouped per payment operation. Failed saves retain form inputs and photos; retries of the same request do not duplicate memberships or receipts.
 - Automatically place unpaid membership balances into the partial-payment reminder window seven days after the membership start or renewal start date.
-- Produce immutable receipt numbers and signed, member-readable receipt links for individual WhatsApp sharing.
+- Produce immutable receipt numbers and signed, member-readable receipt links for owner-reviewed sharing flows; email sharing sends a generated receipt PDF attachment.
 - Reverse incorrect payments with a reason from the authenticated receipt page instead of deleting them. Renewal creation and all payment rows commit together; a failure rolls back the entire operation.
 - Open owner-reviewed WhatsApp payment/renewal reminders and record only that the handoff was opened.
-- Reminders separates All renewals, Expiring, Expired, and Payment follow-ups. Payment follow-ups defaults to positive balances with a follow-up date today or earlier; Upcoming shows the next seven days. Each unpaid period remains eligible even after renewal, with direct WhatsApp, collection, and follow-up rescheduling actions. Settled balances, archived members, and reverted periods are excluded. Payment filtering and pagination run in PostgreSQL using the existing charge balance view; no new migration is required.
+- Automatically email activation and renewal handoffs when the member has an email address, attaching the current active QR pass PDF and the relevant receipt PDF when a payment was recorded. Send automated member email reminders once when a membership is inside the seven-day expiry window and once on the first day after expiry; automated sends are deduplicated per membership/reminder kind. Manual resends are allowed only after the owner confirms the prior send.
+- Reminders separates All renewals, Expiring, and Expired. Payment follow-up WhatsApp handoffs are archived from the visible V1 flow while the app operates email-first for membership follow-up.
 
 ### Daily operations and reporting
 
@@ -66,7 +67,7 @@ The installed scanner PWA limits its navigation to Scanner, Attendance, and Sign
 - Money is stored as integer minor units; the gym currency setting controls display labels and symbols but does not convert historical values.
 - Applied plans, prices, and membership terms are snapshotted for historical accuracy.
 - Attendance and financial activity are append-only or corrected through audited actions. An undone attendance event remains stored but is excluded from operational status, totals, and exports.
-- Manual WhatsApp handoffs are never represented as sent or delivered, and QR share tracking records only owner confirmation.
+- Manual WhatsApp handoffs are never represented as sent or delivered, and QR share tracking records only owner confirmation. Cloudflare email sends are recorded separately in the email delivery audit log.
 - Public QR pages expose the minimum information required for the pass.
 - Frontend visibility is never the authorization boundary.
 
