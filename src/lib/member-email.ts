@@ -334,11 +334,10 @@ export async function sendReceiptEmail(supabase: SupabaseClient, gym: GymEmail, 
     return { skipped: true as const };
   }
 
-  const amount = formatInr(Number(payment.amount_paise), normalizeCurrencyCode(gym.currency_code));
   const subject = `Receipt ${payment.receipt_number} from ${gym.name}`;
   const body = [
     paragraphText(`Hi ${member.name},`),
-    paragraphText(`We received your payment of ${amount} for your ${membership.plan_name} membership.`),
+    paragraphText(`We received your payment for your ${membership.plan_name} membership.`),
     paragraphText(`Your receipt is attached.`),
     paragraphText(`Membership period: ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}.`),
   ].join("");
@@ -351,7 +350,7 @@ export async function sendReceiptEmail(supabase: SupabaseClient, gym: GymEmail, 
     toEmail: member.email,
     subject,
     html: emailShell("Your payment receipt", body, footerFor(gym), gym.name),
-    text: `Hi ${member.name},\n\nWe received your payment of ${amount} for your ${membership.plan_name} membership.\n\nYour receipt is attached.\n\nMembership period: ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}.\n\n${gym.name}`,
+    text: `Hi ${member.name},\n\nWe received your payment for your ${membership.plan_name} membership.\n\nYour receipt is attached.\n\nMembership period: ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}.\n\n${gym.name}`,
     createdBy: options.createdBy,
     metadata: { receipt_number: payment.receipt_number, operation_id: payment.operation_id, receipt_attachment: "pdf" },
     fromName: gym.name,
@@ -441,11 +440,10 @@ export async function sendActivationEmail(supabase: SupabaseClient, gym: GymEmai
   const credential = activeQrCredential(member.member_qr_credentials);
   const origin = options.origin ?? await requestAppOrigin();
   const urls = credential?.public_code ? qrUrls(credential.public_code, origin) : null;
-  const amount = formatInr(Number(payment.amount_paise), normalizeCurrencyCode(gym.currency_code));
   const subject = `Welcome to ${gym.name}`;
   const body = [
     paragraphText(`Hi ${member.name},`),
-    paragraphText(`Your ${membership.plan_name} membership is active. We received ${amount}.`),
+    paragraphText(`Your ${membership.plan_name} membership is active.`),
     paragraphText(`Validity period: ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}.`),
     urls ? paragraphText("Your QR pass is attached for quick access.") : "",
     paragraphText(`Your receipt ${payment.receipt_number} is attached.`),
@@ -463,7 +461,7 @@ export async function sendActivationEmail(supabase: SupabaseClient, gym: GymEmai
     toEmail: member.email,
     subject,
     html: emailShell("Membership activated", body, footerFor(gym), gym.name),
-    text: `Hi ${member.name},\n\nYour ${membership.plan_name} membership is active. We received ${amount}.\n\nValidity period: ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}.\n\n${urls ? "Your QR pass is attached for quick access.\n" : ""}Your receipt ${payment.receipt_number} is attached.\n\n${gym.name}`,
+    text: `Hi ${member.name},\n\nYour ${membership.plan_name} membership is active. \n\nValidity period: ${formatDisplayDate(membership.starts_on)} to ${formatDisplayDate(membership.expires_on)}.\n\n${urls ? "Your QR pass is attached for quick access.\n" : ""}Your receipt ${payment.receipt_number} is attached.\n\n${gym.name}`,
     createdBy: options.createdBy,
     metadata: { receipt_number: payment.receipt_number, member_code: member.member_code, qr_attachment: urls ? "pdf" : null, receipt_attachment: "pdf" },
     fromName: gym.name,
