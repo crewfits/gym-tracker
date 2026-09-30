@@ -5,16 +5,16 @@ import { Feedback } from "@/components/feedback";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
 import { QrCode, qrPngDataUrl } from "@/components/qr-code";
 import { QrShareActions } from "@/components/qr-share-actions";
-import { ShareReceiptButton, WhatsAppReceiptButton } from "@/components/print-button";
+import { ShareReceiptButton } from "@/components/print-button";
 import { SubmitButton } from "@/components/submit-button";
 import { QrSharedStatusForm } from "@/components/qr-shared-status-form";
+import { emailQrPass, emailReceipt } from "@/app/actions/core";
 import { disableMemberQr, issueMemberQr, markMemberQrShared } from "@/app/actions/attendance";
 import { requirePermission } from "@/lib/auth";
 import { requestAppOrigin } from "@/lib/app-origin";
 import { attendanceLabel, formatDisplayDate, formatDisplayDateTime, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { qrUrls } from "@/lib/qr-token";
 import { createReceiptToken } from "@/lib/receipt-token";
-import { whatsappClickToChatUrl } from "@/lib/reminders";
 
 type Query = { success?: string; error?: string; receipts?: string };
 type Credential = { public_code: string; version: number; enabled: boolean; issued_at: string; rotated_at: string | null; shared_at: string | null };
@@ -70,7 +70,6 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
   }, new Map<string, MemberPayment[]>()).values()];
   const token = credential?.enabled ? credential.public_code : null;
   const urls = token ? qrUrls(token, origin) : null;
-  const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91";
   const sharedAt = credential?.shared_at ? formatDisplayDateTime(credential.shared_at, gym.timezone) : null;
   const qrPng = urls ? await qrPngDataUrl(urls.scanUrl) : null;
   const memberNameSlug = member.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -83,14 +82,6 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
   const receiptPaidOn = latestPrimaryPayment ? formatDisplayDate(latestPrimaryPayment.paid_on) : "";
   const receiptUrl = latestPrimaryPayment ? `${origin}/r/${createReceiptToken(latestPrimaryPayment.id)}` : "";
   const receiptShare = latestPrimaryPayment ? { amount: receiptAmount, paidOn: receiptPaidOn, receiptNumber: latestPrimaryPayment.receipt_number, url: receiptUrl } : null;
-  function receiptWhatsappUrl(payment: MemberPayment, amount: string, url: string) {
-    try {
-      return whatsappClickToChatUrl(member!.phone, defaultCountryCode, `Hi ${member!.name}, payment receipt ${payment.receipt_number} for ${amount}, paid on ${formatDisplayDate(payment.paid_on)} to ${gym.name}: ${url}`);
-    } catch {
-      return null;
-    }
-  }
-
   return <div className="qr-sharing-page">
     <div className="qr-page-head">
       <div className="qr-page-title"><h1>QR pass & receipts</h1><p className="muted">{member.name} · {member.member_code}</p></div>
@@ -114,7 +105,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
                 <div><strong>{receiptAmount}</strong><span className="muted">{latestPrimaryPayment.receipt_number} · {receiptPaidOn}</span><small className="muted">{latestPrimaryPayment.charges.memberships.plan_name}</small></div>
                 <Link href={`/receipts/${latestPrimaryPayment.id}`} className="qr-receipt-preview">View receipt</Link>
               </div>}
-              {qrPng && <QrShareActions defaultCountryCode={defaultCountryCode} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} phone={member.phone} qrPngDataUrl={qrPng} receipt={receiptShare}/>}
+              {qrPng && <QrShareActions emailAction={<form action={emailQrPass} className="qr-email-action"><input type="hidden" name="member_id" value={id}/><input type="hidden" name="payment_id" value={latestPrimaryPayment?.id ?? ""}/><SubmitButton className="button secondary small" pendingLabel="Emailing…">{receiptShare ? "Email QR & receipt" : "Email QR pass"}</SubmitButton></form>} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} qrPngDataUrl={qrPng}/>}
               {sharedAt
                 ? <div className="qr-share-confirm is-shared"><span>{`QR marked shared · ${sharedAt}`}</span></div>
                 : <QrSharedStatusForm action={markMemberQrShared} memberId={id}/>}
@@ -143,7 +134,6 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
               }, 0);
               const amount = formatInr(amountPaise, currencyCode);
               const url = `${origin}/r/${createReceiptToken(payment.id)}`;
-              const whatsappUrl = receiptWhatsappUrl(payment, amount, url);
               const methodLabel = group.map(item => `${formatPaymentMethod(item.method)} ${formatInr(item.voided_at ? 0 : Number(item.amount_paise) - item.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0), currencyCode)}`).join(" + ");
               const hasReversal = group.some(item => item.voided_at || item.payment_reversals.length > 0);
               return <details className="qr-receipt-record" key={payment.operation_id ?? payment.id}>
@@ -151,8 +141,8 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
                 <div className="qr-receipt-body">
                   <span className="muted">{payment.charges.memberships.plan_name} · {formatDisplayDate(payment.charges.memberships.starts_on)} - {formatDisplayDate(payment.charges.memberships.expires_on)}</span>
                   <div className="qr-receipt-actions">
-                    {whatsappUrl && <WhatsAppReceiptButton url={whatsappUrl}/>}
                     <ShareReceiptButton receiptNumber={payment.receipt_number} url={url}/>
+                    <form action={emailReceipt}><input type="hidden" name="payment_id" value={payment.id}/><SubmitButton className="button secondary small" pendingLabel="Emailing…">Email receipt</SubmitButton></form>
                     <Link className="button secondary small" href={`/receipts/${payment.id}`}>Open receipt</Link>
                   </div>
                 </div>

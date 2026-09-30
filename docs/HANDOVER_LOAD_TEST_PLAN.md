@@ -87,7 +87,7 @@ Open these sessions in separate normal/incognito browser windows:
 - Dashboard financial widgets show payment mix without visual overflow.
 - Members list paginates, searches by name/member code/phone, filters by active/expired/upcoming/archived, and opens member detail.
 - Add member validation shows messages below fields and keeps entered data after failed submit.
-- Activate and renew membership allow trainer assignment and handled-by staff selection.
+- Activate and renew membership allow handled-by staff selection.
 - Split payment entries are visible on the member receipt and transactions view.
 - Transactions view filters by method, date, search, and handled-by staff.
 - Attendance logs and denied attempts paginate and filter correctly.
@@ -101,7 +101,7 @@ Open these sessions in separate normal/incognito browser windows:
 - Trainer can add members, activate memberships, renew memberships, share receipts, and use the QR scanner.
 - Trainer can see transaction/payment workflows needed to support renewal and activation.
 - Trainer cannot export CSV data.
-- Trainer cannot access staff management, settings, plans, or admin-only feature flags.
+- Trainer cannot access staff management, settings, CSV exports, or admin-only feature flags; plan management is available.
 
 ### Receptionist checks
 

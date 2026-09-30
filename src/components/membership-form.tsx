@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CurrencyCode, Plan, StaffHandlerOption, TrainerOption } from "@/lib/types";
+import type { CurrencyCode, Plan, StaffHandlerOption } from "@/lib/types";
 import { calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatDisplayDate, formatInr } from "@/lib/domain";
 import { PaymentEntries } from "@/components/payment-entries";
 import { Feedback } from "@/components/feedback";
@@ -14,10 +14,9 @@ function planEndDate(plan: Plan | undefined, startDate: string) {
 }
 function toPaise(value: string) { return Math.max(0, Math.round((Number(value) || 0) * 100)); }
 
-export function MembershipForm({ memberId, plans, trainers = [], showTrainerAssignment = false, handlers = [], defaultHandlerId = "", action, today, currencyCode = "INR", renew = false, embedded = false, currentExpiry, defaultPlanId, defaultTrainerId, error, returnPath }: { memberId: string; plans: Plan[]; trainers?: TrainerOption[]; showTrainerAssignment?: boolean; handlers?: StaffHandlerOption[]; defaultHandlerId?: string; action: (data: FormData) => Promise<SplitPaymentResult>; today: string; currencyCode?: CurrencyCode; renew?: boolean; embedded?: boolean; currentExpiry?: string; defaultPlanId?: string | null; defaultTrainerId?: string | null; error?: string; returnPath?: string }) {
+export function MembershipForm({ memberId, plans, handlers = [], defaultHandlerId = "", action, today, currencyCode = "INR", renew = false, embedded = false, currentExpiry, defaultPlanId, error, returnPath }: { memberId: string; plans: Plan[]; handlers?: StaffHandlerOption[]; defaultHandlerId?: string; action: (data: FormData) => Promise<SplitPaymentResult>; today: string; currencyCode?: CurrencyCode; renew?: boolean; embedded?: boolean; currentExpiry?: string; defaultPlanId?: string | null; error?: string; returnPath?: string }) {
   const initialPlan = plans.find((plan) => plan.id === defaultPlanId) ?? plans[0];
   const [planId, setPlanId] = useState(initialPlan?.id ?? "");
-  const [trainerId, setTrainerId] = useState(defaultTrainerId ?? "");
   const [handlerId, setHandlerId] = useState(defaultHandlerId);
   const [subtotal, setSubtotal] = useState(initialPlan ? (initialPlan.default_fee_paise / 100).toFixed(2) : "0.00");
   const [discount, setDiscount] = useState("0");
@@ -61,7 +60,6 @@ export function MembershipForm({ memberId, plans, trainers = [], showTrainerAssi
       <div className="field"><label htmlFor="membership-price">Plan price ({currencyCode}) *</label><input id="membership-price" type="number" name="subtotal" min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)} required/></div>
       <div className="field"><label htmlFor="membership-start">{renew ? "Renewal date" : "Start date"} *</label><input id="membership-start" type="date" name={renew ? "renewal_date" : "starts_on"} value={startDate} onChange={(event) => changeStartDate(event.target.value)} required/>{renew && effectiveStartDate !== startDate && <small>Membership starts {formatDisplayDate(effectiveStartDate)} after the current plan ends.</small>}</div>
       <div className="field"><label htmlFor="membership-end">Plan end date *</label><input id="membership-end" type="date" name="expires_on" min={effectiveStartDate} value={endDate} onChange={(event) => setEndDate(event.target.value)} required/></div>
-      {showTrainerAssignment && <div className="field"><label htmlFor="membership-trainer">Trainer</label><select id="membership-trainer" name="assigned_trainer_user_id" value={trainerId} onChange={(event) => setTrainerId(event.target.value)}><option value="">No trainer assigned</option>{trainers.map((trainer) => <option key={trainer.id} value={trainer.id}>{trainer.display_name}</option>)}</select></div>}
       {handlers.length > 0 && <div className="field"><label htmlFor="membership-handler">Handled by *</label><select id="membership-handler" name="handled_by_gym_user_id" value={handlerId} onChange={(event) => setHandlerId(event.target.value)} required>{handlers.map((handler) => <option key={handler.id} value={handler.id}>{handler.display_name}</option>)}</select><small>Who is handling this {renew ? "renewal" : "enrollment"}.</small></div>}
     </div>
     <details className="membership-adjustments">

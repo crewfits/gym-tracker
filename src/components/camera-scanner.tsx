@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Camera, CheckCircle2, Download, RefreshCw, ShieldX, SwitchCamera, X } from "lucide-react";
+import type { IScannerControls } from "@zxing/browser";
 import { correctScannerAttendance, scanAndRecordAttendance, type ScannerAttendanceResult } from "@/app/actions/attendance";
 import { attendanceLabel } from "@/lib/domain";
 import type { PwaInstallPromptEvent } from "@/components/pwa-registration";
@@ -12,7 +13,12 @@ type DetectorConstructor = new (options: { formats: string[] }) => Detector;
 
 function barcodeDetector(): Detector | null {
   const Constructor = (globalThis as typeof globalThis & { BarcodeDetector?: DetectorConstructor }).BarcodeDetector;
-  return Constructor ? new Constructor({ formats: ["qr_code"] }) : null;
+  if (!Constructor) return null;
+  try {
+    return new Constructor({ formats: ["qr_code"] });
+  } catch {
+    return null;
+  }
 }
 
 function signal(success: boolean, strength = 10) {
@@ -62,6 +68,8 @@ function signal(success: boolean, strength = 10) {
 export function CameraScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const zxingControlsRef = useRef<IScannerControls | null>(null);
+  const scannerSessionRef = useRef(0);
   const frameRef = useRef<number | null>(null);
   const resetRef = useRef<number | null>(null);
   const busyRef = useRef(false);
@@ -81,30 +89,74 @@ export function CameraScanner() {
   const [isPending, startTransition] = useTransition();
 
   const stopCamera = useCallback(() => {
+    scannerSessionRef.current += 1;
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     frameRef.current = null;
+    zxingControlsRef.current?.stop();
+    zxingControlsRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
   }, []);
 
+  const recordDetectedQr = useCallback((value: string) => {
+    const previous = lastScanRef.current;
+    if (previous?.value === value && Date.now() - previous.at < 30_000) return;
+    lastScanRef.current = { value, at: Date.now() };
+    busyRef.current = true;
+    stopCamera();
+    startTransition(async () => {
+      const next = await scanAndRecordAttendance(value, crypto.randomUUID());
+      setResult(next);
+      signal(next.status === "recorded", beepStrengthRef.current);
+      resetRef.current = window.setTimeout(() => {
+        setResult(null);
+        setRestartKey((value) => value + 1);
+      }, closeSecondsRef.current * 1000);
+    });
+  }, [stopCamera]);
+
   const startCamera = useCallback(async () => {
     stopCamera();
+    const scannerSession = scannerSessionRef.current;
     setCameraError(null);
     setIsStarting(true);
     busyRef.current = false;
     const detector = barcodeDetector();
-    if (!detector) {
-      setCameraError("QR scanning is not supported by this browser. Use the latest Chrome or Edge on this device.");
-      setIsStarting(false);
-      return;
-    }
     try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera API unavailable");
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facingRef.current }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      if (scannerSession !== scannerSessionRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
       if (!videoRef.current) return;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setIsStarting(false);
+
+      if (!detector) {
+        const { BrowserQRCodeReader } = await import("@zxing/browser");
+        if (!videoRef.current || scannerSession !== scannerSessionRef.current) return;
+        // ZXing defaults to one attempt every 500ms. A shorter interval makes
+        // the Windows software fallback feel close to native camera scanning
+        // without keeping the CPU continuously saturated.
+        const reader = new BrowserQRCodeReader(undefined, { delayBetweenScanAttempts: 100 });
+        void reader.decodeFromVideoElement(videoRef.current, (code, _error, controls) => {
+          if (scannerSession !== scannerSessionRef.current || busyRef.current) return;
+          zxingControlsRef.current ??= controls;
+          const value = code?.getText();
+          if (value) recordDetectedQr(value);
+        }).then((controls) => {
+          if (scannerSession !== scannerSessionRef.current) controls.stop();
+          else zxingControlsRef.current = controls;
+        }).catch(() => {
+          if (scannerSession === scannerSessionRef.current) {
+            setCameraError("Could not start QR scanning. Check camera access, then try again.");
+          }
+        });
+        return;
+      }
 
       const scanFrame = async () => {
         if (!videoRef.current || busyRef.current || videoRef.current.readyState < 2) {
@@ -114,26 +166,8 @@ export function CameraScanner() {
         try {
           const codes = await detector.detect(videoRef.current);
           const value = codes[0]?.rawValue;
-          if (value) {
-            const previous = lastScanRef.current;
-            if (previous?.value === value && Date.now() - previous.at < 30_000) {
-              frameRef.current = requestAnimationFrame(scanFrame);
-              return;
-            }
-            lastScanRef.current = { value, at: Date.now() };
-            busyRef.current = true;
-            stopCamera();
-            startTransition(async () => {
-              const next = await scanAndRecordAttendance(value, crypto.randomUUID());
-              setResult(next);
-              signal(next.status === "recorded", beepStrengthRef.current);
-              resetRef.current = window.setTimeout(() => {
-                setResult(null);
-                setRestartKey((value) => value + 1);
-              }, closeSecondsRef.current * 1000);
-            });
-            return;
-          }
+          if (value) recordDetectedQr(value);
+          if (busyRef.current) return;
         } catch {}
         frameRef.current = requestAnimationFrame(scanFrame);
       };
@@ -143,7 +177,7 @@ export function CameraScanner() {
       setCameraError(blocked ? "Camera permission is blocked. Allow Camera for FitKiro in Chrome settings and try again." : "Could not open the camera. Check that another app is not using it, then try again.");
       setIsStarting(false);
     }
-  }, [stopCamera]);
+  }, [recordDetectedQr, stopCamera]);
 
   useEffect(() => {
     // Camera startup is an external browser synchronization triggered by mount/restart.

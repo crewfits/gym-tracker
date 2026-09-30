@@ -1,6 +1,6 @@
 # FitKiro V1 architecture
 
-> Current operating mode (2026-09-13): WhatsApp reminders are owner-triggered only. Automated WhatsApp reminder code, scheduler routes, delivery tables, and Meta Cloud API settings have been removed from V1.
+> Current operating mode (2026-09-22): WhatsApp reminders are owner-triggered only. Transactional email uses Cloudflare Email Sending for QR/receipt delivery and membership-expiry email reminders.
 
 Last reviewed: 2026-08-23
 
@@ -27,7 +27,7 @@ Server Components Server Actions
       |           |
       +----- Supabase Auth
       +----- PostgreSQL + RLS
-      +----- Resend (optional receipts and payment follow-up email)
+      +----- Cloudflare Email Sending (receipts, QR pass email, expiry reminders)
 ```
 
 The system remains a modular monolith. There is one Next.js deployment and one Supabase project. No microservices, job queue, analytics warehouse, or separate mobile backend is required.
@@ -67,6 +67,7 @@ Important modules:
 - `supabase/migrations/20260902103000_attendance_event_corrections.sql` adds audited latest-event undo and sequence-safe manual replacement.
 - `supabase/migrations/20260829120000_dashboard_monthly_trends.sql` adds month-level dashboard aggregates.
 - `supabase/migrations/20260913150000_remove_automated_whatsapp_reminders.sql` removes the automated WhatsApp scheduler, delivery ledger, and Meta Cloud API settings while keeping manual reminder handoffs.
+- `supabase/migrations/20260922120000_email_delivery_events.sql` adds an email delivery audit/idempotency ledger for Cloudflare Email sends.
 
 ## Authentication and data isolation
 
@@ -91,8 +92,6 @@ auth.users
 ```
 
 Roles are `owner`, `receptionist`, `trainer`, and internal `admin`. `gym_feature_flags` stores per-gym feature availability plus `admin_enabled` preview access. Application UI visibility is derived from the viewer role and feature flags; protected server routes still enforce permissions directly. CSV exports are owner/admin-only even if a receptionist or trainer reaches the URL manually.
-
-Trainer assignment is stored on `members.assigned_trainer_user_id`, pointing to an active trainer row in `gym_users`. This represents the member's current trainer for V1. Historical trainer assignment can be added later if the client needs per-membership assignment history.
 
 Required authentication states:
 
@@ -154,10 +153,12 @@ V1 reminders are owner-initiated WhatsApp click-to-chat handoffs.
 - Archived members are excluded.
 - Renewal reminders use membership expiry; partial-payment and overdue reminders use the charge follow-up date.
 - There is no cron route, scheduled job, delivery ledger, Meta Cloud API token, or member opt-in column for automated WhatsApp sending in V1.
+- Email reminders are separate from WhatsApp: Cloudflare cron calls `/api/jobs/email-reminders` when `EMAIL_REMINDER_JOB_SECRET` is configured, sending one automated renewal email for memberships inside the seven-day expiry window and one expired-membership email on the first day after expiry. `email_delivery_events` prevents duplicate automated reminders for the same membership/kind. Manual resends require an owner confirmation and are audited separately. QR handoff emails attach a generated QR pass PDF and, when relevant, a generated receipt PDF instead of putting QR/receipt links in the email body. QR pass PDFs, receipt PDFs, email bodies, and attachments are never stored in Supabase.
 
 ## QR access and attendance
 
 The QR image is generated on demand and is not stored. The database stores the current short public code, enabled state, credential version, and lifecycle metadata.
+Membership renewal does not rotate the QR credential by default; the existing enabled credential becomes valid for the renewed membership and can be re-shared by email with the renewal receipt. Explicit owner regeneration remains the only action that invalidates previously shared QR copies.
 
 ```text
 code = 12-character non-sequential public code
@@ -169,7 +170,7 @@ Current QR links use a first-party short code instead of exposing member IDs or 
 
 Attendance rules:
 
-- Opening a QR URL with GET never records attendance by itself. The authenticated `/scanner` PWA reads the code locally and invokes a server-side POST action that records the suggested movement without opening a new tab.
+- Opening a QR URL with GET never records attendance by itself. The authenticated `/scanner` PWA reads the code locally and invokes a server-side POST action that records the suggested movement without opening a new tab. It prefers the native `BarcodeDetector` API and falls back to the bundled ZXing decoder where that browser API is unavailable, such as Windows Chrome and Edge.
 - The scanner shows the member identity and recorded result after the write. The direct `/s/{code}` route retains explicit movement confirmation as a fallback.
 - The write transaction revalidates the gym, member, QR version, archive state, and active membership.
 - First recorded movement in a business day is Check-in; the next is Check-out (`entry`/`exit` in storage).
@@ -186,7 +187,7 @@ V1 does not automatically delete attendance. The selected three-year client term
 
 ## Public signed receipt links
 
-The owner receipt route stays authenticated. WhatsApp and receipt email use a separate `/r/{token}` bearer link containing only a payment UUID and a domain-separated HMAC. The server validates the signature before a service-role read and returns only receipt-facing fields—never the member phone/email, internal notes, or transaction reference. Public receipts are marked `noindex`.
+The owner receipt route stays authenticated. WhatsApp and Cloudflare receipt email use a separate `/r/{token}` bearer link containing only a payment UUID and a domain-separated HMAC. The server validates the signature before a service-role read and returns only receipt-facing fields—never the member phone/email, internal notes, or transaction reference. Public receipts are marked `noindex`.
 
 ## Initial data import
 

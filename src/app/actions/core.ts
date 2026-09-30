@@ -2,14 +2,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requestAppOrigin } from "@/lib/app-origin";
 import { requireGym, requirePermission } from "@/lib/auth";
-import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart, formatInr, normalizeCurrencyCode } from "@/lib/domain";
+import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calculateRenewalStart } from "@/lib/domain";
 import { memberPhotoBucket } from "@/lib/member-photo";
-import { createReceiptToken } from "@/lib/receipt-token";
 import { newMemberSchema, memberValidationErrors, type CreateMemberResult } from "@/lib/new-member-validation";
 import { decodePhotoDataUrl, saveMemberPhoto } from "@/lib/member-photo-upload";
-import { Resend } from "resend";
 
 const text = z.string().trim().min(1);
 const money = z.coerce.number().min(0).transform(v => Math.round(v * 100));
@@ -84,6 +81,10 @@ export async function createMember(formData: FormData): Promise<CreateMemberResu
     const result = data as { member_id?: string; payment_id?: string } | null;
     if (!result?.member_id) throw new Error("Member was created but the result could not be loaded");
     createdMemberId = result.member_id;
+    if (input.old_member_id) {
+      const { error: oldMemberIdError } = await supabase.from("members").update({ old_member_id: input.old_member_id, updated_at: new Date().toISOString() }).eq("id", result.member_id).eq("gym_id", gym.id);
+      if (oldMemberIdError) throw oldMemberIdError;
+    }
     let photoWarning = "";
     if (selectedPhoto.dataUrl) {
       try {
@@ -112,7 +113,7 @@ export async function createMember(formData: FormData): Promise<CreateMemberResu
 export async function updateMember(formData: FormData) {
   const id = String(formData.get("id"));
   try {
-    const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), notes: z.string(), is_archived: z.string().optional() }).parse(Object.fromEntries(formData));
+    const input = z.object({ name: text, phone: z.string().trim().min(7), email: z.email().or(z.literal("")), old_member_id: z.string().trim().max(100), notes: z.string(), is_archived: z.string().optional() }).parse(Object.fromEntries(formData));
     const { supabase, gym } = await requirePermission("members.manage");
     const selectedPhoto = photoInput(formData);
     const { data: existing, error: existingError } = await supabase.from("members").select("profile_photo_path").eq("id", id).eq("gym_id", gym.id).maybeSingle();
@@ -124,7 +125,7 @@ export async function updateMember(formData: FormData) {
       await removeMemberPhoto(supabase, existing.profile_photo_path);
       profilePhotoPath = null;
     }
-    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
+    const { error } = await supabase.from("members").update({ name: input.name, phone: input.phone, email: input.email || null, old_member_id: input.old_member_id || null, notes: input.notes || null, profile_photo_path: profilePhotoPath, is_archived: input.is_archived === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("gym_id", gym.id);
     if (error) throw error; done(`/members/${id}`, "Member updated");
   } catch (e) { fail(`/members/${id}`, e); }
 }
@@ -313,16 +314,22 @@ export async function updateSettings(formData: FormData) {
 export async function emailReceipt(formData: FormData) {
   const paymentId = String(formData.get("payment_id"));
   try {
-    const { supabase, gym } = await requirePermission("payments.manage");
-    const { data: p } = await supabase.from("payments").select("*, charges!inner(*, memberships!inner(*, members!inner(*)))").eq("id", paymentId).eq("gym_id", gym.id).single();
-    if (!p) throw new Error("Receipt not found");
-    const member = p.charges.memberships.members;
-    if (!member.email) throw new Error("This member has no email address");
-    if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
-    const url = `${await requestAppOrigin()}/r/${createReceiptToken(p.id)}`;
-    const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({ from: process.env.RESEND_FROM_EMAIL ?? "FitKiro <onboarding@resend.dev>", to: member.email, subject: `Receipt ${p.receipt_number} from ${gym.name}`, html: `<p>Hi ${escapeHtml(member.name)},</p><p>We received your payment of ${formatInr(Number(p.amount_paise), normalizeCurrencyCode(gym.currency_code))}.</p><p><a href="${url}">View receipt ${p.receipt_number}</a></p><p>${escapeHtml(gym.name)}</p>` });
-    if (error) throw new Error(error.message); done(`/receipts/${p.id}`, "Receipt emailed");
+    const { supabase, gym, user } = await requirePermission("payments.manage");
+    const { sendReceiptEmail } = await import("@/lib/member-email");
+    await sendReceiptEmail(supabase, gym, paymentId, { createdBy: user.id });
+    done(`/receipts/${paymentId}`, "Receipt emailed to the member");
   } catch (e) { fail(`/receipts/${paymentId}`, e); }
 }
 
-function escapeHtml(value: string) { return value.replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]!); }
+export async function emailQrPass(formData: FormData) {
+  const memberId = String(formData.get("member_id"));
+  const paymentId = String(formData.get("payment_id") ?? "") || null;
+  try {
+    const { supabase, gym, user } = await requirePermission("members.manage");
+    const { sendQrPassEmail } = await import("@/lib/member-email");
+    await sendQrPassEmail(supabase, gym, memberId, { createdBy: user.id, paymentId });
+    done(`/members/${memberId}/qr`, paymentId ? "QR pass and latest receipt emailed to the member" : "QR pass emailed to the member");
+  } catch (error) {
+    fail(`/members/${memberId}/qr`, error);
+  }
+}

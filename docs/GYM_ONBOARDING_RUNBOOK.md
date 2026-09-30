@@ -127,7 +127,6 @@ begin
   values
     (v_gym_id, 'staff_roles', true, true,
       '{"trainerLimit": 5, "receptionistLimit": 1}'::jsonb),
-    (v_gym_id, 'trainer_assignment', true, true, '{}'::jsonb),
     (v_gym_id, 'csv_exports', true, true, '{}'::jsonb);
 
   raise notice 'Created gym ID: %', v_gym_id;
@@ -141,7 +140,6 @@ The three flag defaults mean:
 | Flag | Launch value | Effect |
 |---|---:|---|
 | `staff_roles` | On | Staff-role configuration is available. Trainers are limited to 5 and receptionists to 1. |
-| `trainer_assignment` | On | Owner, admin, and permitted staff can assign an active trainer while activating, enrolling, or renewing. |
 | `csv_exports` | On | CSV is available only to owner and admin. Trainer and receptionist export endpoints remain blocked. |
 
 To hold back a feature for the client while allowing internal verification, set its `enabled` value to `false` and leave `admin_enabled` as `true`. Only the admins mapped to that gym can use the Admin preview.

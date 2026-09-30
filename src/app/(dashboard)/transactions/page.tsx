@@ -99,12 +99,12 @@ export default async function Transactions({ searchParams }: PageProps<"/transac
           <div><span className="dashboard-kicker">Payment mix</span><h2>{methodTotal ? formatPaymentMethod(topMethod[0]) : "No collections yet"}</h2><p>{methodTotal ? `${Math.round((topMethod[1] / methodTotal) * 100)}% of this view came through ${formatPaymentMethod(topMethod[0])}.` : "Once collections come in, each payment channel will light up here."}</p></div>
           <div className="mix-total"><span>Total split</span><strong title={formatInr(methodTotal, currencyCode)}>{formatCompactMoney(methodTotal, currencyCode)}</strong></div>
         </div>
-        <div className="mix-share-rail" aria-label="Payment method share">{methodAmounts.map(([method, amount]) => amount > 0 && <span className={`mix-segment ${method}`} key={method} style={{ flexGrow: amount }} title={`${formatPaymentMethod(method)} ${formatInr(amount, currencyCode)}`}/>)}</div>
+        <div className="mix-share-rail" aria-label="Payment method share">{methodAmounts.map(([method, amount]) => amount > 0 && <span className={`mix-segment ${methodClass(method)}`} key={method} style={{ flexGrow: amount }} title={`${formatPaymentMethod(method)} ${formatInr(amount, currencyCode)}`}/>)}</div>
         <div className="ledger-method-grid">{methodAmounts.map(([method, amount]) => {
           const meta = methodMeta(method);
           const Icon = meta.icon;
           const href = `/transactions?${queryFor({ nextMethod: method }).toString()}`.replace(/\?$/, "");
-          return <Link href={href} className={`ledger-method-tile ${method} ${methodValue === method ? "active" : ""}`} aria-current={methodValue === method ? "page" : undefined} key={method}><div className="method-tile-head"><span className="method-icon"><Icon size={17}/></span><span>{formatPaymentMethod(method)}</span><strong>{methodTotal ? `${Math.round((amount / methodTotal) * 100)}%` : "0%"}</strong></div><div><strong title={formatInr(amount, currencyCode)}>{formatCompactMoney(amount, currencyCode)}</strong><small>{methodValue === method ? "Filtered view" : amount === methodMax && amount > 0 ? "Top channel" : "Collection channel"}</small></div></Link>;
+          return <Link href={href} className={`ledger-method-tile ${methodClass(method)} ${methodValue === method ? "active" : ""}`} aria-current={methodValue === method ? "page" : undefined} key={method}><div className="method-tile-head"><span className="method-icon"><Icon size={17}/></span><span>{formatPaymentMethod(method)}</span><strong>{methodTotal ? `${Math.round((amount / methodTotal) * 100)}%` : "0%"}</strong></div><div><strong title={formatInr(amount, currencyCode)}>{formatCompactMoney(amount, currencyCode)}</strong><small>{methodValue === method ? "Filtered view" : amount === methodMax && amount > 0 ? "Top channel" : "Collection channel"}</small></div></Link>;
         })}</div>
       </div>
     </section>
@@ -123,4 +123,8 @@ function methodMeta(method: PaymentMethod) {
   if (method === "card") return { icon: CreditCard };
   if (method === "bank_transfer") return { icon: Landmark };
   return { icon: Wallet };
+}
+
+function methodClass(method: PaymentMethod) {
+  return `method-${method}`;
 }

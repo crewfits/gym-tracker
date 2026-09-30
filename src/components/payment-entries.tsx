@@ -36,6 +36,5 @@ export function PaymentEntries({ rows, onChange, balancePaise, today, currencyCo
     <button type="button" className="button small payment-add-button" disabled={disabled || rows.length >= 10} onClick={() => onChange([...rows, { key: crypto.randomUUID(), amount: (Math.max(0, balancePaise - total) / 100).toFixed(2), method: "cash", paid_on: today, reference: "" }])}>{rows.length ? "Add another payment" : "Add payment"}</button>
     <div className="payment-entry-totals" aria-live="polite"><span>Total paid <strong>{formatInr(total, currencyCode)}</strong></span><span>Remaining balance <strong>{formatInr(Math.max(0, balancePaise - total), currencyCode)}</strong></span></div>
     {errors.total && <p className="field-error" role="alert">{errors.total}</p>}
-    {!required && rows.length > 0 && <small className="muted">For no payment today, remove all payment rows.</small>}
   </div>;
 }

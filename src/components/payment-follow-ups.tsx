@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { CalendarClock, CreditCard } from "lucide-react";
 import { updateChargeDueDate } from "@/app/actions/core";
-import { OpenWhatsAppReminderButton } from "@/components/open-whatsapp-reminder-button";
 import { SubmitButton } from "@/components/submit-button";
 import { SortableTableHeader } from "@/components/sortable-table-header";
 import { requireGym } from "@/lib/auth";
@@ -51,7 +50,6 @@ export async function PaymentFollowUps({ page, upcoming, descending }: { page: n
           <td><strong>{formatInr(Number(item.balance_paise), currencyCode)}</strong></td>
           <td><strong>{formatDisplayDate(item.due_on)}</strong><br/><span className={`badge ${item.due_on < today ? "expired" : "expiring"}`}>{item.due_on < today ? "Overdue" : item.due_on === today ? "Due today" : "Upcoming"}</span></td>
           <td><div className="payment-follow-up-actions">
-            <OpenWhatsAppReminderButton kind="payment" memberId={membership.member_id} membershipId={item.membership_id} chargeId={item.id}/>
             <Link className="button secondary small" href={`/members/${membership.member_id}/pay?charge=${item.id}`}><CreditCard size={14}/> Collect payment</Link>
             <details className="follow-up-reschedule"><summary><CalendarClock size={14}/> Reschedule</summary>
               <form action={updateChargeDueDate}>

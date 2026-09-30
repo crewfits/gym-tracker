@@ -12,13 +12,11 @@ type FlagRow = { key: string; enabled: boolean; admin_enabled: boolean; config_j
 
 const featureLabels: Record<string, string> = {
   staff_roles: "Staff roles",
-  trainer_assignment: "Trainer assignment",
   csv_exports: "CSV exports",
 };
 
 const featureDescriptions: Record<string, string> = {
   staff_roles: "Staff login model and staff access limits.",
-  trainer_assignment: "Trainer dropdowns on member activation, enrollment, and renewal.",
   csv_exports: "CSV downloads for roles that are allowed to export.",
 };
 
@@ -29,7 +27,7 @@ export default async function StaffSettingsPage({ searchParams }: PageProps<"/se
   const staffQuery = supabase.from("gym_users").select("id,role,status,display_name,phone,created_at").eq("gym_id", gym.id).order("role").order("display_name");
   const [{ data: staff }, { data: flags }] = await Promise.all([
     showInternalAdmins ? staffQuery : staffQuery.neq("role", "admin"),
-    showFeatureFlags ? supabase.from("gym_feature_flags").select("key,enabled,admin_enabled,config_json").eq("gym_id", gym.id).order("key") : Promise.resolve({ data: [] }),
+    showFeatureFlags ? supabase.from("gym_feature_flags").select("key,enabled,admin_enabled,config_json").eq("gym_id", gym.id).neq("key", "trainer_assignment").order("key") : Promise.resolve({ data: [] }),
   ]);
   const success = typeof params.success === "string" ? params.success : undefined;
   const error = typeof params.error === "string" ? params.error : undefined;
@@ -71,7 +69,7 @@ export default async function StaffSettingsPage({ searchParams }: PageProps<"/se
     </div>
 
     <section className="card settings-card staff-list-card">
-      <div className="settings-section-head"><span><ShieldCheck size={18}/></span><div><h2>Staff access</h2><p className="muted">Owner rows are protected. Trainers appear in trainer assignment dropdowns only when active.</p></div></div>
+      <div className="settings-section-head"><span><ShieldCheck size={18}/></span><div><h2>Staff access</h2><p className="muted">Owner rows are protected. Active staff can be selected as the handling staff member for membership and payment operations.</p></div></div>
       <div className="table-wrap">
         <table className="table">
           <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Phone</th><th>Actions</th></tr></thead>

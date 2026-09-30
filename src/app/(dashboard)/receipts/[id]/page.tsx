@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Feedback } from "@/components/feedback";
-import { reversePayment } from "@/app/actions/core";
+import { emailReceipt, reversePayment } from "@/app/actions/core";
 import { ReversePaymentForm } from "@/components/reverse-payment-form";
-import { PrintButton, ShareReceiptButton, WhatsAppReceiptButton } from "@/components/print-button";
+import { PrintButton, ShareReceiptButton } from "@/components/print-button";
+import { SubmitButton } from "@/components/submit-button";
 import { requestAppOrigin } from "@/lib/app-origin";
 import { requirePermission } from "@/lib/auth";
 import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
@@ -28,7 +29,6 @@ function paymentNet(payment: ReceiptPayment) {
   return payment.voided_at ? 0 : Math.max(0, Number(payment.amount_paise) - reversed);
 }
 import { createReceiptToken } from "@/lib/receipt-token";
-import { whatsappClickToChatUrl } from "@/lib/reminders";
 
 export default async function ReceiptPage({ params, searchParams }: PageProps<"/receipts/[id]">) {
   const [{ id }, query, origin] = await Promise.all([params, searchParams, requestAppOrigin()]);
@@ -55,14 +55,6 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
   const error = typeof query.error === "string" ? query.error : undefined;
   const publicUrl = `${origin}/r/${createReceiptToken(primaryPayment.id)}`;
   const paidOn = formatDisplayDate(primaryPayment.paid_on);
-  const receiptMessage = `Hi ${member.name}, payment receipt ${primaryPayment.receipt_number} for ${formatInr(totalReceivedPaise, currencyCode)}${hasReversals ? " (net after reversal)" : ""}, paid on ${paidOn} to ${gym.name}.${balanceDuePaise > 0 ? ` Balance due: ${formatInr(balanceDuePaise, currencyCode)}.` : ""} ${publicUrl}`;
-  let whatsappUrl: string | null = null;
-  try {
-    whatsappUrl = whatsappClickToChatUrl(member.phone, process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? "91", receiptMessage);
-  } catch {
-    // Keep receipts accessible for imported members without a routable phone.
-  }
-
   return <div className="receipt">
     <Feedback success={success} error={error}/>
     <div className="receipt-head"><div><p className="eyebrow">Payment receipt</p><h1>{gym.name}</h1><div className="muted">{gym.address}<br/>{gym.phone} {gym.email}</div></div><div className="receipt-number"><strong>{primaryPayment.receipt_number}</strong><br/><span className="muted">{paidOn}</span>{gym.gstin && <><br/><span>GSTIN {gym.gstin}</span></>}</div></div>
@@ -72,7 +64,7 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
       const reversed = item.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
       return <tr key={item.id}><td><strong>Payment received via {formatPaymentMethod(item.method)}</strong>{item.reference && <><br/><small className="muted">Reference: {item.reference}</small></>}{reversed > 0 && <><br/><small className="muted">Reversed: {formatInr(reversed, currencyCode)}</small></>}</td><td><strong>{formatInr(paymentNet(item), currencyCode)}</strong></td></tr>;
     })}<tr><td><strong>Paid on this receipt</strong></td><td><strong>{formatInr(totalReceivedPaise, currencyCode)}</strong></td></tr>{balanceDuePaise > 0 && <tr><td><strong>Balance due</strong></td><td><strong>{formatInr(balanceDuePaise, currencyCode)}</strong></td></tr>}</tbody></table>
-    <div className="receipt-actions no-print"><PrintButton/>{whatsappUrl && <WhatsAppReceiptButton url={whatsappUrl}/>}<ShareReceiptButton receiptNumber={primaryPayment.receipt_number} url={publicUrl}/><Link className="button success" href={`/members/${member.id}`}>Done, back to member</Link></div>
+    <div className="receipt-actions no-print"><PrintButton/><form action={emailReceipt}><input type="hidden" name="payment_id" value={primaryPayment.id}/><SubmitButton className="button secondary" pendingLabel="Emailing…">Email receipt</SubmitButton></form><ShareReceiptButton receiptNumber={primaryPayment.receipt_number} url={publicUrl}/><Link className="button success" href={`/members/${member.id}`}>Done, back to member</Link></div>
     {canAccess(viewer, "payments.manage") && receiptPayments.length === 1 && remainingPaise > 0 && <div className="no-print"><ReversePaymentForm paymentId={payment.id} memberId={member.id} remainingPaise={remainingPaise} currencyCode={currencyCode} action={reversePayment}/></div>}
   </div>;
 }

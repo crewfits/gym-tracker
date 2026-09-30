@@ -46,7 +46,7 @@ The QR is an identifier, not proof that the person holding it is the member. The
    - regenerate it, invalidating older copies;
    - disable it.
 6. The member saves the shared pass image. The public pass URL remains available as an alternative; its view contains no phone, email, payments, or membership details.
-7. The owner opens the installed **FitKiro Scanner** Android PWA. Its rear-camera view reads `/s/{token}` without navigating or opening another browser tab.
+7. The owner opens the installed **FitKiro Scanner** PWA or the `/scanner` page. It reads `/s/{token}` from the camera without navigating or opening another browser tab. The scanner uses the browser's native `BarcodeDetector` when available and a bundled ZXing QR decoder otherwise, including on Windows Chrome and Edge.
 8. The authenticated POST action validates the token, gym, member, credential version, enabled state, archive state, and active membership.
 9. A transactional database function atomically selects and records **Check-in** or **Check-out**. Stored enum values remain `entry` and `exit` for compatibility.
 10. The PWA shows a green Check-in, blue Check-out, or red denied result for 30 seconds and emits sound/vibration feedback. The operator can close the result sooner after removing the QR; a database-enforced 30-second member cooldown prevents an immediate accidental opposite movement across refreshes and devices.

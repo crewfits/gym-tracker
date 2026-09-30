@@ -6,8 +6,7 @@ export type MembershipStatus = "active" | "expiring" | "expired" | "upcoming";
 export type AttendanceDirection = "entry" | "exit";
 export type GymRole = "owner" | "receptionist" | "trainer" | "admin";
 
-export interface Member { id: string; gym_id: string; member_code: string; name: string; phone: string; email: string | null; notes: string | null; profile_photo_path: string | null; is_archived: boolean; created_at: string }
-export interface TrainerOption { id: string; display_name: string }
+export interface Member { id: string; gym_id: string; member_code: string; old_member_id: string | null; name: string; phone: string; email: string | null; notes: string | null; profile_photo_path: string | null; is_archived: boolean; created_at: string }
 export interface StaffHandlerOption { id: string; display_name: string; role: Exclude<GymRole, "admin"> }
 export interface Plan { id: string; gym_id: string; name: string; duration_value: number; duration_unit: DurationUnit; default_fee_paise: number; is_active: boolean }
 export interface Membership { id: string; gym_id: string; member_id: string; plan_id: string | null; plan_name: string; starts_on: string; expires_on: string; created_at: string }
