@@ -386,12 +386,11 @@ export async function sendQrPassEmail(supabase: SupabaseClient, gym: GymEmail, m
     if (paymentData && paymentData.charges.memberships.members.id !== member.id) throw new Error("Receipt does not belong to this member");
     payment = paymentData;
   }
-  const receiptAmount = payment ? formatInr(Number(payment.amount_paise), normalizeCurrencyCode(gym.currency_code)) : null;
   const subject = payment ? `Your ${gym.name} QR pass and receipt` : `Your ${gym.name} QR pass`;
   const body = [
     paragraphText(`Hi ${member.name},`),
     paragraphText(payment
-      ? `Your QR pass and receipt ${payment.receipt_number} for ${receiptAmount} are attached.`
+      ? `Your QR pass and receipt ${payment.receipt_number} are attached.`
       : `Your QR pass is attached. You can save it on your phone and show it at the front desk whenever you need to check in.`),
     paragraphText(`Member ID: ${member.member_code}.`),
   ].join("");
@@ -409,7 +408,7 @@ export async function sendQrPassEmail(supabase: SupabaseClient, gym: GymEmail, m
     subject,
     html: emailShell(payment ? "QR pass and receipt" : "Your QR pass is ready", body, footerFor(gym), gym.name),
     text: payment
-      ? `Hi ${member.name},\n\nYour QR pass and receipt ${payment.receipt_number} for ${receiptAmount} are attached.\n\nMember ID: ${member.member_code}\n\n${gym.name}`
+      ? `Hi ${member.name},\n\nYour QR pass and receipt ${payment.receipt_number} are attached.\n\nMember ID: ${member.member_code}\n\n${gym.name}`
       : `Hi ${member.name},\n\nYour QR pass is attached. You can save it on your phone and show it at the front desk whenever you need to check in.\n\nMember ID: ${member.member_code}\n\n${gym.name}`,
     createdBy: options.createdBy,
     metadata: { member_code: member.member_code, receipt_number: payment?.receipt_number ?? null, qr_attachment: "pdf", receipt_attachment: payment ? "pdf" : null },
