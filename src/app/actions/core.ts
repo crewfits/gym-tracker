@@ -7,6 +7,7 @@ import { calculateCharge, calculateExpiry, calculatePaymentFollowUpDate, calcula
 import { memberPhotoBucket } from "@/lib/member-photo";
 import { newMemberSchema, memberValidationErrors, type CreateMemberResult } from "@/lib/new-member-validation";
 import { decodePhotoDataUrl, saveMemberPhoto } from "@/lib/member-photo-upload";
+import { type SplitPaymentResult } from "@/lib/split-payments";
 
 const text = z.string().trim().min(1);
 const money = z.coerce.number().min(0).transform(v => Math.round(v * 100));
@@ -254,6 +255,71 @@ export async function removeMistakenRenewal(formData: FormData) {
     if (membershipError) throw membershipError;
     done(`/members/${memberId}`, "Mistaken renewal reverted. Any recorded payment was fully reversed.");
   } catch (e) { fail(`/members/${memberId}`, e); }
+}
+
+export async function correctMembershipHistory(formData: FormData): Promise<SplitPaymentResult> {
+  try {
+    const requestId = z.uuid().parse(formData.get("request_id"));
+    const input = z.object({
+      member_id: z.uuid(),
+      membership_id: z.uuid(),
+      plan_id: z.uuid(),
+      starts_on: z.iso.date(),
+      expires_on: z.iso.date(),
+      subtotal: money,
+      discount: money,
+      gst_rate: z.coerce.number().min(0).max(100),
+      amount_paid: money,
+      method: z.enum(["cash", "upi", "card", "bank_transfer"]).optional().default("cash"),
+      paid_on: z.iso.date().optional(),
+      reference: z.string().trim().max(200).optional().default(""),
+      reason: text.max(240),
+    }).superRefine((value, context) => {
+      if (value.expires_on < value.starts_on) {
+        context.addIssue({ code: "custom", path: ["expires_on"], message: "Membership end date cannot be before the start date" });
+      }
+    }).parse(Object.fromEntries(formData));
+    const { supabase, role } = await requirePermission("members.manage");
+    if (role !== "owner") throw new Error("Only the gym owner can correct saved membership history");
+    const charge = calculateCharge(input.subtotal, input.discount, Math.round(input.gst_rate * 100));
+    if (input.amount_paid > charge.totalPaise) return { ok: false, fieldErrors: { amount_paid: "Amount paid cannot exceed the plan total." } };
+    const { data: result, error } = await supabase.rpc("correct_membership_with_final_payment", {
+      p_request_id: requestId,
+      p_member_id: input.member_id,
+      p_membership_id: input.membership_id,
+      p_plan_id: input.plan_id,
+      p_starts_on: input.starts_on,
+      p_expires_on: input.expires_on,
+      p_subtotal_paise: charge.subtotalPaise,
+      p_discount_paise: charge.discountPaise,
+      p_gst_rate_basis_points: charge.gstRateBasisPoints,
+      p_tax_paise: charge.taxPaise,
+      p_total_paise: charge.totalPaise,
+      p_target_paid_paise: input.amount_paid,
+      p_method: input.method,
+      p_paid_on: input.paid_on ?? new Date().toISOString().slice(0, 10),
+      p_reference: input.reference,
+      p_reason: input.reason,
+    });
+    if (error) {
+      return error.hint === "payments"
+        ? { ok: false, fieldErrors: { payments: error.message } }
+        : { ok: false, fieldErrors: {}, error: error.message };
+    }
+    const summary = result as { operation_id?: string; payment_ids?: string[]; reversed_paise?: number; balance_paise?: number } | null;
+    const reversed = Number(summary?.reversed_paise ?? 0);
+    const balance = Number(summary?.balance_paise ?? 0);
+    const paymentId = summary?.payment_ids?.[0];
+    revalidatePath("/", "layout");
+    if (paymentId) {
+      return { ok: true, location: `/receipts/${paymentId}?success=${encodeURIComponent("Membership corrected and the payment receipt is ready.")}` };
+    }
+    const suffix = reversed > 0 ? " Excess payment was reversed in the audit history." : balance > 0 ? " A balance remains due." : " No payment was required.";
+    return { ok: true, location: `/members/${input.member_id}?view=history&success=${encodeURIComponent(`Membership and charge corrected.${suffix}`)}` };
+  } catch (error) {
+    if (error instanceof z.ZodError) return { ok: false, fieldErrors: Object.fromEntries(error.issues.map(issue => [String(issue.path[0]), issue.message])) };
+    return { ok: false, fieldErrors: {}, error: actionErrorMessage(error) };
+  }
 }
 
 export async function recordPayment(formData: FormData) {

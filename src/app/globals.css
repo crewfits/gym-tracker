@@ -602,6 +602,39 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .membership-record-body:has(> :only-child), .membership-record-body.compact { grid-template-columns: minmax(0, 1fr); }
 .mistaken-renewal-form { margin: 0; }
 .mistaken-renewal-form .button { min-height: 28px; padding: 4px 8px; font-size: 11px; border-radius: 999px; }
+.membership-correction-form { grid-column: 1 / -1; width: 100%; display: grid; gap: 12px; padding: 14px; border: 1px solid #d7e6f5; border-radius: 14px; background: radial-gradient(circle at 100% 0, rgba(184,237,88,.16), transparent 36%), linear-gradient(180deg, #fbfdff, #fff); }
+.membership-correction-head { display: grid; gap: 3px; }
+.membership-correction-head .muted { font-size: 12px; line-height: 1.45; }
+.membership-correction-grid { display: grid; grid-template-columns: minmax(180px, 1.25fr) repeat(2, minmax(130px, .85fr)); gap: 10px; align-items: end; }
+.membership-correction-grid label { display: grid; gap: 6px; color: var(--text); font-size: 12px; font-weight: 750; }
+.membership-correction-reason { display: grid; gap: 6px; color: var(--text); font-size: 12px; font-weight: 750; }
+.membership-correction-grid input, .membership-correction-grid select, .membership-correction-reason textarea { min-height: 38px; padding: 8px 10px; border: 1px solid #cfe0f2; border-radius: 10px; background: rgba(255,255,255,.82); color: var(--text); font: inherit; font-size: 13px; }
+.membership-correction-reason textarea { min-height: 68px; resize: vertical; }
+.membership-correction-grid input:focus, .membership-correction-grid select:focus, .membership-correction-reason textarea:focus { outline: 3px solid rgba(37,99,235,.14); border-color: #9fc0ef; }
+.membership-correction-total { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 8px; color: var(--muted); background: rgba(237,245,255,.72); border: 1px solid #d7e6f5; border-radius: 12px; font-size: 12px; font-weight: 750; }
+.membership-correction-total > span { min-width: 0; display: grid; gap: 4px; padding: 9px 10px; background: rgba(255,255,255,.76); border-radius: 9px; }
+.membership-correction-total small { font-size: 11px; }
+.membership-correction-total strong { overflow-wrap: anywhere; color: var(--ink); font-size: 16px; font-variant-numeric: tabular-nums; }
+.membership-correction-total .is-due { color: #9a5b00; background: #fff8e8; }
+.membership-correction-total .is-settled { color: var(--success); background: #effaf3; }
+.membership-correction-payments { min-width: 0; display: grid; gap: 10px; margin: 0; padding: 14px; border: 1px solid #d6e5f8; border-radius: 12px; background: rgba(255,255,255,.78); }
+.membership-correction-payments legend { padding: 0 5px; color: var(--ink); font-size: 13px; font-weight: 800; }
+.membership-correction-payments > .muted { margin: 0; font-size: 12px; }
+.membership-correction-balance { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 9px 11px; color: var(--muted); background: #f7faff; border-radius: 9px; font-size: 12px; }
+.membership-correction-balance strong { color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
+.membership-correction-credit { margin: 0; padding: 11px 12px; color: #7b4b00; background: #fff8e8; border: 1px solid #f4deb0; border-radius: 10px; font-size: 12px; font-weight: 700; }
+.membership-correction-payment { min-width: 0; display: grid; gap: 10px; margin: 0; padding: 14px; border: 1px solid #d6e5f8; border-radius: 12px; background: rgba(255,255,255,.82); }
+.membership-correction-payment legend { padding: 0 5px; color: var(--ink); font-size: 13px; font-weight: 800; }
+.membership-correction-payment > .muted { margin: 0; font-size: 12px; }
+.membership-correction-payment-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.membership-correction-payment-grid label { min-width: 0; display: grid; align-content: start; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 750; }
+.membership-correction-payment-grid input, .membership-correction-payment-grid select { min-width: 0; width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #cfe0f2; border-radius: 10px; background: rgba(255,255,255,.9); color: var(--text); font: inherit; font-size: 13px; }
+.membership-correction-payment-grid input:focus, .membership-correction-payment-grid select:focus { outline: 3px solid rgba(37,99,235,.14); border-color: #9fc0ef; }
+.membership-correction-outstanding { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 9px 11px; border-radius: 9px; font-size: 12px; }
+.membership-correction-outstanding strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.membership-correction-outstanding.is-due { color: #8a5500; background: #fff8e8; }
+.membership-correction-outstanding.is-settled { color: var(--success); background: #effaf3; }
+.membership-payment-audit { display: grid; gap: 5px; align-content: start; }
 
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; }
@@ -721,6 +754,11 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .transaction-filter-actions { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .transaction-filter-actions .button { min-height: 42px; padding-inline: 14px; }
 .transaction-table-card { padding: 0; overflow: hidden; }
+.transaction-correction-column { width: 190px; min-width: 170px; }
+.transaction-correction-note { display: grid; gap: 4px; max-width: 190px; color: #4f3b18; white-space: normal; }
+.transaction-correction-note small { width: fit-content; padding: 3px 7px; color: #976200; background: #fff3d6; border: 1px solid #f3d99e; border-radius: 999px; font-size: 9px; font-weight: 850; letter-spacing: .055em; line-height: 1; text-transform: uppercase; }
+.transaction-correction-note span { display: -webkit-box; overflow: hidden; overflow-wrap: anywhere; color: #6f5b36; font-size: 11px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.transaction-no-correction { color: #b2bdcc; }
 .transaction-table-card .table th { background: #f7faff; }
 .transaction-table-card .table th:first-child, .transaction-table-card .table td:first-child { padding-left: 18px; }
 .transaction-table-card .table th:last-child, .transaction-table-card .table td:last-child { padding-right: 18px; }
@@ -1204,6 +1242,10 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
   .membership-record-body { grid-template-columns: 1fr; }
   .membership-actions { width: 100%; }
   .collect-button { width: 100%; }
+  .membership-correction-grid { grid-template-columns: 1fr; }
+  .membership-correction-total { grid-template-columns: 1fr; }
+  .membership-correction-payment-grid { grid-template-columns: 1fr; }
+  .membership-correction-form .button { width: 100%; }
   .auth-feature-list { grid-template-columns: 1fr; }
   .transaction-summary { grid-template-columns: 1fr; }
   .transaction-kpi-row { grid-template-columns: 1fr; }

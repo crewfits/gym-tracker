@@ -75,7 +75,7 @@ function preflight() {
 
 function run(command, args) {
   console.log(`\n$ ${[command, ...args].join(" ")}`);
-  const result = spawnSync(command, args, { stdio: "inherit", env: commandEnv, shell: false });
+  const result = spawnSync(command, args, { stdio: "inherit", env: commandEnv, shell: process.platform === "win32" });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
