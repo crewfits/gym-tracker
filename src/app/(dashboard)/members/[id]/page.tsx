@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreditCard, Plus, RefreshCw, Share2 } from "lucide-react";
-import { reactivateMember, removeMistakenRenewal, updateChargeDueDate, updateMember } from "@/app/actions/core";
+import { correctMembershipHistory, reactivateMember, removeMistakenRenewal, updateChargeDueDate, updateMember } from "@/app/actions/core";
 import { renewWithPayments } from "@/app/actions/split-payments";
 import { Feedback } from "@/components/feedback";
 import { MemberPhotoField } from "@/components/member-photo-field";
+import { MembershipCorrectionForm, type MembershipCorrectionPlan } from "@/components/membership-correction-form";
 import { MembershipForm } from "@/components/membership-form";
 import { MemberWorkspace } from "@/components/member-workspace";
 import { RemoveRenewalButton } from "@/components/remove-renewal-button";
@@ -24,14 +25,14 @@ function handlerName(handler: HandlerRow | HandlerRow[] | null) {
 type PaymentRow = { id: string; charge_id: string; amount_paise: number; method: string; paid_on: string; receipt_number: string; voided_at: string | null; void_reason: string | null; created_at: string; handled_by_gym_user_id: string | null; handled_by: HandlerRow | HandlerRow[] | null; payment_reversals: PaymentReversalRow[] };
 type ChargeRow = { id: string; subtotal_paise: number; discount_paise: number; gst_rate_basis_points: number; tax_paise: number; total_paise: number; due_on: string; payments: PaymentRow[] };
 type MembershipRow = { id: string; plan_id: string | null; plan_name: string; starts_on: string; expires_on: string; date_overridden: boolean; reverted_at: string | null; handled_by: HandlerRow | HandlerRow[] | null; charges: ChargeRow | null };
-
 export default async function MemberDetail({ params, searchParams }: PageProps<"/members/[id]">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const { supabase, gym, user } = await requirePermission("members.view");
+  const { supabase, gym, user, role } = await requirePermission("members.view");
   const currencyCode = normalizeCurrencyCode(gym.currency_code);
-  const [{ data }, { data: plans }, handlerData] = await Promise.all([
+  const [{ data }, { data: plans }, { data: correctionPlans }, handlerData] = await Promise.all([
     supabase.from("members").select("*, memberships(*, handled_by:gym_users!memberships_handled_by_gym_user_fk(display_name,role), charges(*, payments(*, handled_by:gym_users!payments_handled_by_gym_user_fk(display_name,role), payment_reversals(*))))").eq("id", id).eq("gym_id", gym.id).single(),
     supabase.from("plans").select("*").eq("gym_id", gym.id).eq("is_active", true).order("name"),
+    role === "owner" ? supabase.from("plans").select("id,name,duration_value,duration_unit,default_fee_paise,is_active").eq("gym_id", gym.id).order("is_active", { ascending: false }).order("name") : Promise.resolve({ data: [] }),
     loadStaffHandlers(supabase, gym.id, user.id),
   ]);
   if (!data) notFound();
@@ -61,6 +62,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
   const error = typeof query.error === "string" ? query.error : undefined;
   const showReactivation = member.is_archived && query.reactivate === "1";
   const selectedMemberView = query.view === "history" ? "history" : query.view === "membership" || query.view === "renew" ? "renew" : "profile";
+  const canCorrectMembershipHistory = role === "owner";
 
   return <>
     <Feedback success={success} error={error}/>
@@ -137,6 +139,21 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                   {charge && membership.balance > 0 && <div className="membership-actions">
                     <Link className="button small collect-button" href={`/members/${id}/pay?charge=${charge.id}`}><CreditCard size={14}/> Collect {formatInr(membership.balance, currencyCode)}</Link>
                   </div>}
+                  {canCorrectMembershipHistory && charge && <MembershipCorrectionForm
+                    action={correctMembershipHistory}
+                    memberId={id}
+                    membershipId={membership.id}
+                    currentPlanId={membership.plan_id}
+                    startsOn={membership.starts_on}
+                    expiresOn={membership.expires_on}
+                    subtotalPaise={Number(charge.subtotal_paise)}
+                    discountPaise={Number(charge.discount_paise)}
+                    gstRateBasisPoints={Number(charge.gst_rate_basis_points)}
+                    paidPaise={membership.paid}
+                    today={today}
+                    plans={(correctionPlans ?? []) as MembershipCorrectionPlan[]}
+                    currencyCode={currencyCode}
+                  />}
                 </div>
               </details>;
             })}

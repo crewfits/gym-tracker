@@ -68,6 +68,8 @@ Important modules:
 - `supabase/migrations/20260829120000_dashboard_monthly_trends.sql` adds month-level dashboard aggregates.
 - `supabase/migrations/20260913150000_remove_automated_whatsapp_reminders.sql` removes the automated WhatsApp scheduler, delivery ledger, and Meta Cloud API settings while keeping manual reminder handoffs.
 - `supabase/migrations/20260922120000_email_delivery_events.sql` adds an email delivery audit/idempotency ledger for Cloudflare Email sends.
+- `supabase/migrations/20261010130733_owner_membership_financial_corrections.sql` introduced the owner-only membership/charge correction and audited excess-payment reversal primitive.
+- `supabase/migrations/20261010170953_owner_membership_correction_payments.sql` adds idempotent correction-plus-payment operations. An increase must collect the exact corrected balance in the same transaction; its payment operation is tagged so owner, public, and emailed receipts render a consolidated final view of every net payment on that membership without reassigning historical payment rows.
 
 ## Authentication and data isolation
 
@@ -127,6 +129,7 @@ gyms
 - Plans are reusable templates.
 - Membership rows snapshot the applied plan name, duration, start date, and expiry date.
 - Renewals create new membership history rather than overwriting previous memberships.
+- Saved membership corrections are owner-only and require a reason. The browser uses the selected plan template to update its fee and calculate the inclusive expiry date, while the database function remains the authorization, tenant-isolation, charge-validation, payment, reversal, and idempotency boundary. The owner enters one final amount paid for the corrected membership; the database records only a positive difference, reverses any excess internally, and leaves any shortfall as the ordinary outstanding balance. `payment_operations.payload.reason` retains the correction reason; `list_transactions` exposes it internally from either that operation or the associated reversal audit so it remains searchable. Customer-facing and emailed receipts use ordinary payment language and omit correction and reversal audit details.
 - Active access is determined from membership dates in the gym timezone. 12
 
 ### Charges and payments

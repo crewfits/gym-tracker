@@ -5,6 +5,7 @@ import { requestAppOrigin } from "@/lib/app-origin";
 import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { alreadySentEmail, emailShell, latestSentEmail, paragraphText, sendTransactionalEmail, type EmailAttachment, type EmailKind } from "@/lib/email-service";
 import { qrUrls } from "@/lib/qr-token";
+import { customerReceiptSummary, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
 
 type GymEmail = {
   id: string;
@@ -86,11 +87,6 @@ function safeAttachmentName(value: string) {
 const paymentEmailSelect = "id,receipt_number,amount_paise,method,reference,paid_on,operation_id,charge_id,voided_at,payment_reversals(amount_paise),charges!inner(id,subtotal_paise,discount_paise,tax_paise,gst_rate_basis_points,total_paise,memberships!inner(id,plan_name,starts_on,expires_on,members!inner(id,member_code,name,email,phone)))";
 const activationPaymentEmailSelect = "id,receipt_number,amount_paise,method,reference,paid_on,operation_id,charge_id,voided_at,payment_reversals(amount_paise),charges!inner(id,subtotal_paise,discount_paise,tax_paise,gst_rate_basis_points,total_paise,memberships!inner(id,plan_name,starts_on,expires_on,members!inner(id,member_code,name,email,phone,member_qr_credentials(public_code,enabled))))";
 
-function paymentNet(payment: ReceiptLinePayment) {
-  const reversed = payment.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
-  return payment.voided_at ? 0 : Math.max(0, Number(payment.amount_paise) - reversed);
-}
-
 function pdfSafe(value: string | null | undefined) {
   return (value ?? "").replace(/[₹–—−]/g, "-").replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
 }
@@ -148,18 +144,20 @@ function buildPdf(pageWidth: number, pageHeight: number, lines: string[]) {
   return Buffer.from(pdf, "utf8");
 }
 
-function createReceiptPdf(input: {
+export function createReceiptPdf(input: {
   gym: GymEmail;
   payment: PaymentEmailRow;
   payments: ReceiptLinePayment[];
   currencyCode: string;
+  consolidated?: boolean;
 }) {
-  const { gym, payment, payments, currencyCode } = input;
+  const { gym, payment, payments, currencyCode, consolidated = false } = input;
   const charge = payment.charges;
   const membership = charge.memberships;
   const member = membership.members;
-  const primaryPayment = payments[0] ?? payment;
-  const totalReceivedPaise = payments.reduce((sum, item) => sum + paymentNet(item), 0);
+  const primaryPayment = consolidated ? payment : payments[0] ?? payment;
+  const customerReceipt = customerReceiptSummary(payments, consolidated);
+  const totalReceivedPaise = customerReceipt.totalReceivedPaise;
   const balanceDuePaise = Math.max(0, Number(charge.total_paise) - totalReceivedPaise);
   const lines: string[] = [];
   const pageWidth = 612;
@@ -210,17 +208,17 @@ function createReceiptPdf(input: {
   rule(72, nextTop, 468);
   row("Total amount", pdfMoney(Number(charge.total_paise), currencyCode), nextTop + 24, true);
   nextTop += 58;
-  for (const item of payments) {
-    const reversed = item.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
+  for (const item of customerReceipt.lines) {
     rule(72, nextTop, 468);
-    row(`Payment received via ${formatPaymentMethod(item.method)}`, pdfMoney(paymentNet(item), currencyCode), nextTop + 24, true);
+    row(item.method ? `Payment received via ${formatPaymentMethod(item.method)}` : "Payment received", pdfMoney(item.amountPaise, currencyCode), nextTop + 24, true);
     if (item.reference) text(72, nextTop + 43, 9, `Reference: ${item.reference}`, "F1", [0.39, 0.45, 0.55]);
-    if (reversed > 0) text(72, nextTop + 57, 9, `Reversed: ${pdfMoney(reversed, currencyCode)}`, "F1", [0.77, 0.18, 0.18]);
-    nextTop += reversed > 0 || item.reference ? 78 : 58;
+    nextTop += item.reference ? 78 : 58;
   }
-  rule(72, nextTop, 468);
-  row("Paid on this receipt", pdfMoney(totalReceivedPaise, currencyCode), nextTop + 26, true);
-  nextTop += 60;
+  if (!consolidated) {
+    rule(72, nextTop, 468);
+    row("Paid on this receipt", pdfMoney(totalReceivedPaise, currencyCode), nextTop + 26, true);
+    nextTop += 60;
+  }
   if (balanceDuePaise > 0) {
     rule(72, nextTop, 468);
     row("Balance due", pdfMoney(balanceDuePaise, currencyCode), nextTop + 26, true);
@@ -295,19 +293,19 @@ async function qrPassAttachment(scanUrl: string, gymName: string, member: { name
 async function receiptAttachment(supabase: SupabaseClient, gym: GymEmail, payment: PaymentEmailRow): Promise<EmailAttachment> {
   const currencyCode = normalizeCurrencyCode(gym.currency_code);
   let receiptPayments: ReceiptLinePayment[] = [payment];
+  const consolidated = await isConsolidatedCorrectionReceipt(supabase, payment.operation_id, gym.id);
   if (payment.operation_id) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("payments")
       .select("id,amount_paise,method,reference,paid_on,receipt_number,operation_id,charge_id,voided_at,payment_reversals(amount_paise)")
       .eq("gym_id", gym.id)
-      .eq("operation_id", payment.operation_id)
-      .eq("charge_id", payment.charge_id)
-      .order("created_at", { ascending: true })
-      .returns<ReceiptLinePayment[]>();
+      .eq("charge_id", payment.charge_id);
+    if (!consolidated) query = query.eq("operation_id", payment.operation_id);
+    const { data, error } = await query.order("created_at", { ascending: true }).returns<ReceiptLinePayment[]>();
     if (error) throw error;
     if (data?.length) receiptPayments = data;
   }
-  const content = createReceiptPdf({ gym, payment, payments: receiptPayments, currencyCode });
+  const content = createReceiptPdf({ gym, payment, payments: receiptPayments, currencyCode, consolidated });
   return {
     filename: `${safeAttachmentName(payment.receipt_number)}-receipt.pdf`,
     content,

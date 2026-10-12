@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { verifyReceiptToken } from "@/lib/receipt-token";
+import { customerReceiptSummary, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
 
 export const metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -18,11 +19,6 @@ type ReceiptPayment = {
   operation_id: string | null;
   payment_reversals: { amount_paise: number }[];
 };
-function paymentNet(payment: ReceiptPayment) {
-  const reversed = payment.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
-  return payment.voided_at ? 0 : Math.max(0, Number(payment.amount_paise) - reversed);
-}
-
 export default async function PublicReceiptPage({ params }: { params: Promise<{ token: string }> }) {
   const paymentId = verifyReceiptToken((await params).token);
   if (!paymentId) notFound();
@@ -35,20 +31,19 @@ export default async function PublicReceiptPage({ params }: { params: Promise<{ 
   const member = membership && (Array.isArray(membership.members) ? membership.members[0] : membership.members);
   if (!gym || !charge || !membership || !member) notFound();
   const currencyCode = normalizeCurrencyCode(gym.currency_code);
+  const consolidatedCorrection = await isConsolidatedCorrectionReceipt(db, payment.operation_id);
+  const operationQuery = db.from("payments")
+    .select("id,charge_id,amount_paise,method,reference,paid_on,receipt_number,voided_at,operation_id,payment_reversals(amount_paise)")
+    .eq("charge_id", payment.charge_id);
   const { data: operationPayments, error: operationError } = payment.operation_id
-    ? await db.from("payments")
-      .select("id,charge_id,amount_paise,method,reference,paid_on,receipt_number,voided_at,operation_id,payment_reversals(amount_paise)")
-      .eq("operation_id", payment.operation_id).eq("charge_id", payment.charge_id).order("created_at", { ascending: true }).returns<ReceiptPayment[]>()
+    ? await (consolidatedCorrection ? operationQuery : operationQuery.eq("operation_id", payment.operation_id)).order("created_at", { ascending: true }).returns<ReceiptPayment[]>()
     : { data: null, error: null };
   if (operationError) throw operationError;
   const receiptPayments = operationPayments?.length ? operationPayments : [payment as ReceiptPayment];
-  const primaryPayment = receiptPayments[0];
-  const totalReceivedPaise = receiptPayments.reduce((sum, item) => sum + paymentNet(item), 0);
+  const primaryPayment = consolidatedCorrection ? payment as ReceiptPayment : receiptPayments[0];
+  const customerReceipt = customerReceiptSummary(receiptPayments, consolidatedCorrection);
+  const totalReceivedPaise = customerReceipt.totalReceivedPaise;
   const balanceDuePaise = Math.max(0, Number(charge.total_paise) - totalReceivedPaise);
-  const hasReversals = receiptPayments.some(item => item.voided_at || item.payment_reversals.length > 0);
 
-  return <main className="public-receipt-page"><div className="receipt"><div className="receipt-head"><div><p className="eyebrow">Payment receipt</p><h1>{gym.name}</h1><div className="muted">{gym.address}<br/>{gym.phone} {gym.email}</div></div><div className="receipt-number"><strong>{primaryPayment.receipt_number}</strong><br/><span className="muted">{formatDisplayDate(primaryPayment.paid_on)}</span>{gym.gstin && <><br/><span>GSTIN {gym.gstin}</span></>}</div></div>{hasReversals && <div className="alert"><strong>REVERSAL RECORDED</strong><br/>This receipt shows the current net amount after any recorded reversals.</div>}<div className="form-grid"><div><span className="metric-label">Received from</span><h2 style={{ marginTop: 6 }}>{member.name}</h2><p className="muted">{member.member_code}</p></div><div><span className="metric-label">For</span><h2 style={{ marginTop: 6 }}>{membership.plan_name} membership</h2><p className="muted">{formatDisplayDate(membership.starts_on)} — {formatDisplayDate(membership.expires_on)}</p></div></div><table className="table receipt-table"><tbody><tr><td>Plan price</td><td>{formatInr(Number(charge.subtotal_paise), currencyCode)}</td></tr><tr><td>Discount</td><td>− {formatInr(Number(charge.discount_paise), currencyCode)}</td></tr>{Number(charge.gst_rate_basis_points) > 0 && <tr><td>GST ({Number(charge.gst_rate_basis_points) / 100}%)</td><td>{formatInr(Number(charge.tax_paise), currencyCode)}</td></tr>}<tr><td><strong>Total amount</strong></td><td><strong>{formatInr(Number(charge.total_paise), currencyCode)}</strong></td></tr>{receiptPayments.map(item => {
-    const reversed = item.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
-    return <tr key={item.id}><td><strong>Payment received via {formatPaymentMethod(item.method)}</strong>{item.reference && <><br/><small className="muted">Reference: {item.reference}</small></>}{reversed > 0 && <><br/><small className="muted">Reversed: {formatInr(reversed, currencyCode)}</small></>}</td><td><strong>{formatInr(paymentNet(item), currencyCode)}</strong></td></tr>;
-  })}<tr><td><strong>Paid on this receipt</strong></td><td><strong>{formatInr(totalReceivedPaise, currencyCode)}</strong></td></tr>{balanceDuePaise > 0 && <tr><td><strong>Balance due</strong></td><td><strong>{formatInr(balanceDuePaise, currencyCode)}</strong></td></tr>}</tbody></table></div></main>;
+  return <main className="public-receipt-page"><div className="receipt"><div className="receipt-head"><div><p className="eyebrow">Payment receipt</p><h1>{gym.name}</h1><div className="muted">{gym.address}<br/>{gym.phone} {gym.email}</div></div><div className="receipt-number"><strong>{primaryPayment.receipt_number}</strong><br/><span className="muted">{formatDisplayDate(primaryPayment.paid_on)}</span>{gym.gstin && <><br/><span>GSTIN {gym.gstin}</span></>}</div></div><div className="form-grid"><div><span className="metric-label">Received from</span><h2 style={{ marginTop: 6 }}>{member.name}</h2><p className="muted">{member.member_code}</p></div><div><span className="metric-label">For</span><h2 style={{ marginTop: 6 }}>{membership.plan_name} membership</h2><p className="muted">{formatDisplayDate(membership.starts_on)} — {formatDisplayDate(membership.expires_on)}</p></div></div><table className="table receipt-table"><tbody><tr><td>Plan price</td><td>{formatInr(Number(charge.subtotal_paise), currencyCode)}</td></tr><tr><td>Discount</td><td>− {formatInr(Number(charge.discount_paise), currencyCode)}</td></tr>{Number(charge.gst_rate_basis_points) > 0 && <tr><td>GST ({Number(charge.gst_rate_basis_points) / 100}%)</td><td>{formatInr(Number(charge.tax_paise), currencyCode)}</td></tr>}<tr><td><strong>Total amount</strong></td><td><strong>{formatInr(Number(charge.total_paise), currencyCode)}</strong></td></tr>{customerReceipt.lines.map(item => <tr key={item.id}><td><strong>{item.method ? `Payment received via ${formatPaymentMethod(item.method)}` : "Payment received"}</strong>{item.reference && <><br/><small className="muted">Reference: {item.reference}</small></>}</td><td><strong>{formatInr(item.amountPaise, currencyCode)}</strong></td></tr>)}{!consolidatedCorrection && <tr><td><strong>Paid on this receipt</strong></td><td><strong>{formatInr(totalReceivedPaise, currencyCode)}</strong></td></tr>}{balanceDuePaise > 0 && <tr><td><strong>Balance due</strong></td><td><strong>{formatInr(balanceDuePaise, currencyCode)}</strong></td></tr>}</tbody></table></div></main>;
 }
