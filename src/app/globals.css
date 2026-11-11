@@ -964,6 +964,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .camera-result-actions { width: min(390px, 100%); display: grid; gap: 10px; margin-top: 16px; }
 .camera-result-actions .button { width: 100%; min-height: 48px; }
 .camera-result-pending { color: rgba(255,255,255,.85); font-size: 13px; }
+.camera-result-expiry { color: white !important; font-size: 14px; }
 .spin { animation: spin .8s linear infinite; }
 @keyframes camera-scan { from { transform: translateY(-105px); } to { transform: translateY(105px); } }
 .attendance-filters { margin-bottom: 16px; padding: 16px; }

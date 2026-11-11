@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
-import { attendanceLabel, formatDisplayDateTime } from "@/lib/domain";
+import { attendanceLabel, businessDate, formatDisplayDateTime, membershipRemainingDays } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import { safeReturnPath } from "@/lib/return-path";
 import type { AttendanceDirection } from "@/lib/types";
@@ -140,6 +140,8 @@ export type ScannerAttendanceResult = {
   memberCode?: string;
   photoUrl?: string | null;
   occurredAt?: string;
+  membershipExpiresOn?: string;
+  membershipDaysRemaining?: number;
 };
 
 async function recordScannerMovement(rawValue: string, requestId: string, forcedDirection?: AttendanceDirection): Promise<ScannerAttendanceResult> {
@@ -159,8 +161,12 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
     } else payload = verifyQrToken(token);
     if (!payload || payload.gymId !== gym.id) return { status: "denied", message: "This QR is invalid or belongs to another gym" };
 
-    const { data: member } = await supabase.from("members").select("name,member_code,profile_photo_path").eq("id", payload.memberId).eq("gym_id", gym.id).maybeSingle();
+    const { data: member } = await supabase.from("members").select("name,member_code,profile_photo_path,memberships(starts_on,expires_on,reverted_at)").eq("id", payload.memberId).eq("gym_id", gym.id).maybeSingle();
     if (!member) return { status: "denied", message: "Member not found" };
+    const today = businessDate(gym.timezone);
+    const memberships = Array.isArray((member as { memberships?: unknown }).memberships) ? (member as { memberships: { starts_on: string; expires_on: string; reverted_at: string | null }[] }).memberships : [];
+    const membership = memberships.filter(item => !item.reverted_at && item.starts_on <= today).sort((left, right) => right.expires_on.localeCompare(left.expires_on))[0];
+    const membershipDetails = membership ? { membershipExpiresOn: membership.expires_on, membershipDaysRemaining: membershipRemainingDays(membership.expires_on, today) } : {};
 
     const { data: result, error } = await supabase.rpc("process_qr_access", {
       p_member_id: payload.memberId, p_qr_version: payload.version, p_request_id: parsedRequestId,
@@ -172,6 +178,7 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
       memberName: member.name,
       memberCode: member.member_code,
       photoUrl: await signedMemberPhotoUrl(supabase, member.profile_photo_path),
+      ...membershipDetails,
     };
     if (result?.status === "denied" && result.attempt) {
       revalidatePath("/attendance");
@@ -180,6 +187,7 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
         memberName: member.name, memberCode: member.member_code,
         photoUrl: await signedMemberPhotoUrl(supabase, member.profile_photo_path),
         occurredAt: formatDisplayDateTime(result.attempt.occurred_at, gym.timezone),
+        ...membershipDetails,
       };
     }
     if (result?.status !== "recorded" || !result.event) return { status: "denied", message: "Unable to confirm attendance. Please retry." };
@@ -199,6 +207,7 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
       memberCode: member.member_code,
       photoUrl: await signedMemberPhotoUrl(supabase, member.profile_photo_path),
       occurredAt: formatDisplayDateTime(occurredAt, gym.timezone),
+      ...membershipDetails,
     };
   } catch (error) {
     return { status: "denied", message: scannerDenialMessage(error) };

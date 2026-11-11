@@ -9,7 +9,7 @@ import { requestAppOrigin } from "@/lib/app-origin";
 import { requirePermission } from "@/lib/auth";
 import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { canAccess } from "@/lib/permissions";
-import { customerReceiptSummary, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
+import { customerReceiptSummary, outstandingReceiptBalance, type ReceiptBalancePayment, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
 
 type HandlerRelation = { display_name: string | null; role: string } | Array<{ display_name: string | null; role: string }> | null;
 type ReceiptPayment = {
@@ -49,10 +49,12 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
     : { data: null, error: null };
   if (operationError) throw operationError;
   const receiptPayments = operationPayments?.length ? operationPayments : [payment as ReceiptPayment];
+  const { data: chargePayments, error: chargePaymentsError } = await supabase.from("payments").select("amount_paise,voided_at,payment_reversals(amount_paise)").eq("gym_id", gym.id).eq("charge_id", payment.charge_id).returns<ReceiptBalancePayment[]>();
+  if (chargePaymentsError) throw chargePaymentsError;
   const primaryPayment = consolidatedCorrection ? payment as ReceiptPayment : receiptPayments[0];
   const customerReceipt = customerReceiptSummary(receiptPayments, consolidatedCorrection);
   const totalReceivedPaise = customerReceipt.totalReceivedPaise;
-  const balanceDuePaise = Math.max(0, Number(charge.total_paise) - totalReceivedPaise);
+  const balanceDuePaise = outstandingReceiptBalance(Number(charge.total_paise), chargePayments ?? []);
   const remainingPaise = paymentNet(payment as ReceiptPayment);
   const success = typeof query.success === "string" ? query.success : undefined;
   const error = typeof query.error === "string" ? query.error : undefined;

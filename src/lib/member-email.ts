@@ -5,7 +5,7 @@ import { requestAppOrigin } from "@/lib/app-origin";
 import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { alreadySentEmail, emailShell, latestSentEmail, paragraphText, sendTransactionalEmail, type EmailAttachment, type EmailKind } from "@/lib/email-service";
 import { qrUrls } from "@/lib/qr-token";
-import { customerReceiptSummary, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
+import { customerReceiptSummary, outstandingReceiptBalance, type ReceiptBalancePayment, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
 
 type GymEmail = {
   id: string;
@@ -148,17 +148,18 @@ export function createReceiptPdf(input: {
   gym: GymEmail;
   payment: PaymentEmailRow;
   payments: ReceiptLinePayment[];
+  allChargePayments?: ReceiptBalancePayment[];
   currencyCode: string;
   consolidated?: boolean;
 }) {
-  const { gym, payment, payments, currencyCode, consolidated = false } = input;
+  const { gym, payment, payments, allChargePayments, currencyCode, consolidated = false } = input;
   const charge = payment.charges;
   const membership = charge.memberships;
   const member = membership.members;
   const primaryPayment = consolidated ? payment : payments[0] ?? payment;
   const customerReceipt = customerReceiptSummary(payments, consolidated);
   const totalReceivedPaise = customerReceipt.totalReceivedPaise;
-  const balanceDuePaise = Math.max(0, Number(charge.total_paise) - totalReceivedPaise);
+  const balanceDuePaise = outstandingReceiptBalance(Number(charge.total_paise), allChargePayments ?? payments);
   const lines: string[] = [];
   const pageWidth = 612;
   const pageHeight = 792;
@@ -305,7 +306,9 @@ async function receiptAttachment(supabase: SupabaseClient, gym: GymEmail, paymen
     if (error) throw error;
     if (data?.length) receiptPayments = data;
   }
-  const content = createReceiptPdf({ gym, payment, payments: receiptPayments, currencyCode, consolidated });
+  const { data: allChargePayments, error: allChargePaymentsError } = await supabase.from("payments").select("amount_paise,voided_at,payment_reversals(amount_paise)").eq("gym_id", gym.id).eq("charge_id", payment.charge_id).returns<ReceiptBalancePayment[]>();
+  if (allChargePaymentsError) throw allChargePaymentsError;
+  const content = createReceiptPdf({ gym, payment, payments: receiptPayments, allChargePayments: allChargePayments ?? receiptPayments, currencyCode, consolidated });
   return {
     filename: `${safeAttachmentName(payment.receipt_number)}-receipt.pdf`,
     content,

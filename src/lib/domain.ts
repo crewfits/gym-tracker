@@ -63,6 +63,10 @@ export function membershipStatus(start: string, expiry: string, today: string, e
   return differenceInCalendarDays(parseISO(expiry), parseISO(today)) <= expiringWindow ? "expiring" : "active";
 }
 
+export function membershipRemainingDays(expiry: string, today: string): number {
+  return differenceInCalendarDays(parseISO(expiry), parseISO(today));
+}
+
 export function businessDate(timeZone: string, date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" })
     .formatToParts(date)

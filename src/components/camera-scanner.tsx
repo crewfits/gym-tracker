@@ -65,6 +65,13 @@ function signal(success: boolean, strength = 10) {
   } catch {}
 }
 
+function expiryLabel(daysRemaining: number | undefined): string | null {
+  if (daysRemaining === undefined) return null;
+  if (daysRemaining < 0) return `Expired ${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) === 1 ? "" : "s"} ago`;
+  if (daysRemaining === 0) return "Expires today";
+  return `${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining`;
+}
+
 export function CameraScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -272,6 +279,7 @@ export function CameraScanner() {
       <span className="camera-result-label">{result.message}</span>
       {result.memberName && <h1>{result.memberName}</h1>}
       {result.memberCode && <p>{result.memberCode}{result.occurredAt ? ` · ${result.occurredAt}` : ""}</p>}
+      {expiryLabel(result.membershipDaysRemaining) && <p className="camera-result-expiry">{expiryLabel(result.membershipDaysRemaining)}{result.membershipExpiresOn ? ` · valid through ${result.membershipExpiresOn}` : ""}</p>}
       <div className="camera-result-actions">
         {recorded && <button className="button secondary" onClick={changeMovement} disabled={isPending}>Make a change to {attendanceLabel(result.direction === "entry" ? "exit" : "entry")}</button>}
       </div>

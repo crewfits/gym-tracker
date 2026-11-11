@@ -16,9 +16,19 @@ export type CustomerReceiptLine = {
   reference: string | null;
 };
 
-function netPayment(payment: CustomerReceiptPayment) {
+export type ReceiptBalancePayment = {
+  amount_paise: number;
+  voided_at: string | null;
+  payment_reversals: { amount_paise: number }[];
+};
+
+export function netPayment(payment: ReceiptBalancePayment) {
   const reversedPaise = payment.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0);
   return payment.voided_at ? 0 : Math.max(0, Number(payment.amount_paise) - reversedPaise);
+}
+
+export function outstandingReceiptBalance(totalPaise: number, payments: ReceiptBalancePayment[]) {
+  return Math.max(0, Number(totalPaise) - payments.reduce((sum, payment) => sum + netPayment(payment), 0));
 }
 
 export function customerReceiptSummary(payments: CustomerReceiptPayment[], consolidatedCorrection: boolean) {
