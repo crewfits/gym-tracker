@@ -9,7 +9,7 @@ import { requestAppOrigin } from "@/lib/app-origin";
 import { requirePermission } from "@/lib/auth";
 import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { canAccess } from "@/lib/permissions";
-import { customerReceiptSummary, outstandingReceiptBalance, type ReceiptBalancePayment, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
+import { customerReceiptSummary, outstandingReceiptBalance, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
 
 type HandlerRelation = { display_name: string | null; role: string } | Array<{ display_name: string | null; role: string }> | null;
 type ReceiptPayment = {
@@ -22,6 +22,7 @@ type ReceiptPayment = {
   voided_at: string | null;
   void_reason: string | null;
   operation_id: string | null;
+  created_at: string;
   handled_by: HandlerRelation;
   payment_reversals: { amount_paise: number; reason?: string | null; created_at?: string | null }[];
 };
@@ -42,16 +43,18 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
   const member = membership.members;
   const consolidatedCorrection = await isConsolidatedCorrectionReceipt(supabase, payment.operation_id, gym.id);
   const operationQuery = supabase.from("payments")
-    .select("id,amount_paise,method,reference,paid_on,receipt_number,voided_at,void_reason,operation_id,handled_by:gym_users!payments_handled_by_gym_user_fk(display_name,role),payment_reversals(amount_paise,reason,created_at)")
+    .select("id,amount_paise,method,reference,paid_on,receipt_number,voided_at,void_reason,operation_id,created_at,handled_by:gym_users!payments_handled_by_gym_user_fk(display_name,role),payment_reversals(amount_paise,reason,created_at)")
     .eq("gym_id", gym.id).eq("charge_id", payment.charge_id);
   const { data: operationPayments, error: operationError } = payment.operation_id
     ? await (consolidatedCorrection ? operationQuery : operationQuery.eq("operation_id", payment.operation_id)).order("created_at", { ascending: true }).returns<ReceiptPayment[]>()
     : { data: null, error: null };
   if (operationError) throw operationError;
   const receiptPayments = operationPayments?.length ? operationPayments : [payment as ReceiptPayment];
-  const { data: chargePayments, error: chargePaymentsError } = await supabase.from("payments").select("amount_paise,voided_at,payment_reversals(amount_paise)").eq("gym_id", gym.id).eq("charge_id", payment.charge_id).returns<ReceiptBalancePayment[]>();
+  const { data: chargePayments, error: chargePaymentsError } = await supabase.from("payments").select("id,amount_paise,method,reference,paid_on,receipt_number,voided_at,void_reason,operation_id,created_at,handled_by:gym_users!payments_handled_by_gym_user_fk(display_name,role),payment_reversals(amount_paise,reason,created_at)").eq("gym_id", gym.id).eq("charge_id", payment.charge_id).order("created_at", { ascending: true }).returns<ReceiptPayment[]>();
   if (chargePaymentsError) throw chargePaymentsError;
   const primaryPayment = consolidatedCorrection ? payment as ReceiptPayment : receiptPayments[0];
+  const currentPaymentIds = new Set(receiptPayments.map(item => item.id));
+  const previousPayments = (chargePayments ?? []).filter(item => !currentPaymentIds.has(item.id));
   const customerReceipt = customerReceiptSummary(receiptPayments, consolidatedCorrection);
   const totalReceivedPaise = customerReceipt.totalReceivedPaise;
   const balanceDuePaise = outstandingReceiptBalance(Number(charge.total_paise), chargePayments ?? []);
@@ -64,7 +67,7 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
     <Feedback success={success} error={error}/>
     <div className="receipt-head"><div><p className="eyebrow">Payment receipt</p><h1>{gym.name}</h1><div className="muted">{gym.address}<br/>{gym.phone} {gym.email}</div></div><div className="receipt-number"><strong>{primaryPayment.receipt_number}</strong><br/><span className="muted">{paidOn}</span>{gym.gstin && <><br/><span>GSTIN {gym.gstin}</span></>}</div></div>
     <div className="form-grid"><div><span className="metric-label">Received from</span><h2 style={{ marginTop: 6 }}>{member.name}</h2><p className="muted">{member.member_code} · {member.phone}</p></div><div><span className="metric-label">For</span><h2 style={{ marginTop: 6 }}>{membership.plan_name} membership</h2><p className="muted">{formatDisplayDate(membership.starts_on)} — {formatDisplayDate(membership.expires_on)}</p></div></div>
-    <table className="table receipt-table"><tbody><tr><td>Plan price</td><td>{formatInr(Number(charge.subtotal_paise), currencyCode)}</td></tr><tr><td>Discount</td><td>− {formatInr(Number(charge.discount_paise), currencyCode)}</td></tr>{Number(charge.gst_rate_basis_points) > 0 && <tr><td>GST ({Number(charge.gst_rate_basis_points) / 100}%)</td><td>{formatInr(Number(charge.tax_paise), currencyCode)}</td></tr>}<tr><td><strong>Total amount</strong></td><td><strong>{formatInr(Number(charge.total_paise), currencyCode)}</strong></td></tr>{customerReceipt.lines.map(item => <tr key={item.id}><td><strong>{item.method ? `Payment received via ${formatPaymentMethod(item.method)}` : "Payment received"}</strong>{item.reference && <><br/><small className="muted">Reference: {item.reference}</small></>}</td><td><strong>{formatInr(item.amountPaise, currencyCode)}</strong></td></tr>)}{!consolidatedCorrection && <tr><td><strong>Paid on this receipt</strong></td><td><strong>{formatInr(totalReceivedPaise, currencyCode)}</strong></td></tr>}{balanceDuePaise > 0 && <tr><td><strong>Balance due</strong></td><td><strong>{formatInr(balanceDuePaise, currencyCode)}</strong></td></tr>}</tbody></table>
+    <table className="table receipt-table"><tbody><tr><td>Plan price</td><td>{formatInr(Number(charge.subtotal_paise), currencyCode)}</td></tr><tr><td>Discount</td><td>− {formatInr(Number(charge.discount_paise), currencyCode)}</td></tr>{Number(charge.gst_rate_basis_points) > 0 && <tr><td>GST ({Number(charge.gst_rate_basis_points) / 100}%)</td><td>{formatInr(Number(charge.tax_paise), currencyCode)}</td></tr>}<tr><td><strong>Total amount</strong></td><td><strong>{formatInr(Number(charge.total_paise), currencyCode)}</strong></td></tr>{previousPayments.length > 0 && <><tr className="receipt-history-heading"><td colSpan={2}><strong>Previous payments</strong></td></tr>{previousPayments.map(previous => <tr key={previous.id}><td><Link href={`/receipts/${previous.id}`}><strong>{previous.receipt_number}</strong></Link><br/><small className="muted">{formatDisplayDate(previous.paid_on)} · {formatPaymentMethod(previous.method)}</small></td><td><strong>{formatInr(paymentNet(previous), currencyCode)}</strong></td></tr>)}</>}{customerReceipt.lines.map(item => <tr key={item.id}><td><strong>{item.method ? `Payment received via ${formatPaymentMethod(item.method)}` : "Payment received"}</strong>{item.reference && <><br/><small className="muted">Reference: {item.reference}</small></>}</td><td><strong>{formatInr(item.amountPaise, currencyCode)}</strong></td></tr>)}{!consolidatedCorrection && <tr><td><strong>Paid on this receipt</strong></td><td><strong>{formatInr(totalReceivedPaise, currencyCode)}</strong></td></tr>}{balanceDuePaise > 0 && <tr><td><strong>Balance due</strong></td><td><strong>{formatInr(balanceDuePaise, currencyCode)}</strong></td></tr>}</tbody></table>
     <div className="receipt-actions no-print"><PrintButton/><form action={emailReceipt}><input type="hidden" name="payment_id" value={primaryPayment.id}/><SubmitButton className="button secondary" pendingLabel="Emailing…">Email receipt</SubmitButton></form><ShareReceiptButton receiptNumber={primaryPayment.receipt_number} url={publicUrl}/><Link className="button success" href={`/members/${member.id}`}>Done, back to member</Link></div>
     {canAccess(viewer, "payments.manage") && receiptPayments.length === 1 && remainingPaise > 0 && <div className="no-print"><ReversePaymentForm paymentId={payment.id} memberId={member.id} remainingPaise={remainingPaise} currencyCode={currencyCode} action={reversePayment}/></div>}
   </div>;

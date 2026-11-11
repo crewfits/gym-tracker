@@ -2,10 +2,10 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requestAppOrigin } from "@/lib/app-origin";
-import { formatDisplayDate, formatInr, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
+import { formatDisplayDate, formatPaymentMethod, normalizeCurrencyCode } from "@/lib/domain";
 import { alreadySentEmail, emailShell, latestSentEmail, paragraphText, sendTransactionalEmail, type EmailAttachment, type EmailKind } from "@/lib/email-service";
 import { qrUrls } from "@/lib/qr-token";
-import { customerReceiptSummary, outstandingReceiptBalance, type ReceiptBalancePayment, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
+import { customerReceiptSummary, netPayment, outstandingReceiptBalance, isConsolidatedCorrectionReceipt } from "@/lib/receipt-scope";
 
 type GymEmail = {
   id: string;
@@ -148,7 +148,7 @@ export function createReceiptPdf(input: {
   gym: GymEmail;
   payment: PaymentEmailRow;
   payments: ReceiptLinePayment[];
-  allChargePayments?: ReceiptBalancePayment[];
+  allChargePayments?: ReceiptLinePayment[];
   currencyCode: string;
   consolidated?: boolean;
 }) {
@@ -157,6 +157,8 @@ export function createReceiptPdf(input: {
   const membership = charge.memberships;
   const member = membership.members;
   const primaryPayment = consolidated ? payment : payments[0] ?? payment;
+  const currentPaymentIds = new Set(payments.map(item => item.id));
+  const previousPayments = (allChargePayments ?? []).filter(item => !currentPaymentIds.has(item.id));
   const customerReceipt = customerReceiptSummary(payments, consolidated);
   const totalReceivedPaise = customerReceipt.totalReceivedPaise;
   const balanceDuePaise = outstandingReceiptBalance(Number(charge.total_paise), allChargePayments ?? payments);
@@ -209,6 +211,11 @@ export function createReceiptPdf(input: {
   rule(72, nextTop, 468);
   row("Total amount", pdfMoney(Number(charge.total_paise), currencyCode), nextTop + 24, true);
   nextTop += 58;
+  for (const previous of previousPayments) {
+    rule(72, nextTop, 468);
+    row(`Previous payment ${previous.receipt_number}`, pdfMoney(netPayment(previous), currencyCode), nextTop + 24, true);
+    nextTop += 52;
+  }
   for (const item of customerReceipt.lines) {
     rule(72, nextTop, 468);
     row(item.method ? `Payment received via ${formatPaymentMethod(item.method)}` : "Payment received", pdfMoney(item.amountPaise, currencyCode), nextTop + 24, true);
@@ -306,7 +313,7 @@ async function receiptAttachment(supabase: SupabaseClient, gym: GymEmail, paymen
     if (error) throw error;
     if (data?.length) receiptPayments = data;
   }
-  const { data: allChargePayments, error: allChargePaymentsError } = await supabase.from("payments").select("amount_paise,voided_at,payment_reversals(amount_paise)").eq("gym_id", gym.id).eq("charge_id", payment.charge_id).returns<ReceiptBalancePayment[]>();
+  const { data: allChargePayments, error: allChargePaymentsError } = await supabase.from("payments").select("id,amount_paise,method,reference,paid_on,receipt_number,operation_id,charge_id,voided_at,payment_reversals(amount_paise)").eq("gym_id", gym.id).eq("charge_id", payment.charge_id).order("created_at", { ascending: true }).returns<ReceiptLinePayment[]>();
   if (allChargePaymentsError) throw allChargePaymentsError;
   const content = createReceiptPdf({ gym, payment, payments: receiptPayments, allChargePayments: allChargePayments ?? receiptPayments, currencyCode, consolidated });
   return {
