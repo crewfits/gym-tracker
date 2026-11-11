@@ -218,13 +218,13 @@ export function createReceiptPdf(input: {
   }
   for (const item of customerReceipt.lines) {
     rule(72, nextTop, 468);
-    row(item.method ? `Payment received via ${formatPaymentMethod(item.method)}` : "Payment received", pdfMoney(item.amountPaise, currencyCode), nextTop + 24, true);
+    row(item.method ? `Payment received in this receipt via ${formatPaymentMethod(item.method)}` : "Payment received in this receipt", pdfMoney(item.amountPaise, currencyCode), nextTop + 24, true);
     if (item.reference) text(72, nextTop + 43, 9, `Reference: ${item.reference}`, "F1", [0.39, 0.45, 0.55]);
     nextTop += item.reference ? 78 : 58;
   }
-  if (!consolidated) {
+  if (!consolidated && customerReceipt.lines.length > 1) {
     rule(72, nextTop, 468);
-    row("Paid on this receipt", pdfMoney(totalReceivedPaise, currencyCode), nextTop + 26, true);
+    row("Total paid in this receipt", pdfMoney(totalReceivedPaise, currencyCode), nextTop + 26, true);
     nextTop += 60;
   }
   rule(72, nextTop, 468);

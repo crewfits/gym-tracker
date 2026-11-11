@@ -63,7 +63,7 @@ describe("customer receipt PDF privacy", () => {
     expect(pdf).not.toContain("REVERSAL RECORDED");
     expect(pdf).not.toContain("Reversed:");
     expect(pdf).not.toContain("INTERNAL-VOIDED-REFERENCE");
-    expect(pdf.match(/Payment received via Cash/g)).toHaveLength(1);
+    expect(pdf.match(/Payment received in this receipt via Cash/g)).toHaveLength(1);
     expect(pdf).toContain("INR 3,000.00");
     expect(pdf).not.toContain("Total collected");
   });
