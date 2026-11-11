@@ -1,4 +1,4 @@
-import { addDays, addMonths, differenceInCalendarDays, format, parseISO, subDays } from "date-fns";
+import { addDays, addMonths, differenceInCalendarDays, differenceInMonths, format, parseISO, subDays } from "date-fns";
 import type { AttendanceDirection, CurrencyCode, DurationUnit, MembershipStatus, PaymentStatus } from "./types";
 
 export function formatDate(date: Date): string { return format(date, "yyyy-MM-dd"); }
@@ -69,6 +69,20 @@ export function membershipStatus(start: string, expiry: string, today: string, e
 
 export function membershipRemainingDays(expiry: string, today: string): number {
   return differenceInCalendarDays(parseISO(expiry), parseISO(today));
+}
+
+export function formatMembershipDuration(expiry: string, today: string): string {
+  const todayDate = parseISO(today);
+  const expiryDate = parseISO(expiry);
+  const from = expiryDate >= todayDate ? todayDate : expiryDate;
+  const to = expiryDate >= todayDate ? expiryDate : todayDate;
+  const months = differenceInMonths(to, from);
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  const days = differenceInCalendarDays(to, addMonths(from, months));
+  if (years > 0) return `${years} year${years === 1 ? "" : "s"}${remainingMonths ? ` and ${remainingMonths} month${remainingMonths === 1 ? "" : "s"}` : ""}`;
+  if (months > 0) return `${months} month${months === 1 ? "" : "s"}${days ? ` and ${days} day${days === 1 ? "" : "s"}` : ""}`;
+  return `${days} day${days === 1 ? "" : "s"}`;
 }
 
 export function businessDate(timeZone: string, date = new Date()): string {

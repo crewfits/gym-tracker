@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { recordAttendance } from "@/app/actions/attendance";
 import { Feedback } from "@/components/feedback";
 import { requireGym } from "@/lib/auth";
-import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateLong, formatDisplayDateTime, membershipRemainingDays, nextAttendanceDirection } from "@/lib/domain";
+import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateLong, formatDisplayDateTime, formatMembershipDuration, membershipRemainingDays, nextAttendanceDirection } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import { SubmitButton } from "@/components/submit-button";
 import { isShortQrCode, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
@@ -52,7 +52,7 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
   const suggestedDirection = nextAttendanceDirection(lastEvent?.direction ?? null, lastEventDate, today);
   const directions = ["entry", "exit"] as const;
   const membershipDaysRemaining = membership ? membershipRemainingDays(membership.expires_on, today) : expiredMembership ? membershipRemainingDays(expiredMembership.expires_on, today) : null;
-  const remainingLabel = membershipDaysRemaining === null ? null : membershipDaysRemaining < 0 ? `Expired ${Math.abs(membershipDaysRemaining)} day${Math.abs(membershipDaysRemaining) === 1 ? "" : "s"} ago` : membershipDaysRemaining === 0 ? "Expires today" : `${membershipDaysRemaining} day${membershipDaysRemaining === 1 ? "" : "s"} remaining`;
+  const remainingLabel = membershipDaysRemaining === null ? null : membershipDaysRemaining < 0 ? `Expired ${formatMembershipDuration(expiredMembership!.expires_on, today)} ago` : membershipDaysRemaining === 0 ? "Expires today" : `${formatMembershipDuration(membership!.expires_on, today)} remaining`;
   const accessMessage = !qrValid
     ? "QR disabled or replaced"
     : membership

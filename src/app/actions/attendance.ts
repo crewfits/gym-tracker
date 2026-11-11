@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
-import { attendanceLabel, businessDate, formatDisplayDateTime, membershipRemainingDays } from "@/lib/domain";
+import { attendanceLabel, businessDate, formatDisplayDateTime, formatMembershipDuration, membershipRemainingDays } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import { safeReturnPath } from "@/lib/return-path";
 import type { AttendanceDirection } from "@/lib/types";
@@ -142,6 +142,7 @@ export type ScannerAttendanceResult = {
   occurredAt?: string;
   membershipExpiresOn?: string;
   membershipDaysRemaining?: number;
+  membershipDurationLabel?: string;
 };
 
 async function recordScannerMovement(rawValue: string, requestId: string, forcedDirection?: AttendanceDirection): Promise<ScannerAttendanceResult> {
@@ -166,7 +167,7 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
     const today = businessDate(gym.timezone);
     const memberships = Array.isArray((member as { memberships?: unknown }).memberships) ? (member as { memberships: { starts_on: string; expires_on: string; reverted_at: string | null }[] }).memberships : [];
     const membership = memberships.filter(item => !item.reverted_at && item.starts_on <= today).sort((left, right) => right.expires_on.localeCompare(left.expires_on))[0];
-    const membershipDetails = membership ? { membershipExpiresOn: membership.expires_on, membershipDaysRemaining: membershipRemainingDays(membership.expires_on, today) } : {};
+    const membershipDetails = membership ? { membershipExpiresOn: membership.expires_on, membershipDaysRemaining: membershipRemainingDays(membership.expires_on, today), membershipDurationLabel: formatMembershipDuration(membership.expires_on, today) } : {};
 
     const { data: result, error } = await supabase.rpc("process_qr_access", {
       p_member_id: payload.memberId, p_qr_version: payload.version, p_request_id: parsedRequestId,

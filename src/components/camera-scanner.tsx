@@ -65,11 +65,11 @@ function signal(success: boolean, strength = 10) {
   } catch {}
 }
 
-function expiryLabel(daysRemaining: number | undefined): string | null {
+function expiryLabel(daysRemaining: number | undefined, durationLabel?: string): string | null {
   if (daysRemaining === undefined) return null;
-  if (daysRemaining < 0) return `Expired ${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) === 1 ? "" : "s"} ago`;
+  if (daysRemaining < 0) return `Expired ${durationLabel ?? `${Math.abs(daysRemaining)} days`} ago`;
   if (daysRemaining === 0) return "Expires today";
-  return `${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining`;
+  return `${durationLabel ?? `${daysRemaining} days`} remaining`;
 }
 
 export function CameraScanner() {
@@ -279,8 +279,8 @@ export function CameraScanner() {
       <span className="camera-result-label">{result.message}</span>
       {result.memberName && <h1>{result.memberName}</h1>}
       {result.memberCode && <p>{result.memberCode}{result.occurredAt ? ` · ${result.occurredAt}` : ""}</p>}
-      {expiryLabel(result.membershipDaysRemaining) && <div className={`camera-result-membership ${result.membershipDaysRemaining !== undefined && result.membershipDaysRemaining < 0 ? "expired" : result.membershipDaysRemaining === 0 ? "today" : "active"}`}>
-        <strong>{expiryLabel(result.membershipDaysRemaining)}</strong>
+      {expiryLabel(result.membershipDaysRemaining, result.membershipDurationLabel) && <div className={`camera-result-membership ${result.membershipDaysRemaining !== undefined && result.membershipDaysRemaining < 0 ? "expired" : result.membershipDaysRemaining === 0 ? "today" : "active"}`}>
+        <strong>{expiryLabel(result.membershipDaysRemaining, result.membershipDurationLabel)}</strong>
         {result.membershipExpiresOn && <span>Valid through <b>{formatDisplayDateLong(result.membershipExpiresOn)}</b></span>}
       </div>}
       <div className="camera-result-actions">
