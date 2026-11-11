@@ -7,6 +7,10 @@ export function formatDisplayDate(value: string | null | undefined): string {
   return value ? format(parseISO(value), "d MMM yyyy") : "—";
 }
 
+export function formatDisplayDateLong(value: string | null | undefined): string {
+  return value ? format(parseISO(value), "do MMMM yyyy") : "—";
+}
+
 export function formatDisplayDateTime(value: string | null | undefined, timeZone: string, includeSeconds = false): string {
   if (!value) return "—";
   const parts = new Intl.DateTimeFormat("en-IN", {

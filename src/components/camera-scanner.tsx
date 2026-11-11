@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Camera, CheckCircle2, Download, RefreshCw, ShieldX, SwitchCamera, X } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
 import { correctScannerAttendance, scanAndRecordAttendance, type ScannerAttendanceResult } from "@/app/actions/attendance";
-import { attendanceLabel } from "@/lib/domain";
+import { attendanceLabel, formatDisplayDateLong } from "@/lib/domain";
 import type { PwaInstallPromptEvent } from "@/components/pwa-registration";
 
 type Detector = { detect(source: ImageBitmapSource): Promise<Array<{ rawValue: string }>> };
@@ -279,7 +279,10 @@ export function CameraScanner() {
       <span className="camera-result-label">{result.message}</span>
       {result.memberName && <h1>{result.memberName}</h1>}
       {result.memberCode && <p>{result.memberCode}{result.occurredAt ? ` · ${result.occurredAt}` : ""}</p>}
-      {expiryLabel(result.membershipDaysRemaining) && <p className="camera-result-expiry">{expiryLabel(result.membershipDaysRemaining)}{result.membershipExpiresOn ? ` · valid through ${result.membershipExpiresOn}` : ""}</p>}
+      {expiryLabel(result.membershipDaysRemaining) && <div className={`camera-result-membership ${result.membershipDaysRemaining !== undefined && result.membershipDaysRemaining < 0 ? "expired" : result.membershipDaysRemaining === 0 ? "today" : "active"}`}>
+        <strong>{expiryLabel(result.membershipDaysRemaining)}</strong>
+        {result.membershipExpiresOn && <span>Valid through <b>{formatDisplayDateLong(result.membershipExpiresOn)}</b></span>}
+      </div>}
       <div className="camera-result-actions">
         {recorded && <button className="button secondary" onClick={changeMovement} disabled={isPending}>Make a change to {attendanceLabel(result.direction === "entry" ? "exit" : "entry")}</button>}
       </div>
