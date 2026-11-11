@@ -471,8 +471,8 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .qr-receipt-record { border-bottom: 1px solid var(--line); }
 .qr-receipt-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px 0 8px; }
 .qr-receipt-row > span:first-child { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
-.qr-receipt-number { color: var(--ink); text-decoration: none; }
-.qr-receipt-number:hover { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+.qr-receipt-number { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+.qr-receipt-number:hover { color: var(--ink); }
 .qr-receipt-period { display: block; padding-bottom: 12px; font-size: 13px; }
 .qr-receipt-record > summary { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px 0; cursor: pointer; list-style: none; }
 .qr-receipt-record > summary::-webkit-details-marker { display: none; }

@@ -103,7 +103,7 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
               {latestPrimaryPayment && <div className="qr-included-receipt">
                 <ReceiptText size={20} aria-hidden="true"/>
                 <div><strong>{receiptAmount}</strong><span className="muted">{latestPrimaryPayment.receipt_number} · {receiptPaidOn}</span><small className="muted">{latestPrimaryPayment.charges.memberships.plan_name}</small></div>
-                <Link href={`/receipts/${latestPrimaryPayment.id}`} className="qr-receipt-preview">View latest receipt</Link>
+                <Link href={`/receipts/${latestPrimaryPayment.id}`} className="qr-receipt-preview" target="_blank" rel="noreferrer">View latest receipt</Link>
               </div>}
               {qrPng && <QrShareActions emailAction={<form action={emailQrPass} className="qr-email-action"><input type="hidden" name="member_id" value={id}/><input type="hidden" name="payment_id" value={latestPrimaryPayment?.id ?? ""}/><SubmitButton className="button secondary small" pendingLabel="Emailing…">{receiptShare ? "Email QR & receipt" : "Email QR pass"}</SubmitButton></form>} filename={qrFilename} gymName={gym.name} memberCode={member.member_code} memberName={member.name} qrPngDataUrl={qrPng}/>}
               {sharedAt
@@ -136,15 +136,16 @@ export default async function MemberQrPage({ params, searchParams }: { params: P
               const url = `${origin}/r/${createReceiptToken(payment.id)}`;
               const methodLabel = group.map(item => `${formatPaymentMethod(item.method)} ${formatInr(item.voided_at ? 0 : Number(item.amount_paise) - item.payment_reversals.reduce((sum, reversal) => sum + Number(reversal.amount_paise), 0), currencyCode)}`).join(" + ");
               const hasReversal = group.some(item => item.voided_at || item.payment_reversals.length > 0);
-              return <article className="qr-receipt-record" key={payment.operation_id ?? payment.id}>
-                <div className="qr-receipt-row"><span><Link href={`/receipts/${payment.id}`} className="qr-receipt-number"><strong>{payment.receipt_number}</strong></Link><small className="muted">{formatDisplayDate(payment.paid_on)} · {methodLabel}</small></span><span className="qr-receipt-amount"><strong>{amount}</strong>{hasReversal ? <small className="badge partial">Adjusted</small> : group.some(item => item.id === latestPrimaryPayment?.id) ? <small className="muted">Latest</small> : null}</span></div>
-                <span className="muted qr-receipt-period">{payment.charges.memberships.plan_name} · {formatDisplayDate(payment.charges.memberships.starts_on)} - {formatDisplayDate(payment.charges.memberships.expires_on)}</span>
-                <div className="qr-receipt-actions">
-                  <ShareReceiptButton receiptNumber={payment.receipt_number} url={url}/>
-                  <form action={emailReceipt}><input type="hidden" name="payment_id" value={payment.id}/><SubmitButton className="button secondary small" pendingLabel="Emailing…">Email receipt</SubmitButton></form>
-                  <Link className="button secondary small" href={`/receipts/${payment.id}`}>View receipt</Link>
+              return <details className="qr-receipt-record" key={payment.operation_id ?? payment.id}>
+                <summary><span><a href={`/receipts/${payment.id}`} className="qr-receipt-number" target="_blank" rel="noreferrer"><strong>{payment.receipt_number}</strong></a><small className="muted">{formatDisplayDate(payment.paid_on)} · {methodLabel}</small></span><span className="qr-receipt-amount"><strong>{amount}</strong>{hasReversal ? <small className="badge partial">Adjusted</small> : group.some(item => item.id === latestPrimaryPayment?.id) ? <small className="muted">Latest</small> : null}</span><ChevronDown size={16} className="receipt-chevron" aria-hidden="true"/></summary>
+                <div className="qr-receipt-body">
+                  <span className="muted">{payment.charges.memberships.plan_name} · {formatDisplayDate(payment.charges.memberships.starts_on)} - {formatDisplayDate(payment.charges.memberships.expires_on)}</span>
+                  <div className="qr-receipt-actions">
+                    <ShareReceiptButton receiptNumber={payment.receipt_number} url={url}/>
+                    <form action={emailReceipt}><input type="hidden" name="payment_id" value={payment.id}/><SubmitButton className="button secondary small" pendingLabel="Emailing…">Email receipt</SubmitButton></form>
+                  </div>
                 </div>
-              </article>;
+              </details>;
             })}</div>
             {!payments.length && <div className="empty">{receiptPage > 1 ? "No receipts on this page." : "No payments recorded yet."}</div>}
             {(receiptPage > 1 || (receiptCount ?? 0) > pageSize) && <nav className="pagination" aria-label="Receipt pages"><span className="muted">Page {receiptPage}</span><div>
