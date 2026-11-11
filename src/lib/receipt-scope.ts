@@ -31,6 +31,13 @@ export function outstandingReceiptBalance(totalPaise: number, payments: ReceiptB
   return Math.max(0, Number(totalPaise) - payments.reduce((sum, payment) => sum + netPayment(payment), 0));
 }
 
+export function previousReceiptPayments<T extends { id: string; created_at?: string }>(allPayments: T[], currentPayments: T[]) {
+  const currentIds = new Set(currentPayments.map(payment => payment.id));
+  const currentDates = currentPayments.map(payment => payment.created_at).filter((value): value is string => Boolean(value));
+  const cutoff = currentDates.length ? currentDates.sort()[0] : null;
+  return allPayments.filter(payment => !currentIds.has(payment.id) && (!cutoff || !payment.created_at || payment.created_at < cutoff));
+}
+
 export function customerReceiptSummary(payments: CustomerReceiptPayment[], consolidatedCorrection: boolean) {
   const active = payments
     .map((payment) => ({ payment, amountPaise: netPayment(payment) }))
