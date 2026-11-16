@@ -5,7 +5,7 @@ import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateTime
 import { canAccess } from "@/lib/permissions";
 import type { AttendanceDirection } from "@/lib/types";
 
-type AttendanceExportRow = { expires_on?: string; member_code: string; member_name: string; direction: AttendanceDirection; plan_name: string | null; qr_version: number | null; source: "qr" | "manual"; occurred_at: string; business_date: string; total_count: number };
+type AttendanceExportRow = { reason?: string; expires_on?: string; due_on?: string; member_code: string; member_name: string; direction: AttendanceDirection; plan_name: string | null; qr_version: number | null; source: "qr" | "manual"; occurred_at: string; business_date: string; total_count: number };
 const sorts = new Set(["occurred_at", "member_name"]);
 
 export async function GET(request: NextRequest) {
@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
   }
 
   const csv = view === "denied" ? csvDocument(
-    ["Business date", "Occurred at", "Member ID", "Member name", "Result", "Reason", "Membership", "Expired on"],
-    rows.map(row => [formatDisplayDate(row.business_date), formatDisplayDateTime(row.occurred_at, gym.timezone, true), row.member_code, row.member_name, "Access denied", "Membership expired", row.plan_name, formatDisplayDate(row.expires_on)]),
+    ["Business date", "Occurred at", "Member ID", "Member name", "Result", "Reason", "Membership", "Access deadline"],
+    rows.map(row => [formatDisplayDate(row.business_date), formatDisplayDateTime(row.occurred_at, gym.timezone, true), row.member_code, row.member_name, "Access denied", row.reason === "payment_overdue" ? "Payment follow-up passed" : "Membership expired", row.plan_name, formatDisplayDate(row.due_on ?? row.expires_on)]),
   ) : csvDocument(
     ["Business date", "Occurred at", "Member ID", "Member name", "Attendance", "Source", "Membership"],
     rows.map((row) => [formatDisplayDate(row.business_date), formatDisplayDateTime(row.occurred_at, gym.timezone, true), row.member_code, row.member_name, attendanceLabel(row.direction), row.source === "manual" ? "Manual correction" : "QR scan", row.plan_name]),

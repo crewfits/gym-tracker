@@ -44,10 +44,20 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
     supabase.from("memberships").select("id,expires_on").eq("member_id", payload.memberId).eq("gym_id", gym.id).is("reverted_at", null).lt("expires_on", today).order("expires_on", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (!member) notFound();
+  let activeCharge: { balance_paise: number; due_on: string } | null = null;
+  if (membership) {
+    const { data, error } = await supabase.from("charge_balances").select("balance_paise,due_on").eq("membership_id", membership.id).eq("gym_id", gym.id).maybeSingle();
+    if (error) throw error;
+    activeCharge = data;
+  }
   const photoUrl = await signedMemberPhotoUrl(supabase, member.profile_photo_path);
 
   const qrValid = credential?.enabled && credential.version === payload.version && !member.is_archived;
-  const allowed = qrValid && Boolean(membership);
+  const paymentDue = Number(activeCharge?.balance_paise ?? 0) > 0;
+  const followUpDate = activeCharge?.due_on ?? null;
+  const paymentOverdue = paymentDue && followUpDate !== null && followUpDate < today;
+  const temporaryAccess = paymentDue && !paymentOverdue;
+  const allowed = qrValid && Boolean(membership) && !paymentOverdue;
   const lastEventDate = lastEvent ? businessDate(gym.timezone, new Date(lastEvent.occurred_at)) : null;
   const suggestedDirection = nextAttendanceDirection(lastEvent?.direction ?? null, lastEventDate, today);
   const directions = ["entry", "exit"] as const;
@@ -55,8 +65,10 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
   const remainingLabel = membershipDaysRemaining === null ? null : membershipDaysRemaining < 0 ? `Expired ${formatMembershipDuration(expiredMembership!.expires_on, today)} ago` : membershipDaysRemaining === 0 ? "Expires today" : `${formatMembershipDuration(membership!.expires_on, today)} remaining`;
   const accessMessage = !qrValid
     ? "QR disabled or replaced"
-    : membership
-      ? `${membership.plan_name} · ${remainingLabel} · valid through ${formatDisplayDateLong(membership.expires_on)}`
+    : membership && paymentOverdue
+      ? "Entry unavailable — please contact the gym."
+      : membership
+      ? `${temporaryAccess && followUpDate ? "Temporary access · payment follow-up " + formatDisplayDate(followUpDate) + " · " : ""}${membership.plan_name} · ${remainingLabel} · valid through ${formatDisplayDateLong(membership.expires_on)}`
       : expiredMembership
         ? `${remainingLabel ?? "Membership expired"} · ended ${formatDisplayDateLong(expiredMembership.expires_on)}`
       : `No active membership for ${formatDisplayDate(today)}`;
@@ -71,15 +83,15 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
     </div>
     <Feedback success={query.success} error={query.error}/>
     <div className="scan-layout">
-      <section className={`card scan-card ${allowed ? "allowed" : "denied"}`}>
+      <section className={`card scan-card ${temporaryAccess && qrValid ? "temporary" : allowed ? "allowed" : "denied"}`}>
         <div className="scan-status">
           <span className="member-avatar scan">{photoUrl ? <Image src={photoUrl} alt="" width={96} height={96} unoptimized/> : member.name.slice(0, 1).toUpperCase()}</span>
-          <span className={`scan-pill ${allowed ? "allowed" : "denied"}`}>{allowed ? "Access allowed" : "Access denied"}</span>
+          <span className={`scan-pill ${temporaryAccess && qrValid ? "temporary" : allowed ? "allowed" : "denied"}`}>{temporaryAccess && qrValid ? "Temporary access" : allowed ? "Access allowed" : "Access denied"}</span>
           <h2>{member.name}</h2>
           <p>{member.member_code} · {member.phone}</p>
         </div>
-        <div className={`scan-access-note ${allowed ? "allowed" : "denied"}`}>
-          <strong>{allowed ? "Membership active" : "Do not admit with this QR"}</strong>
+        <div className={`scan-access-note ${temporaryAccess && qrValid ? "temporary" : allowed ? "allowed" : "denied"}`}>
+          <strong>{paymentOverdue && qrValid ? "Entry unavailable" : temporaryAccess && qrValid ? "Temporary access" : allowed ? "Membership active" : "Do not admit with this QR"}</strong>
           <span>{accessMessage}</span>
         </div>
         {allowed && <div className="scan-actions">
@@ -88,7 +100,7 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
             <SubmitButton className={`button scan-action ${direction} ${direction === suggestedDirection ? "suggested" : "secondary"}`} pendingLabel={`Recording ${attendanceLabel(direction)}…`}>{attendanceLabel(direction)}</SubmitButton>
           </form>)}
         </div>}
-        {qrValid && !membership && expiredMembership && <form action={recordAttendance} className="scan-actions">
+        {qrValid && ((paymentOverdue && membership) || (!membership && expiredMembership)) && <form action={recordAttendance} className="scan-actions">
           <input type="hidden" name="token" value={token}/>
           <input type="hidden" name="direction" value="entry"/>
           <input type="hidden" name="denied_only" value="true"/>

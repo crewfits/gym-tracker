@@ -70,6 +70,7 @@ Important modules:
 - `supabase/migrations/20260922120000_email_delivery_events.sql` adds an email delivery audit/idempotency ledger for Cloudflare Email sends.
 - `supabase/migrations/20261010130733_owner_membership_financial_corrections.sql` introduced the owner-only membership/charge correction and audited excess-payment reversal primitive.
 - `supabase/migrations/20261010170953_owner_membership_correction_payments.sql` adds idempotent correction-plus-payment operations. An increase must collect the exact corrected balance in the same transaction; its payment operation is tagged so owner, public, and emailed receipts render a consolidated final view of every net payment on that membership without reassigning historical payment rows.
+- `supabase/migrations/20261112090000_payment_followup_qr_access.sql` makes the inclusive payment follow-up date the deadline for temporary QR access, logs overdue-payment scan denials separately from attendance, and audits follow-up date changes.
 
 ## Authentication and data isolation
 

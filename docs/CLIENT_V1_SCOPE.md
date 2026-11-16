@@ -49,6 +49,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Let the owner mark the current QR as manually shared, then view/filter members by QR shared status.
 - Admit only non-archived members with an active membership and current QR version.
 - The installed Android PWA scanner records the first valid scan in the business day as Check-in and the next as Check-out, then shows the result and returns to scanning. Directly opening a scan URL retains explicit confirmation as a fallback. The database continues to store the stable `entry`/`exit` enum values.
+- An active membership with an outstanding balance allows temporary QR access through the inclusive payment follow-up date. Scans show a distinct temporary-access result and record normal attendance. Starting the next gym-local day, access is denied while the balance remains; the scan shows a generic message and logs a denied attempt separately from attendance. Collecting the full balance restores normal access on the same QR; changing the follow-up date explicitly extends temporary access.
 - Ignore an unfinished prior-day entry when suggesting today's first movement.
 - Prevent rapid accidental duplicates. During the 30-second scanner result, allow the owner to record the opposite movement. Afterward, allow only today's latest event for that member to be undone, with an optional sequence-safe replacement; preserve the original event and correction reason for audit.
 - Show today's movements and searchable attendance history.
@@ -97,7 +98,7 @@ A reusable customer-facing import UI is not required for V1.
 3. Owner records a full or partial payment and sees the correct balance/history.
 4. Owner finds expiring/expired members and sends an email reminder manually, or lets the configured Cloudflare cron job send deduplicated email reminders automatically.
 5. Owner generates and shares a QR, marks it shared after the manual handoff, then records entry and exit through automatic PWA scans or the confirmation-based URL fallback.
-6. Expired, archived, disabled, replaced, or invalid QR passes are denied.
+6. Expired, archived, disabled, replaced, or invalid QR passes are denied. An active membership with a due balance gets temporary access through its follow-up date, then is denied until paid or rescheduled; payment collection reactivates the same QR.
 7. A missed prior-day exit does not make the next day's first scan an exit.
 8. The owner can undo a member's latest event from today after the scanner's 30-second result window and optionally record the next valid movement without creating consecutive Check-ins or Check-outs.
 9. Old members remain searchable in archived/all views without cluttering daily operations.

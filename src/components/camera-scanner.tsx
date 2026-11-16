@@ -114,7 +114,7 @@ export function CameraScanner() {
     startTransition(async () => {
       const next = await scanAndRecordAttendance(value, crypto.randomUUID());
       setResult(next);
-      signal(next.status === "recorded", beepStrengthRef.current);
+      signal(next.status !== "denied", beepStrengthRef.current);
       resetRef.current = window.setTimeout(() => {
         setResult(null);
         setRestartKey((value) => value + 1);
@@ -251,8 +251,8 @@ export function CameraScanner() {
     if (resetRef.current !== null) window.clearTimeout(resetRef.current);
     startTransition(async () => {
       const corrected = await correctScannerAttendance(result.token!, result.direction!, crypto.randomUUID());
-      setResult(corrected.status === "recorded" ? { ...corrected, message: `${corrected.message} as correction` } : corrected);
-      signal(corrected.status === "recorded", beepStrengthRef.current);
+      setResult(corrected.status !== "denied" ? { ...corrected, message: `${corrected.message} as correction` } : corrected);
+      signal(corrected.status !== "denied", beepStrengthRef.current);
       resetRef.current = window.setTimeout(scanNext, closeSecondsRef.current * 1000);
     });
   }
@@ -271,8 +271,8 @@ export function CameraScanner() {
   }
 
   if (result) {
-    const recorded = result.status === "recorded";
-    return <div className={`camera-result ${recorded ? result.direction : "denied"}`} aria-live="assertive">
+    const recorded = result.status !== "denied";
+    return <div className={`camera-result ${result.status === "temporary" ? "temporary" : recorded ? result.direction : "denied"}`} aria-live="assertive">
       <button className="camera-result-close" onClick={scanNext} disabled={isPending} aria-label="Close result and scan again"><X/></button>
       <div className="camera-result-icon">{recorded ? <CheckCircle2/> : <ShieldX/>}</div>
       {result.photoUrl && <Image className="camera-result-photo" src={result.photoUrl} width={104} height={104} alt="" unoptimized/>}

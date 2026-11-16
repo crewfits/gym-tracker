@@ -131,7 +131,7 @@ export default async function MemberDetail({ params, searchParams }: PageProps<"
                     <form action={updateChargeDueDate} className="inline-date-form">
                       <input type="hidden" name="member_id" value={id}/>
                       <input type="hidden" name="charge_id" value={charge.id}/>
-                      <label>Follow-up date <input type="date" name="due_on" defaultValue={charge.due_on} required/></label>
+                      <label>Follow-up date <input type="date" name="due_on" defaultValue={charge.due_on} required/><small>Temporary QR access continues through this date. If a balance remains, entry is blocked the following day.</small></label>
                       <SubmitButton className="button secondary small" pendingLabel="Updating...">Update</SubmitButton>
                     </form>
                   </div>}

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth";
-import { attendanceLabel, businessDate, formatDisplayDateTime, formatMembershipDuration, membershipRemainingDays } from "@/lib/domain";
+import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateTime, formatMembershipDuration, membershipRemainingDays } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import { safeReturnPath } from "@/lib/return-path";
 import type { AttendanceDirection } from "@/lib/types";
@@ -121,10 +121,12 @@ export async function recordAttendance(formData: FormData) {
     if (error) throw error;
     revalidatePath(scanPath);
     revalidatePath("/attendance");
-    if (result?.status === "denied") go(scanPath, "error", "Membership expired — access denied. Attempt logged.");
+    if (result?.status === "denied") go(scanPath, "error", result.attempt?.reason === "payment_overdue" ? "Entry unavailable — please contact the gym." : "Membership expired — access denied. Attempt logged.");
     if (result?.status === "allowed") go(scanPath, "success", "Membership is now active. Review access before recording attendance.");
     if (result?.status !== "recorded" || !result.event) throw new Error("Unable to confirm attendance. Please retry.");
-    go(scanPath, "success", `${attendanceLabel(input.direction)} recorded`);
+    go(scanPath, "success", result.access_mode === "temporary"
+      ? `Temporary access — payment follow-up due ${formatDisplayDate(result.due_on)}. ${attendanceLabel(input.direction)} recorded.`
+      : `${attendanceLabel(input.direction)} recorded`);
   } catch (error) {
     if (isRedirect(error)) throw error;
     go(scanPath, "error", messageFrom(error));
@@ -132,7 +134,7 @@ export async function recordAttendance(formData: FormData) {
 }
 
 export type ScannerAttendanceResult = {
-  status: "recorded" | "denied";
+  status: "recorded" | "temporary" | "denied";
   message: string;
   token?: string;
   direction?: AttendanceDirection;
@@ -183,8 +185,9 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
     };
     if (result?.status === "denied" && result.attempt) {
       revalidatePath("/attendance");
+      const paymentHold = result.attempt.reason === "payment_overdue";
       return {
-        status: "denied", message: `Membership expired — access denied. Attempt ${result.duplicate ? "already logged" : "logged"}.`,
+        status: "denied", message: paymentHold ? "Entry unavailable — please contact the gym." : `Membership expired — access denied. Attempt ${result.duplicate ? "already logged" : "logged"}.`,
         memberName: member.name, memberCode: member.member_code,
         photoUrl: await signedMemberPhotoUrl(supabase, member.profile_photo_path),
         occurredAt: formatDisplayDateTime(result.attempt.occurred_at, gym.timezone),
@@ -196,10 +199,13 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
     const direction = event?.direction ?? forcedDirection ?? "entry";
     const occurredAt = event?.occurred_at ?? new Date().toISOString();
     const duplicateSuppressed = event?.request_id !== parsedRequestId;
+    const temporaryAccess = result.access_mode === "temporary";
     revalidatePath("/attendance");
     return {
-      status: "recorded",
-      message: duplicateSuppressed
+      status: temporaryAccess ? "temporary" : "recorded",
+      message: temporaryAccess
+        ? `Temporary access — payment follow-up due ${formatDisplayDate(result.due_on)}.`
+        : duplicateSuppressed
         ? `Scanned again within 30 seconds. ${attendanceLabel(direction)} remains recorded; no additional attendance was created.`
         : `${attendanceLabel(direction)} recorded`,
       token,
