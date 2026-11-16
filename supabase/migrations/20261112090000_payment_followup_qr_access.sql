@@ -1,4 +1,4 @@
--- Payment follow-up dates define when unpaid QR access is denied. Attempts
+-- Payment follow-up dates define the end of temporary QR access. Attempts
 -- remain in the denied-access ledger and never count as attendance.
 alter table public.denied_access_attempts
   drop constraint denied_access_attempts_reason_check,
@@ -104,7 +104,7 @@ begin
         returning * into v_attempt;
         return jsonb_build_object('status', 'denied', 'attempt', to_jsonb(v_attempt), 'duplicate', false);
       end if;
-      if v_due_on <= v_today + 7 then v_access_mode := 'payment_due_soon'; end if;
+      v_access_mode := 'temporary';
     end if;
     if p_denied_only then return jsonb_build_object('status', 'allowed', 'access_mode', v_access_mode, 'due_on', v_due_on); end if;
     if p_direction is null then
