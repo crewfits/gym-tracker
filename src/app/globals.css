@@ -831,6 +831,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .field { display: grid; align-content: start; gap: 7px; }
 .field label { font-size: 13px; font-weight: 750; }
 .field input, .field select, .field textarea, .search { width: 100%; min-height: 43px; padding: 10px 12px; color: var(--ink); background: white; border: 1px solid #cbd7ce; border-radius: 10px; outline: none; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.payment-follow-up-field input[type="date"] { width: min(100%, 220px); }
 .field textarea { resize: vertical; }
 .field input:focus, .field select:focus, .field textarea:focus, .search:focus { border-color: var(--brand); box-shadow: 0 0 0 4px rgba(37, 99, 235, .1); }
 .field small { color: var(--muted); font-size: 12px; }
@@ -963,10 +964,7 @@ a.card:hover::after { opacity: 1; transform: scale(1.2); }
 .camera-result-close svg { width: 25px; height: 25px; }
 .camera-result.entry { background: linear-gradient(155deg, #056336, #0aa65d); }
 .camera-result.exit { background: linear-gradient(155deg, #173f8f, #2563eb); }
-.camera-result.warning { color: #4f3b00; background: linear-gradient(155deg, #fff9db, #ffe082); box-shadow: 0 24px 54px rgba(120,85,0,.18); }
-.camera-result.warning p, .camera-result.warning .camera-result-pending { color: rgba(79,59,0,.76); }
-.camera-result.warning .camera-result-close { color: #4f3b00; background: rgba(255,255,255,.55); border-color: rgba(79,59,0,.2); }
-.camera-result.warning .camera-result-close:hover { background: rgba(255,255,255,.8); }
+.camera-result.warning { background: linear-gradient(155deg, #9a5b00, #d89000); }
 .camera-result.denied { background: linear-gradient(155deg, #7f1d1d, #c23e3e); }
 .camera-result-icon svg { width: 64px; height: 64px; }
 .camera-result-photo { width: 104px; height: 104px; object-fit: cover; border: 4px solid rgba(255,255,255,.85); border-radius: 50%; }
