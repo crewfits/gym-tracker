@@ -7,7 +7,7 @@ import { PaymentEntries } from "@/components/payment-entries";
 import { Feedback } from "@/components/feedback";
 import { usePaymentRows } from "@/components/use-payment-rows";
 import { usePaymentSubmit } from "@/components/use-payment-submit";
-import { paymentRowsErrors, type SplitPaymentResult } from "@/lib/split-payments";
+import { paymentRowsErrors, paymentRowsTotal, type SplitPaymentResult } from "@/lib/split-payments";
 
 function planEndDate(plan: Plan | undefined, startDate: string) {
   return plan && startDate ? calculateExpiry(startDate, plan.duration_value, plan.duration_unit) : "";
@@ -25,10 +25,12 @@ export function MembershipForm({ memberId, plans, handlers = [], defaultHandlerI
   const effectiveStartDate = startDate ? renew ? calculateRenewalStart(currentExpiry ?? null, startDate) : startDate : "";
   const selectedPlan = plans.find((plan) => plan.id === planId);
   const [endDate, setEndDate] = useState(planEndDate(selectedPlan, effectiveStartDate));
-  const followUpDate = effectiveStartDate ? calculatePaymentFollowUpDate(effectiveStartDate) : today;
+  const [followUpDate, setFollowUpDate] = useState(() => calculatePaymentFollowUpDate(effectiveStartDate || today));
   const taxable = Math.max(0, toPaise(subtotal) - toPaise(discount));
   const totalPaise = taxable + Math.round(taxable * (Number(gstRate) || 0) / 100);
   const { rows, changeRows } = usePaymentRows(totalPaise, today);
+  const paidPaise = paymentRowsTotal(rows);
+  const balancePaise = Math.max(0, totalPaise - paidPaise);
   const { submit, pending, error: submissionError } = usePaymentSubmit(action);
   const invalidPayments = Object.keys(paymentRowsErrors(rows, totalPaise)).length > 0;
 
@@ -45,6 +47,7 @@ export function MembershipForm({ memberId, plans, handlers = [], defaultHandlerI
     setStartDate(value);
     const nextStart = value ? renew ? calculateRenewalStart(currentExpiry ?? null, value) : value : "";
     setEndDate(planEndDate(selectedPlan, nextStart));
+    setFollowUpDate(nextStart ? calculatePaymentFollowUpDate(nextStart) : today);
   }
 
   return <form onSubmit={submit} aria-busy={pending} className={embedded ? "form member-renewal-form" : "card form"} style={embedded ? undefined : { maxWidth: 800 }} onInvalid={(event) => {
@@ -53,7 +56,7 @@ export function MembershipForm({ memberId, plans, handlers = [], defaultHandlerI
   }}>
     <input type="hidden" name="member_id" value={memberId}/>
     {returnPath && <input type="hidden" name="return_path" value={returnPath}/>}
-    <input type="hidden" name="due_on" value={followUpDate}/>
+    {balancePaise === 0 && <input type="hidden" name="due_on" value={followUpDate}/>}
     <Feedback key={submissionError || error || "membership-feedback"} error={submissionError || error}/>
     <div className="form-grid">
       <div className="field"><label htmlFor="membership-plan">Plan *</label><select id="membership-plan" name="plan_id" value={planId} onChange={(event) => selectPlan(event.target.value)} required>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {plan.duration_value} {plan.duration_unit}</option>)}</select></div>
@@ -70,6 +73,7 @@ export function MembershipForm({ memberId, plans, handlers = [], defaultHandlerI
       </div>
     </details>
     <PaymentEntries rows={rows} onChange={changeRows} balancePaise={totalPaise} today={today} currencyCode={currencyCode} disabled={pending}/>
+    {balancePaise > 0 && <div className="field payment-follow-up-field"><label htmlFor="membership-due-on">Balance follow-up date</label><input id="membership-due-on" type="date" name="due_on" min={effectiveStartDate} value={followUpDate} onChange={(event) => setFollowUpDate(event.target.value)} required/><small>Access stays allowed through this date. If a balance remains afterward, QR entry is denied.</small></div>}
     <div className="membership-form-footer">
       <div><span className="muted">Total</span><strong>{formatInr(totalPaise, currencyCode)}</strong></div>
       <button type="submit" className="button" disabled={pending || invalidPayments || !plans.length || !subtotal || !startDate || !endDate || endDate < effectiveStartDate || Number(discount) > Number(subtotal)}>{pending ? "Saving…" : renew ? "Renew membership" : "Create membership"}</button>

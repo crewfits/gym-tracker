@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Camera, CheckCircle2, Download, RefreshCw, ShieldX, SwitchCamera, X } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
@@ -272,7 +273,7 @@ export function CameraScanner() {
 
   if (result) {
     const recorded = result.status !== "denied";
-    return <div className={`camera-result ${result.status === "temporary" ? "temporary" : recorded ? result.direction : "denied"}`} aria-live="assertive">
+    return <div className={`camera-result ${result.status === "warning" ? "warning" : recorded ? result.direction : "denied"}`} aria-live="assertive">
       <button className="camera-result-close" onClick={scanNext} disabled={isPending} aria-label="Close result and scan again"><X/></button>
       <div className="camera-result-icon">{recorded ? <CheckCircle2/> : <ShieldX/>}</div>
       {result.photoUrl && <Image className="camera-result-photo" src={result.photoUrl} width={104} height={104} alt="" unoptimized/>}
@@ -285,6 +286,7 @@ export function CameraScanner() {
       </div>}
       <div className="camera-result-actions">
         {recorded && <button className="button secondary" onClick={changeMovement} disabled={isPending}>Make a change to {attendanceLabel(result.direction === "entry" ? "exit" : "entry")}</button>}
+        {result.deniedAttemptLogged && <Link className="button secondary" href="/attendance?view=denied">View denied attempts</Link>}
       </div>
       <span className="camera-result-pending">This result closes automatically after {closeSeconds} seconds.</span>
       {isPending && <span className="camera-result-pending">Updating attendance…</span>}

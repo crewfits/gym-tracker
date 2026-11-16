@@ -11,7 +11,7 @@ const activationSuccess = "Saved%20successfully.%20Activation%20email%20sent.";
 const renewalSuccess = "Saved%20successfully.%20Renewal%20email%20sent.";
 function form(extra: Record<string, string> = {}) {
   const data = new FormData();
-  for (const [key, value] of Object.entries({ request_id: operation, member_id: member, charge_id: member, plan_id: member, starts_on: "2026-09-11", renewal_date: "2026-09-11", expires_on: "2026-10-10", subtotal: "1000", discount: "0", gst_rate: "0", name: "Member", phone: "9876543210", email: "", notes: "", payments: JSON.stringify([{ amount: "300", method: "upi", paid_on: "2026-09-10", reference: "UPI-1" }, { amount: "200", method: "cash", paid_on: "2026-09-11", reference: "" }]), ...extra })) data.set(key, value);
+  for (const [key, value] of Object.entries({ request_id: operation, member_id: member, charge_id: member, plan_id: member, starts_on: "2026-09-11", renewal_date: "2026-09-11", expires_on: "2026-10-10", due_on: "2026-12-11", subtotal: "1000", discount: "0", gst_rate: "0", name: "Member", phone: "9876543210", email: "", notes: "", payments: JSON.stringify([{ amount: "300", method: "upi", paid_on: "2026-09-10", reference: "UPI-1" }, { amount: "200", method: "cash", paid_on: "2026-09-11", reference: "" }]), ...extra })) data.set(key, value);
   return data;
 }
 beforeEach(() => {
@@ -43,6 +43,13 @@ describe("atomic split-payment actions", () => {
     expect(mocks.rpc).toHaveBeenCalledWith("submit_payment_operation", expect.objectContaining({
       p_kind: "activate",
       p_details: expect.objectContaining({ old_member_id: "REGISTER-104" }),
+    }));
+  });
+  it.each([["activate", activateWithPayments], ["enroll", enrollWithPayments], ["renew", renewWithPayments]] as const)("passes the selected follow-up date through %s", async (kind, action) => {
+    await action(form({ due_on: "2027-03-11" }));
+    expect(mocks.rpc).toHaveBeenCalledWith("submit_payment_operation", expect.objectContaining({
+      p_kind: kind,
+      p_details: expect.objectContaining({ due_on: "2027-03-11" }),
     }));
   });
   it("keeps receptionist activation away from the restricted payment summary", async () => {

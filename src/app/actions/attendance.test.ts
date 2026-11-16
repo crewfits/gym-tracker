@@ -23,14 +23,14 @@ describe("scanner denied attempt feedback", () => {
     db.rpc.mockResolvedValue({ data: { status: "denied", attempt: { occurred_at: "2026-09-10T05:00:00Z" }, duplicate: true }, error: null });
     expect((await scanAndRecordAttendance("ABCDEFGHJKLM", requestId)).message).toContain("already logged");
   });
-  it("returns a distinct temporary-access result while recording attendance", async () => {
-    db.rpc.mockResolvedValue({ data: { status: "recorded", access_mode: "temporary", due_on: "2026-09-12", event: { direction: "entry", occurred_at: "2026-09-10T05:00:00Z", request_id: requestId } }, error: null });
-    expect(await scanAndRecordAttendance("ABCDEFGHJKLM", requestId)).toMatchObject({ status: "temporary", message: expect.stringContaining("Temporary access"), direction: "entry" });
+  it("returns an amber due-soon warning while recording attendance", async () => {
+    db.rpc.mockResolvedValue({ data: { status: "recorded", access_mode: "payment_due_soon", due_on: "2026-09-12", event: { direction: "entry", occurred_at: "2026-09-10T05:00:00Z", request_id: requestId } }, error: null });
+    expect(await scanAndRecordAttendance("ABCDEFGHJKLM", requestId)).toMatchObject({ status: "warning", message: expect.stringContaining("Balance due by"), direction: "entry" });
   });
   it("uses a generic message for an overdue-payment denial", async () => {
     db.rpc.mockResolvedValue({ data: { status: "denied", attempt: { reason: "payment_overdue", occurred_at: "2026-09-10T05:00:00Z" }, duplicate: false }, error: null });
     const result = await scanAndRecordAttendance("ABCDEFGHJKLM", requestId);
-    expect(result).toMatchObject({ status: "denied", message: "Entry unavailable — please contact the gym." });
+    expect(result).toMatchObject({ status: "denied", deniedAttemptLogged: true, message: "Entry unavailable — please contact the gym." });
   });
   it("keeps normal attendance and immediate corrections working", async () => {
     db.rpc.mockResolvedValue({ data: { status: "recorded", event: { direction: "exit", occurred_at: "2026-09-10T05:00:00Z", request_id: requestId } }, error: null });

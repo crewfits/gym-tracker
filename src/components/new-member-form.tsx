@@ -18,7 +18,7 @@ type EnrollmentSection = "profile" | "plan" | "payment";
 const sectionFields: Record<EnrollmentSection, string[]> = {
   profile: ["name", "phone", "email", "old_member_id", "notes", "shared_phone", "profile_photo_data_url"],
   plan: ["plan_id", "starts_on", "expires_on", "subtotal", "discount", "gst_rate"],
-  payment: ["amount_paid", "paid_on", "method", "reference"],
+  payment: ["amount_paid", "paid_on", "method", "reference", "due_on"],
 };
 
 function toPaise(value: string) { return Math.max(0, Math.round((Number(value) || 0) * 100)); }
@@ -26,7 +26,7 @@ function moneyFromPaise(value: number) { return (value / 100).toFixed(2); }
 function planEndDate(plan: Plan | undefined, startDate: string) { return plan && startDate ? calculateExpiry(startDate, plan.duration_value, plan.duration_unit) : ""; }
 function sectionForField(name: string): EnrollmentSection {
   if (["plan_id", "starts_on", "expires_on", "subtotal", "discount", "gst_rate"].includes(name)) return "plan";
-  if (["payments", "amount_paid", "paid_on", "method", "reference"].includes(name)) return "payment";
+  if (["payments", "amount_paid", "paid_on", "method", "reference", "due_on"].includes(name)) return "payment";
   return "profile";
 }
 
@@ -51,7 +51,7 @@ export function NewMemberForm({ plans, handlers = [], defaultHandlerId = "", tod
   const selectedPlan = plans.find((plan) => plan.id === planId);
   const calculatedEndDate = planEndDate(selectedPlan, startDate);
   const [endDate, setEndDate] = useState(calculatedEndDate);
-  const followUpDate = startDate ? calculatePaymentFollowUpDate(startDate) : today;
+  const [followUpDate, setFollowUpDate] = useState(calculatePaymentFollowUpDate(today));
   const totals = useMemo(() => {
     const price = toPaise(subtotal);
     const discountPaise = Math.min(toPaise(discount), price);
@@ -79,9 +79,10 @@ export function NewMemberForm({ plans, handlers = [], defaultHandlerId = "", tod
   function changeStartDate(value: string) {
     setStartDate(value);
     setEndDate(planEndDate(selectedPlan, value));
+    setFollowUpDate(value ? calculatePaymentFollowUpDate(value) : today);
   }
 
-  const validationErrors = memberValidationErrors({ ...values, plan_id: planId, starts_on: startDate, expires_on: endDate, subtotal, discount, gst_rate: gstRate, amount_paid: amountPaid });
+  const validationErrors = memberValidationErrors({ ...values, plan_id: planId, starts_on: startDate, expires_on: endDate, due_on: followUpDate, subtotal, discount, gst_rate: gstRate, amount_paid: amountPaid });
   const visibleErrors = { ...Object.fromEntries(Object.entries(validationErrors).filter(([key]) => touched[key])), ...serverErrors };
   function fieldProps(name: string) {
     return { id: `member-${name}`, "aria-invalid": Boolean(visibleErrors[name]), "aria-describedby": visibleErrors[name] ? `member-${name}-error` : undefined };
@@ -155,7 +156,6 @@ export function NewMemberForm({ plans, handlers = [], defaultHandlerId = "", tod
     const target = event.target;
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) setTouched(previous => ({ ...previous, [target.name]: true }));
   }} noValidate className="enrollment-grid" aria-busy={pending}>
-    <input type="hidden" name="due_on" value={followUpDate}/>
     <input type="hidden" name="amount_paid" value={amountPaid}/><input type="hidden" name="paid_on" value={today}/><input type="hidden" name="method" value="cash"/><input type="hidden" name="reference" value=""/>
     <Feedback key={formError ?? "new-member-feedback"} error={formError}/>
     <div className="enrollment-main">
@@ -203,11 +203,12 @@ export function NewMemberForm({ plans, handlers = [], defaultHandlerId = "", tod
         <div className="form-section-head"><span className="form-step"><BadgeIndianRupee size={17}/></span><div><p className="eyebrow">Opening collection</p><h2>Initial payment</h2></div></div>
         {handlers.length > 0 && <div className="field"><label htmlFor="member-handled_by_gym_user_id">Handled by <span className="required-marker" aria-hidden="true">*</span></label><select id="member-handled_by_gym_user_id" name="handled_by_gym_user_id" value={handlerId} onChange={(event) => setHandlerId(event.target.value)} required>{handlers.map((handler) => <option key={handler.id} value={handler.id}>{handler.display_name}</option>)}</select><small>Who is handling this activation and opening collection.</small></div>}
         <PaymentEntries rows={rows} onChange={next => { changeRows(next); setServerErrors(previous => { const updated = { ...previous }; delete updated.payments; delete updated.amount_paid; return updated; }); }} balancePaise={totals.total} today={today} currencyCode={currencyCode} disabled={pending}/>
+        {totals.total > paid ? <div className="field payment-follow-up-field"><label htmlFor="member-due_on">Balance follow-up date</label><input id="member-due_on" type="date" name="due_on" min={startDate} value={followUpDate} onChange={(event) => setFollowUpDate(event.target.value)} required/><small>Access stays allowed through this date. If a balance remains afterward, QR entry is denied.</small>{fieldError("due_on")}</div> : <input type="hidden" name="due_on" value={followUpDate}/>}
         {fieldError("payments")}{fieldError("amount_paid")}
         <div className="enrollment-panel-actions"><button type="button" className="button secondary" onClick={() => setActiveSection("plan")}>Back to membership</button><button type="submit" className="button" disabled={pending || Object.keys(paymentErrors).length > 0 || !plans.length || Object.keys(validationErrors).length > 0 || Object.keys(serverErrors).length > 0}>{pending ? "Activating membership…" : "Activate membership"}</button></div>
       </section>
     </div>
 
-    <aside className="card enrollment-summary"><div className="summary-hero"><p className="eyebrow">Membership total</p><div className="summary-total">{formatInr(totals.total, currencyCode)}</div><span>{selectedPlan?.name ?? "Choose a plan"}{selectedPlan ? ` · ${selectedPlan.duration_value} ${selectedPlan.duration_unit}` : ""}</span></div><div className="summary-lines"><div className="summary-line"><span>Start date</span><strong>{formatDisplayDate(startDate)}</strong></div><div className="summary-line"><span>Plan end date</span><strong>{formatDisplayDate(endDate)}</strong></div><div className="summary-line"><span>Base price</span><strong>{formatInr(totals.price, currencyCode)}</strong></div><div className="summary-line"><span>Discount</span><strong>− {formatInr(totals.discount, currencyCode)}</strong></div><div className="summary-line"><span>GST ({Number(gstRate) || 0}%)</span><strong>{formatInr(totals.tax, currencyCode)}</strong></div><div className="summary-line"><span>Total price</span><strong>{formatInr(totals.total, currencyCode)}</strong></div><div className="summary-line"><span>Paid today</span><strong>{formatInr(paid, currencyCode)}</strong></div><div className="summary-line outstanding"><span>Balance to recover</span><strong>{formatInr(Math.max(0, totals.total - paid), currencyCode)}</strong></div></div><div className="summary-actions"><button type="submit" className="button" disabled={pending || Object.keys(paymentErrors).length > 0 || !plans.length || Object.keys(validationErrors).length > 0 || Object.keys(serverErrors).length > 0}>{pending ? "Activating membership…" : "Activate membership"}</button>{!plans.length && <p className="alert error" style={{ marginTop: 12, marginBottom: 0 }}>Create an active plan first.</p>}</div></aside>
+    <aside className="card enrollment-summary"><div className="summary-hero"><p className="eyebrow">Membership total</p><div className="summary-total">{formatInr(totals.total, currencyCode)}</div><span>{selectedPlan?.name ?? "Choose a plan"}{selectedPlan ? ` · ${selectedPlan.duration_value} ${selectedPlan.duration_unit}` : ""}</span></div><div className="summary-lines"><div className="summary-line"><span>Start date</span><strong>{formatDisplayDate(startDate)}</strong></div><div className="summary-line"><span>Plan end date</span><strong>{formatDisplayDate(endDate)}</strong></div><div className="summary-line"><span>Base price</span><strong>{formatInr(totals.price, currencyCode)}</strong></div><div className="summary-line"><span>Discount</span><strong>− {formatInr(totals.discount, currencyCode)}</strong></div><div className="summary-line"><span>GST ({Number(gstRate) || 0}%)</span><strong>{formatInr(totals.tax, currencyCode)}</strong></div><div className="summary-line"><span>Total price</span><strong>{formatInr(totals.total, currencyCode)}</strong></div><div className="summary-line"><span>Paid today</span><strong>{formatInr(paid, currencyCode)}</strong></div><div className="summary-line outstanding"><span>Balance to recover</span><strong>{formatInr(Math.max(0, totals.total - paid), currencyCode)}</strong></div>{totals.total > paid && <div className="summary-line"><span>Follow-up date</span><strong>{formatDisplayDate(followUpDate)}</strong></div>}</div><div className="summary-actions"><button type="submit" className="button" disabled={pending || Object.keys(paymentErrors).length > 0 || !plans.length || Object.keys(validationErrors).length > 0 || Object.keys(serverErrors).length > 0}>{pending ? "Activating membership…" : "Activate membership"}</button>{!plans.length && <p className="alert error" style={{ marginTop: 12, marginBottom: 0 }}>Create an active plan first.</p>}</div></aside>
   </form>;
 }

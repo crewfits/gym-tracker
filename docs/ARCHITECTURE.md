@@ -70,7 +70,7 @@ Important modules:
 - `supabase/migrations/20260922120000_email_delivery_events.sql` adds an email delivery audit/idempotency ledger for Cloudflare Email sends.
 - `supabase/migrations/20261010130733_owner_membership_financial_corrections.sql` introduced the owner-only membership/charge correction and audited excess-payment reversal primitive.
 - `supabase/migrations/20261010170953_owner_membership_correction_payments.sql` adds idempotent correction-plus-payment operations. An increase must collect the exact corrected balance in the same transaction; its payment operation is tagged so owner, public, and emailed receipts render a consolidated final view of every net payment on that membership without reassigning historical payment rows.
-- `supabase/migrations/20261112090000_payment_followup_qr_access.sql` makes the inclusive payment follow-up date the deadline for temporary QR access, logs overdue-payment scan denials separately from attendance, and audits follow-up date changes.
+- `supabase/migrations/20261112090000_payment_followup_qr_access.sql` applies payment follow-up dates to QR access, logs overdue-payment scan denials separately from attendance, and audits follow-up date changes. `20261116090000_selectable_payment_followup_dates.sql` allows activation, enrollment, and renewal to save an owner-selected date while retaining the seven-day default for older callers.
 
 ## Authentication and data isolation
 
@@ -140,7 +140,7 @@ gyms
 - Each membership has a charge with subtotal, discount, tax, total, paid, and outstanding values.
 - Payments are manual records tied to a charge.
 - Incorrect payments are voided with a reason instead of deleted.
-- Each charge keeps an internal follow-up date for reminder queries. The owner is not asked to choose this during normal enrollment; new memberships and renewals default it to seven days after the membership start.
+- Each charge keeps a follow-up date for reminder queries and QR access. Activation, enrollment, and renewal default it to seven days after the effective membership start; when a balance remains, the owner can set the agreed date during the operation or update it later.
 
 - `20260911100000_atomic_split_payments.sql` adds `submit_payment_operation` and owner-readable `payment_operations`. The RPC derives the active gym from authentication, locks its counter row, validates member/charge ownership, and saves zero to ten payments (at least one for collection) with membership creation in one transaction. Each stored payment row keeps its method/date/reference audit detail and uses `record_payment` outstanding-balance checks.
 - The client preserves a request UUID across failures. The database returns the stored result for an identical retry and rejects changed payloads under an already committed UUID. Receipt IDs remain stable; retries do not extend membership or rotate QR again. A fresh page starts a new operation, so owners should review history before manually repeating an uncertain collection after reloading.

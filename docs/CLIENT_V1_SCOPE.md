@@ -35,7 +35,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Record full or partial manual payments, including up to 10 cash/UPI/card/bank-transfer entries in one activation, enrollment, renewal, or balance collection. Each entry has its own amount, date, and optional reference; the customer-facing receipt is grouped per payment operation and lists the payment-method breakdown plus paid and due amounts.
 - Show total, paid, outstanding, due date, and payment history.
 - Show partial-payment, overdue, and expiring-soon queues.
-- Use an automatic seven-day payment follow-up date for new memberships and renewals instead of asking the owner to choose it during enrollment.
+- Default the payment follow-up date to seven days after the effective membership start, and allow the owner to choose an agreed date during activation, enrollment, or renewal when a balance remains. The owner can update it later.
 - Open an individual prefilled WhatsApp reminder for the owner to review and send.
 - Share a payment receipt through the owner UI; email delivery sends the generated receipt PDF as an attachment rather than relying on a member-facing link.
 - Email the member's QR pass and send the activation or renewal receipt/QR email automatically after activation or paid renewal when the member has an email address.
@@ -49,7 +49,7 @@ Old members are archived, not deleted. Archived members do not receive reminders
 - Let the owner mark the current QR as manually shared, then view/filter members by QR shared status.
 - Admit only non-archived members with an active membership and current QR version.
 - The installed Android PWA scanner records the first valid scan in the business day as Check-in and the next as Check-out, then shows the result and returns to scanning. Directly opening a scan URL retains explicit confirmation as a fallback. The database continues to store the stable `entry`/`exit` enum values.
-- An active membership with an outstanding balance allows temporary QR access through the inclusive payment follow-up date. Scans show a distinct temporary-access result and record normal attendance. Starting the next gym-local day, access is denied while the balance remains; the scan shows a generic message and logs a denied attempt separately from attendance. Collecting the full balance restores normal access on the same QR; changing the follow-up date explicitly extends temporary access.
+- An active membership with an outstanding balance remains allowed through the inclusive payment follow-up date. Scans stay green until seven days before that date, then show an amber balance-due warning while recording normal attendance. Starting the next gym-local day, access is denied while the balance remains; the scan shows a generic message and logs a denied attempt separately from attendance. Collecting the full balance restores normal access on the same QR; changing the follow-up date explicitly extends access.
 - Ignore an unfinished prior-day entry when suggesting today's first movement.
 - Prevent rapid accidental duplicates. During the 30-second scanner result, allow the owner to record the opposite movement. Afterward, allow only today's latest event for that member to be undone, with an optional sequence-safe replacement; preserve the original event and correction reason for audit.
 - Show today's movements and searchable attendance history.
@@ -98,7 +98,7 @@ A reusable customer-facing import UI is not required for V1.
 3. Owner records a full or partial payment and sees the correct balance/history.
 4. Owner finds expiring/expired members and sends an email reminder manually, or lets the configured Cloudflare cron job send deduplicated email reminders automatically.
 5. Owner generates and shares a QR, marks it shared after the manual handoff, then records entry and exit through automatic PWA scans or the confirmation-based URL fallback.
-6. Expired, archived, disabled, replaced, or invalid QR passes are denied. An active membership with a due balance gets temporary access through its follow-up date, then is denied until paid or rescheduled; payment collection reactivates the same QR.
+6. Expired, archived, disabled, replaced, or invalid QR passes are denied. An active membership with a due balance remains allowed through its follow-up date, shows an amber warning in the final seven days, and is denied afterward until paid or rescheduled; payment collection restores the same QR.
 7. A missed prior-day exit does not make the next day's first scan an exit.
 8. The owner can undo a member's latest event from today after the scanner's 30-second result window and optionally record the next valid movement without creating consecutive Check-ins or Check-outs.
 9. Old members remain searchable in archived/all views without cluttering daily operations.
@@ -110,3 +110,7 @@ A reusable customer-facing import UI is not required for V1.
 Expired members with a current, enabled QR remain denied, but the owner scanner logs every attempted visit. Reusing the same request ID stays idempotent, but separate scans are persisted without the normal attendance cooldown so owners can see repeated expired-membership access attempts. Active memberships (including expiry day) retain normal attendance; invalid, disabled, replaced, archived, and upcoming-only/no-history cases do not create expired-attempt records.
 
 The separate `denied_access_attempts` ledger never contributes to attendance or occupancy. Attendance → Denied attempts provides search, date filters, pagination and CSV; backups include the ledger. Direct scan-page visits remain read-only until the owner confirms **Log denied attempt**. Apply migration `20260910100000_expired_qr_access_attempts.sql` before deploying. See [QR attendance architecture](qr-attendance-architecture.md#expired-membership-access-attempts-2026-09-10) for database guarantees and verification.
+
+## Payment-overdue access attempts
+
+An active membership with a remaining balance is allowed through its selected follow-up date. Access denials after that date use the same separate ledger with reason `payment_overdue`; they never become attendance events. The Attendance page’s **Denied attempts** view shows the reason and date, and the scanner links directly to that view after logging a denial. Apply `20261112090000_payment_followup_qr_access.sql` before deploying.

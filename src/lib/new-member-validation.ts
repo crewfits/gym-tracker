@@ -16,6 +16,7 @@ export const newMemberSchema = z.object({
   reference: z.string(), paid_on: z.iso.date("Enter a valid payment date."),
 }).superRefine((value, ctx) => {
   if (value.expires_on < value.starts_on) ctx.addIssue({ code: "custom", path: ["expires_on"], message: "End date must be on or after the start date." });
+  if (value.due_on && value.due_on < value.starts_on) ctx.addIssue({ code: "custom", path: ["due_on"], message: "Payment follow-up date cannot be before the membership start date." });
   if (typeof value.subtotal !== "number" || typeof value.discount !== "number" || typeof value.amount_paid !== "number" || typeof value.gst_rate !== "number") return;
   if (value.discount > value.subtotal) ctx.addIssue({ code: "custom", path: ["discount"], message: "Discount cannot exceed the base plan price." });
   const taxable = value.subtotal - value.discount;

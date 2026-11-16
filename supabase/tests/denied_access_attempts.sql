@@ -57,21 +57,29 @@ reset role;
 -- Temporary access is inclusive of the follow-up date, overdue access is denied,
 -- and collecting the balance restores the same QR without rotating it.
 set local role authenticated;
-do $$ declare r jsonb; n integer; today date := (now() at time zone 'Asia/Kolkata')::date; begin
+do $$ declare r jsonb; n integer; listed_reason text; listed_due_on date; today date := (now() at time zone 'Asia/Kolkata')::date; begin
   r := public.process_qr_access('30000000-0000-4000-8000-000000000004',1,gen_random_uuid(),null,true);
-  assert r->>'status'='allowed' and r->>'access_mode'='temporary', 'Follow-up date remains temporary access';
+  assert r->>'status'='allowed' and r->>'access_mode'='payment_due_soon', 'Due today remains allowed with a warning';
   r := public.process_qr_access('30000000-0000-4000-8000-000000000004',1,'50000000-0000-4000-8000-000000000014');
-  assert r->>'status'='recorded' and r->>'access_mode'='temporary', 'Temporary scan records normal attendance';
+  assert r->>'status'='recorded' and r->>'access_mode'='payment_due_soon', 'A warning scan records normal attendance';
+  update public.charges set due_on=today+30 where id='60000000-0000-4000-8000-000000000004';
+  r := public.process_qr_access('30000000-0000-4000-8000-000000000004',1,gen_random_uuid(),null,true);
+  assert r->>'status'='allowed' and r->>'access_mode'='paid', 'More than seven days before follow-up stays normal green';
+  update public.charges set due_on=today+7 where id='60000000-0000-4000-8000-000000000004';
+  r := public.process_qr_access('30000000-0000-4000-8000-000000000004',1,gen_random_uuid(),null,true);
+  assert r->>'status'='allowed' and r->>'access_mode'='payment_due_soon', 'Warning starts seven days before follow-up';
   update public.charges set due_on=today+2 where id='60000000-0000-4000-8000-000000000004';
   r := public.process_qr_access('30000000-0000-4000-8000-000000000004',1,gen_random_uuid(),null,true);
-  assert r->>'status'='allowed' and r->>'access_mode'='temporary' and r->>'due_on'=(today+2)::text, 'Rescheduling extends temporary access through the new date';
+  assert r->>'status'='allowed' and r->>'access_mode'='payment_due_soon' and r->>'due_on'=(today+2)::text, 'Rescheduling updates the warning and access date';
   update public.charges set due_on=today-1 where id='60000000-0000-4000-8000-000000000004';
   r := public.process_qr_access('30000000-0000-4000-8000-000000000004',1,'50000000-0000-4000-8000-000000000015');
   assert r->>'status'='denied' and r->'attempt'->>'reason'='payment_overdue', 'Overdue balance denies access';
+  select reason, due_on into listed_reason, listed_due_on from public.list_denied_access_attempts('Partial payer');
+  assert listed_reason='payment_overdue' and listed_due_on=today-1, 'Denied attempts view exposes the payment-hold reason and deadline';
   select count(*) into n from public.attendance_events where member_id='30000000-0000-4000-8000-000000000004';
   assert n=1, 'Payment hold attempts never become attendance';
   select count(*) into n from public.charge_due_date_changes where charge_id='60000000-0000-4000-8000-000000000004';
-  assert n=2, 'Each follow-up date change is audited';
+  assert n=4, 'Each follow-up date change is audited';
 end $$;
 reset role;
 insert into public.payments(gym_id,charge_id,amount_paise,method,paid_on,receipt_number)

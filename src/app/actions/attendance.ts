@@ -124,8 +124,8 @@ export async function recordAttendance(formData: FormData) {
     if (result?.status === "denied") go(scanPath, "error", result.attempt?.reason === "payment_overdue" ? "Entry unavailable — please contact the gym." : "Membership expired — access denied. Attempt logged.");
     if (result?.status === "allowed") go(scanPath, "success", "Membership is now active. Review access before recording attendance.");
     if (result?.status !== "recorded" || !result.event) throw new Error("Unable to confirm attendance. Please retry.");
-    go(scanPath, "success", result.access_mode === "temporary"
-      ? `Temporary access — payment follow-up due ${formatDisplayDate(result.due_on)}. ${attendanceLabel(input.direction)} recorded.`
+    go(scanPath, "success", result.access_mode === "payment_due_soon"
+      ? `Balance due by ${formatDisplayDate(result.due_on)} — entry allowed. ${attendanceLabel(input.direction)} recorded.`
       : `${attendanceLabel(input.direction)} recorded`);
   } catch (error) {
     if (isRedirect(error)) throw error;
@@ -134,8 +134,9 @@ export async function recordAttendance(formData: FormData) {
 }
 
 export type ScannerAttendanceResult = {
-  status: "recorded" | "temporary" | "denied";
+  status: "recorded" | "warning" | "denied";
   message: string;
+  deniedAttemptLogged?: boolean;
   token?: string;
   direction?: AttendanceDirection;
   memberName?: string;
@@ -187,7 +188,7 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
       revalidatePath("/attendance");
       const paymentHold = result.attempt.reason === "payment_overdue";
       return {
-        status: "denied", message: paymentHold ? "Entry unavailable — please contact the gym." : `Membership expired — access denied. Attempt ${result.duplicate ? "already logged" : "logged"}.`,
+        status: "denied", deniedAttemptLogged: true, message: paymentHold ? "Entry unavailable — please contact the gym." : `Membership expired — access denied. Attempt ${result.duplicate ? "already logged" : "logged"}.`,
         memberName: member.name, memberCode: member.member_code,
         photoUrl: await signedMemberPhotoUrl(supabase, member.profile_photo_path),
         occurredAt: formatDisplayDateTime(result.attempt.occurred_at, gym.timezone),
@@ -199,12 +200,12 @@ async function recordScannerMovement(rawValue: string, requestId: string, forced
     const direction = event?.direction ?? forcedDirection ?? "entry";
     const occurredAt = event?.occurred_at ?? new Date().toISOString();
     const duplicateSuppressed = event?.request_id !== parsedRequestId;
-    const temporaryAccess = result.access_mode === "temporary";
+    const paymentDueSoon = result.access_mode === "payment_due_soon";
     revalidatePath("/attendance");
     return {
-      status: temporaryAccess ? "temporary" : "recorded",
-      message: temporaryAccess
-        ? `Temporary access — payment follow-up due ${formatDisplayDate(result.due_on)}.`
+      status: paymentDueSoon ? "warning" : "recorded",
+      message: paymentDueSoon
+        ? `Balance due by ${formatDisplayDate(result.due_on)} — entry allowed. ${attendanceLabel(direction)} recorded.`
         : duplicateSuppressed
         ? `Scanned again within 30 seconds. ${attendanceLabel(direction)} remains recorded; no additional attendance was created.`
         : `${attendanceLabel(direction)} recorded`,

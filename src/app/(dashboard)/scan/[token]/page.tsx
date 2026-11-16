@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { recordAttendance } from "@/app/actions/attendance";
 import { Feedback } from "@/components/feedback";
 import { requireGym } from "@/lib/auth";
-import { attendanceLabel, businessDate, formatDisplayDate, formatDisplayDateLong, formatDisplayDateTime, formatMembershipDuration, membershipRemainingDays, nextAttendanceDirection } from "@/lib/domain";
+import { attendanceLabel, businessDate, calculatePaymentFollowUpDate, formatDisplayDate, formatDisplayDateLong, formatDisplayDateTime, formatMembershipDuration, membershipRemainingDays, nextAttendanceDirection } from "@/lib/domain";
 import { signedMemberPhotoUrl } from "@/lib/member-photo";
 import { SubmitButton } from "@/components/submit-button";
 import { isShortQrCode, verifyQrToken, type QrTokenPayload } from "@/lib/qr-token";
@@ -56,7 +56,7 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
   const paymentDue = Number(activeCharge?.balance_paise ?? 0) > 0;
   const followUpDate = activeCharge?.due_on ?? null;
   const paymentOverdue = paymentDue && followUpDate !== null && followUpDate < today;
-  const temporaryAccess = paymentDue && !paymentOverdue;
+  const paymentDueSoon = paymentDue && !paymentOverdue && followUpDate !== null && followUpDate <= calculatePaymentFollowUpDate(today);
   const allowed = qrValid && Boolean(membership) && !paymentOverdue;
   const lastEventDate = lastEvent ? businessDate(gym.timezone, new Date(lastEvent.occurred_at)) : null;
   const suggestedDirection = nextAttendanceDirection(lastEvent?.direction ?? null, lastEventDate, today);
@@ -68,7 +68,7 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
     : membership && paymentOverdue
       ? "Entry unavailable — please contact the gym."
       : membership
-      ? `${temporaryAccess && followUpDate ? "Temporary access · payment follow-up " + formatDisplayDate(followUpDate) + " · " : ""}${membership.plan_name} · ${remainingLabel} · valid through ${formatDisplayDateLong(membership.expires_on)}`
+      ? `${paymentDueSoon && followUpDate ? "Balance due by " + formatDisplayDate(followUpDate) + " · entry allowed · " : ""}${membership.plan_name} · ${remainingLabel} · valid through ${formatDisplayDateLong(membership.expires_on)}`
       : expiredMembership
         ? `${remainingLabel ?? "Membership expired"} · ended ${formatDisplayDateLong(expiredMembership.expires_on)}`
       : `No active membership for ${formatDisplayDate(today)}`;
@@ -83,15 +83,15 @@ export default async function ScanPage({ params, searchParams }: { params: Promi
     </div>
     <Feedback success={query.success} error={query.error}/>
     <div className="scan-layout">
-      <section className={`card scan-card ${temporaryAccess && qrValid ? "temporary" : allowed ? "allowed" : "denied"}`}>
+      <section className={`card scan-card ${paymentDueSoon && qrValid ? "warning" : allowed ? "allowed" : "denied"}`}>
         <div className="scan-status">
           <span className="member-avatar scan">{photoUrl ? <Image src={photoUrl} alt="" width={96} height={96} unoptimized/> : member.name.slice(0, 1).toUpperCase()}</span>
-          <span className={`scan-pill ${temporaryAccess && qrValid ? "temporary" : allowed ? "allowed" : "denied"}`}>{temporaryAccess && qrValid ? "Temporary access" : allowed ? "Access allowed" : "Access denied"}</span>
+          <span className={`scan-pill ${paymentDueSoon && qrValid ? "warning" : allowed ? "allowed" : "denied"}`}>{paymentDueSoon && qrValid ? "Balance due soon · entry allowed" : allowed ? "Access allowed" : "Access denied"}</span>
           <h2>{member.name}</h2>
           <p>{member.member_code} · {member.phone}</p>
         </div>
-        <div className={`scan-access-note ${temporaryAccess && qrValid ? "temporary" : allowed ? "allowed" : "denied"}`}>
-          <strong>{paymentOverdue && qrValid ? "Entry unavailable" : temporaryAccess && qrValid ? "Temporary access" : allowed ? "Membership active" : "Do not admit with this QR"}</strong>
+        <div className={`scan-access-note ${paymentDueSoon && qrValid ? "warning" : allowed ? "allowed" : "denied"}`}>
+          <strong>{paymentOverdue && qrValid ? "Entry unavailable" : paymentDueSoon && qrValid ? "Balance due soon — entry allowed" : allowed ? "Membership active" : "Do not admit with this QR"}</strong>
           <span>{accessMessage}</span>
         </div>
         {allowed && <div className="scan-actions">

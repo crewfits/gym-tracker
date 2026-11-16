@@ -18,7 +18,7 @@ select set_config('request.jwt.claim.sub','11000000-0000-4000-8000-000000000001'
 set local role authenticated;
 do $$
 declare
- details jsonb := '{"name":"Split Member","phone":"9876543210","email":"","notes":"","plan_id":"31000000-0000-4000-8000-000000000001","starts_on":"2026-09-11","expires_on":"2026-10-10","subtotal_paise":100000,"discount_paise":0,"gst_rate_basis_points":0,"generate_qr":true}';
+ details jsonb := '{"name":"Split Member","phone":"9876543210","email":"","notes":"","plan_id":"31000000-0000-4000-8000-000000000001","starts_on":"2026-09-11","expires_on":"2026-10-10","due_on":"2026-12-11","subtotal_paise":100000,"discount_paise":0,"gst_rate_basis_points":0,"generate_qr":true}';
  rows jsonb := '[{"amount_paise":30000,"method":"upi","paid_on":"2026-09-10","reference":"UPI-123"},{"amount_paise":20000,"method":"cash","paid_on":"2026-09-11","reference":""}]';
  request_id uuid := gen_random_uuid();
  a jsonb; b jsonb; c jsonb; balance bigint; n integer; before_counter bigint; before_members integer;
@@ -27,6 +27,7 @@ begin
  assert jsonb_array_length(a->'payment_ids')=2;
  select count(*) into n from public.payments where operation_id=(a->>'operation_id')::uuid; assert n=2;
  select balance_paise into balance from public.charge_balances where id=(a->>'charge_id')::uuid; assert balance=50000, 'Partial balance incorrect';
+ assert exists(select 1 from public.charges where id=(a->>'charge_id')::uuid and due_on='2026-12-11'), 'Activation must save the selected follow-up date';
  assert exists(select 1 from public.payments where id=(a->'payment_ids'->>0)::uuid and method='upi' and paid_on='2026-09-10' and reference='UPI-123');
  assert exists(select 1 from public.member_qr_credentials where member_id=(a->>'member_id')::uuid and version=1 and enabled);
  b := public.submit_payment_operation(request_id,'activate',details,rows);
@@ -74,6 +75,7 @@ begin
  b := public.submit_payment_operation(request_id,'renew',details,'[]');
  assert jsonb_array_length(b->'payment_ids')=0;
  assert exists(select 1 from public.memberships where id=(b->>'membership_id')::uuid and starts_on='2026-10-11');
+ assert exists(select 1 from public.charges where membership_id=(b->>'membership_id')::uuid and due_on='2026-12-11'), 'Renewal must save the selected follow-up date';
  c := public.submit_payment_operation(request_id,'renew',details,'[]'); assert b=c;
  begin
   perform public.submit_payment_operation(gen_random_uuid(),'collect',jsonb_build_object('member_id','41000000-0000-4000-8000-000000000002','charge_id',a->>'charge_id'),rows);
