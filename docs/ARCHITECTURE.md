@@ -72,6 +72,10 @@ Important modules:
 - `supabase/migrations/20261010170953_owner_membership_correction_payments.sql` adds idempotent correction-plus-payment operations. An increase must collect the exact corrected balance in the same transaction; its payment operation is tagged so owner, public, and emailed receipts render a consolidated final view of every net payment on that membership without reassigning historical payment rows.
 - `supabase/migrations/20261112090000_payment_followup_qr_access.sql` applies payment follow-up dates to QR access, logs overdue-payment scan denials separately from attendance, and audits follow-up date changes. `20261116090000_selectable_payment_followup_dates.sql` allows activation, enrollment, and renewal to save an owner-selected date while retaining the seven-day default for older callers.
 
+## Member directory search
+
+`search_members` is a security-invoker, gym-scoped RPC shared by the member directory and CSV export. It validates allowlisted fields and filter values, applies combined criteria, attendance predicates, sorting and pagination in PostgreSQL, and returns a count even for an empty page. Attendance uses gym-local week boundaries and excludes voided events. Membership and plan selection preserve the renewal-aware displayed period; balances include all non-reverted periods. `list_member_filter_plans` supplies current and historical plan names. The URL contract translates legacy dashboard status links and keeps the former active-roster restriction for attendance shortcuts. Apply migration `20261121143133_member_directory_filters.sql` before deploying the application.
+
 ## Authentication and data isolation
 
 The owner account is provisioned by us. Public account creation is not part of V1.
