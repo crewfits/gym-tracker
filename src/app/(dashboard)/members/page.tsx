@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowDownToLine, Plus, RefreshCw, Share2, UserRoundPen } from "lucide-react";
+import { Plus, RefreshCw, Share2, UserRoundPen } from "lucide-react";
 import { issueMemberQr } from "@/app/actions/attendance";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
 import { Feedback } from "@/components/feedback";
+import { MemberExportButton } from "@/components/member-export-button";
 import { MemberSearchFilters } from "@/components/member-search-filters";
 import { MemberFilterError, memberFilterRpcArgs, parseMemberFilters, serializeMemberFilters } from "@/lib/member-filters";
 import { Pagination } from "@/components/pagination";
@@ -83,10 +84,10 @@ export default async function Members({ searchParams }: PageProps<"/members">) {
   return <>
     <div className="page-head">
       <div><p className="eyebrow">Directory</p><h1>Members</h1><p className="muted">Search, review and take action across the full member history.</p></div>
-      <div className="page-actions"><a className="button secondary" href={refreshHref}><RefreshCw size={16}/> Refresh</a>{canAccess(viewer, "exports.members", "csv_exports") && <a className="button secondary" href={`/api/exports/members?${exportQuery.toString()}`}><ArrowDownToLine size={16}/> Export this view</a>}{canAccess(viewer, "members.create") && <Link className="button" href="/members/new"><Plus size={17}/> Add member</Link>}</div>
+      <div className="page-actions"><a className="button secondary" href={refreshHref}><RefreshCw size={16}/> Refresh</a>{canAccess(viewer, "exports.members", "csv_exports") && <MemberExportButton href={`/api/exports/members?${exportQuery.toString()}`}/>}{canAccess(viewer, "members.create") && <Link className="button" href="/members/new"><Plus size={17}/> Add member</Link>}</div>
     </div>
     <Feedback success={success} error={error}/>
-    <MemberSearchFilters key={serializeMemberFilters(filters).toString()} filters={filters} plans={(planRows ?? []).map((row: { plan_name: string }) => row.plan_name)} total={total}/>
+    <MemberSearchFilters filters={filters} plans={(planRows ?? []).map((row: { plan_name: string }) => row.plan_name)} total={total}/>
     <div className="card table-wrap members-table-card">
       <table className="table">
         <colgroup><col className="member-column-id"/><col className="member-column-old-id"/><col className="member-column-name"/><col className="member-column-contact"/><col className="member-column-plan"/><col className="member-column-expiry"/><col className="member-column-balance"/><col className="member-column-status"/><col className="member-column-actions"/></colgroup>
